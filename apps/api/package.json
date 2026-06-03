@@ -8,7 +8,8 @@
     "start": "node dist/server.js",
     "migrate:platform": "tsx src/scripts/migrate.ts platform",
     "migrate:tenant": "tsx src/scripts/migrate.ts tenant",
-    "seed:platform": "tsx src/scripts/seed.ts platform"
+    "seed:platform": "tsx src/scripts/seed.ts platform",
+    "create:admin": "tsx src/scripts/create-admin.ts"
   },
   "dependencies": {
     "@arkeflow/shared": "workspace:*",
