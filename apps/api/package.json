@@ -12,12 +12,12 @@
   },
   "dependencies": {
     "@arkeflow/shared": "workspace:*",
-    "@fastify/cors": "^9.0.0",
+    "@fastify/cors": "^10.0.0",
     "@fastify/jwt": "^9.0.0",
-    "@fastify/multipart": "^8.3.0",
+    "@fastify/multipart": "^9.0.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.0",
-    "fastify": "^4.28.0",
+    "fastify": "^5.0.0",
     "pg": "^8.12.0",
     "zod": "^3.23.0"
   },
