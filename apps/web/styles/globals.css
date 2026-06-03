@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --midnight:       #071828;
+    --deep-ocean:     #0D2B45;
+    --ocean-depth:    #1A4F72;
+    --teal-current:   #1B8B9A;
+    --electric-cyan:  #00C8DC;
+    --sea-foam:       #E8F4F8;
+    --steel:          #5B8AA8;
+    --mint-green:     #26FF93;
+  }
+
+  body {
+    @apply bg-midnight text-sea-foam font-sans antialiased;
+  }
+
+  /* Scrollbar discreta no tema escuro */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--midnight); }
+  ::-webkit-scrollbar-thumb { background: var(--ocean-depth); border-radius: 3px; }
+}

@@ -1,0 +1,12 @@
+import { z } from 'zod'
+
+const schema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.coerce.number().default(3001),
+  DATABASE_URL: z.string(),
+  JWT_SECRET: z.string().min(16),
+  JWT_EXPIRES_IN: z.string().default('7d'),
+})
+
+// Falha no boot se alguma variável obrigatória estiver ausente
+export const env = schema.parse(process.env)

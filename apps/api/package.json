@@ -1,0 +1,30 @@
+{
+  "name": "@arkeflow/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "migrate:platform": "tsx src/scripts/migrate.ts platform",
+    "migrate:tenant": "tsx src/scripts/migrate.ts tenant",
+    "seed:platform": "tsx src/scripts/seed.ts platform"
+  },
+  "dependencies": {
+    "@arkeflow/shared": "workspace:*",
+    "@fastify/cors": "^9.0.0",
+    "@fastify/jwt": "^9.0.0",
+    "@fastify/multipart": "^8.3.0",
+    "bcryptjs": "^2.4.3",
+    "fastify": "^4.28.0",
+    "pg": "^8.12.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
