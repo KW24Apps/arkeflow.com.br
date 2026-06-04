@@ -1,20 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { clientesApi } from '@/lib/api/clientes'
+import { cashbackApi, type RegraCashback } from '@/lib/api/cashback'
 
 export default function NovoClientePage() {
   const router = useRouter()
-  const [nome,     setNome]     = useState('')
-  const [telefone, setTelefone] = useState('')
-  const [cpf,      setCpf]      = useState('')
-  const [email,    setEmail]    = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [erro,     setErro]     = useState('')
+  const [nome,            setNome]            = useState('')
+  const [telefone,        setTelefone]        = useState('')
+  const [cpf,             setCpf]             = useState('')
+  const [email,           setEmail]           = useState('')
+  const [regraCashbackId, setRegraCashbackId] = useState('')
+  const [regras,          setRegras]          = useState<RegraCashback[]>([])
+  const [loading,         setLoading]         = useState(false)
+  const [erro,            setErro]            = useState('')
+
+  useEffect(() => {
+    cashbackApi.list().then(rs => {
+      setRegras(rs)
+      const padrao = rs.find(r => r.padrao)
+      if (padrao) setRegraCashbackId(padrao.id)
+    })
+  }, [])
 
   async function handleSalvar(e: React.FormEvent) {
     e.preventDefault()
@@ -22,7 +33,11 @@ export default function NovoClientePage() {
     if (!nome.trim()) { setErro('Nome é obrigatório.'); return }
     setLoading(true)
     try {
-      const c = await clientesApi.create({ nome, telefone: telefone || undefined, cpf: cpf || undefined, email: email || undefined })
+      const c = await clientesApi.create({
+        nome, telefone: telefone || undefined, cpf: cpf || undefined,
+        email: email || undefined,
+        regra_cashback_id: regraCashbackId || undefined,
+      } as any)
       router.push(`/painel/clientes/${c.id}`)
     } catch (err: any) {
       setErro(err?.response?.data?.error ?? 'Erro ao salvar.')
@@ -39,6 +54,21 @@ export default function NovoClientePage() {
             <Input label="Telefone" type="tel" value={telefone} onChange={e => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
             <Input label="CPF" value={cpf} onChange={e => setCpf(e.target.value)} placeholder="000.000.000-00" />
             <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@exemplo.com" />
+
+            {regras.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-steel uppercase tracking-wider">Regra de Cashback</label>
+                <select value={regraCashbackId} onChange={e => setRegraCashbackId(e.target.value)}
+                  className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan">
+                  <option value="">Sem cashback</option>
+                  {regras.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.nome} — {Number(r.percentual).toFixed(1)}%{r.padrao ? ' (padrão)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </section>
 
           {erro && <p className="text-red-400 text-sm text-center">{erro}</p>}

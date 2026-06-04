@@ -41,9 +41,8 @@ export const SECTIONS = [
     href:  '/painel/financeiro',
     match: ['/painel/financeiro'],
     sub: [
-      { label: 'Fluxo de Caixa',    href: '/painel/financeiro' },
-      { label: 'Contas a Receber',  href: '/painel/financeiro/contas-receber' },
-      { label: 'Lançamentos',       href: '/painel/financeiro/lancamentos' },
+      { label: 'Fluxo de Caixa',   href: '/painel/financeiro' },
+      { label: 'Contas a Receber', href: '/painel/financeiro/contas-receber' },
     ],
   },
   {
@@ -80,10 +79,8 @@ export const SECTIONS = [
     label: 'Clientes',
     href:  '/painel/clientes',
     match: ['/painel/clientes'],
-    // Cashback vinculado ao tipo de cliente — regras e tipos ficam aqui
     sub: [
       { label: 'Clientes',          href: '/painel/clientes' },
-      { label: 'Tipos de Cliente',  href: '/painel/clientes/tipos' },
       { label: 'Regras de Cashback',href: '/painel/clientes/cashback' },
     ],
   },
