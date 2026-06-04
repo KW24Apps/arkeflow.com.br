@@ -272,10 +272,93 @@ nome, tipo, aplicacao (produto/categoria/todos), produtos_selecionados[], catego
 
 ---
 
+## Checkout da Venda (A CONSTRUIR — PRIORIDADE 1)
+
+**Status:** stub criado em `/pdv/checkout`. Precisa implementar o fluxo completo:
+1. Selecionar forma(s) de pagamento (split permitido)
+2. Aplicar promoções ativas via `calcularDesconto.ts`
+3. Deduzir estoque de cada variação
+4. Gravar `vendas` + `itens_venda` + `pagamentos_venda`
+5. Gerar `lancamentos` de entrada
+6. Registrar cashback em `historico_cashback`
+7. Se crediário: gerar `parcelas_crediario`
+
+---
+
+## Caixa — Histórico (A CONSTRUIR)
+
+**Status:** stub. Precisa mostrar vendas realizadas com filtro por data/vendedor/cliente e resumo financeiro do dia.
+
+---
+
 ## Relatórios (A CONSTRUIR)
 
-**Status:** páginas stub criadas, sem dados reais ainda.
-Sub-páginas planejadas: Vendas, Produtos, Financeiro, Clientes.
+**Status:** páginas stub criadas.
+Sub-páginas planejadas: Vendas (por período/vendedor/cliente), Produtos (mais vendidos, giro), Financeiro (entradas/saídas/saldo), Clientes (ticket médio, recorrência).
+Histórico de acessos por colaborador também entra aqui.
+
+---
+
+## Configurações Gerais (A CONSTRUIR)
+
+**Status:** stub em `/painel/configuracoes/geral`.
+Conteúdo planejado: logo da loja (upload), dados da empresa (nome, CNPJ, endereço), configuração da API de NF-e, portal do cliente.
+
+---
+
+## NF-e / NFC-e (A CONSTRUIR)
+
+**Status:** não iniciado. Usar API terceira (Focus NFe ou eNotas). Configuração em Configurações Gerais. Campo `fiscal` nos produtos a adicionar.
+
+---
+
+## Funcionalidades Futuras (Planejadas)
+
+### WhatsApp Integration
+- Conectar via QR code (API não-oficial, ex: wwjs/baileys)
+- Por loja: cada dono conecta seu número
+- Mensagens: cobrança de crediário, confirmações, promoções
+- Futuro: disparos programados, chatbot básico
+
+### Filial
+- Mesmo catálogo de produtos compartilhado entre filiais da mesma loja
+- Estoque separado por unidade (tabela `estoque_por_filial`)
+- Colaborador acessa uma ou mais filiais
+- PDV mostra disponibilidade em cada filial
+- Impacta arquitetura multi-tenant — requer planejamento específico
+
+### Apps Nativos
+- Windows, macOS/iOS, Android — placeholders no menu do usuário ("em breve")
+- Candidato: Capacitor.js ou Tauri sobre o PWA existente
+
+### Portal do Cliente
+- Acesso do cliente à própria conta (histórico, cashback, perfil)
+- URL separada ou subdomínio
+
+### Fotos do Produto
+- Múltiplas fotos por produto
+- Auto-resize e compressão (possível uso de AI)
+- Armazenamento local ou S3
+
+### Filtro por Medidas do Cliente no PDV
+- No PDV: "buscar produtos para este cliente"
+- Sistema filtra variações cujas medidas coincidem com as medidas cadastradas no cliente
+
+### Consignação ("Levar para Experimentar")
+- Saída temporária do estoque
+- Prazo para retorno ou confirmação de compra
+- Painel de controle de peças em consignação
+
+### Offline / Sync do PDV
+- Vendas salvas em IndexedDB quando sem internet
+- Sincronização automática ao reconectar
+- Tratamento de conflitos de estoque
+
+### Cobrança Automática de Assinatura
+- Débito mensal por loja (Fase 3)
+
+### Portal de Parceiros
+- Revendedores do sistema ARKEflow (Fase 3)
 
 ---
 
