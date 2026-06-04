@@ -299,10 +299,29 @@ Histórico de acessos por colaborador também entra aqui.
 
 ---
 
-## Configurações Gerais (A CONSTRUIR)
+## Configurações Gerais ✅
 
-**Status:** stub em `/painel/configuracoes/geral`.
-Conteúdo planejado: logo da loja (upload), dados da empresa (nome, CNPJ, endereço), configuração da API de NF-e, portal do cliente.
+**Status:** implementado com dois sub-menus.
+
+### Dados da Empresa (`/painel/configuracoes/dados`)
+- CNPJ, nome: somente leitura
+- Endereço completo: editável
+- Link da loja (futuro subdomínio): editável
+- Contatos por tipo: comercial, financeiro, sócio — múltiplos por tipo
+- Tabelas separadas: `lojas_contatos` (plataforma) e `clientes_contatos` (tenant)
+
+### Configurações do Sistema (`/painel/configuracoes/sistema`)
+- **Logo da loja**: upload via browser (Canvas HTML5 resize para 400×200px, WebP, sem Sharp)
+  - Quando configurada: aparece no topo da sidebar no lugar do ARKEflow
+  - ARKEflow fica discreto no rodapé da sidebar
+  - Arquivos em `/uploads/logos/{loja_id}.webp`, servidos pelo Nginx com cache de 30 dias
+- **Controle de estoque global**: toggle
+
+### Sidebar com logo do cliente
+- `LojaLoader.tsx` carrega `/dados-loja/sistema` uma vez ao montar o painel
+- `useLojaStore` (Zustand) armazena `logo_url` para uso na sidebar
+- Sem logo → ARKEflow no topo + rodapé (discreto)
+- Com logo → logo do cliente no topo + ARKEflow pequeno no rodapé
 
 ---
 
