@@ -240,6 +240,20 @@ ALTER TABLE clientes_contatos ADD COLUMN pessoa_id UUID REFERENCES pessoas(id);
 
 ---
 
+## Layout: TopBar + Secondary Nav — Redundância
+
+**Observação:** quando uma seção tem sub-menus na barra horizontal (ex: Produtos mostra "Produtos · Tamanhos · Cores..."), o título "Produtos" no TopBar fica redundante — o sub-menu já deixa claro onde o usuário está.
+
+**Sugestão do usuário:** o sub-menu horizontal deveria ficar NA MESMA LINHA do TopBar (onde fica o título), eliminando a barra dupla. O TopBar ficaria apenas com: [sub-menus à esquerda] + [avatar/usuário à direita]. Sem título separado.
+
+**Quando não tem sub-menu** (ex: Dashboard, Promoções): o título continua fazendo sentido.
+
+**Afeta todos:** Produtos, Clientes, Colaboradores, Financeiro, Configurações — qualquer seção com sub-menu na barra horizontal.
+
+**Implementação futura:** tornar o TopBar dinâmico — se a seção tem sub-menus, exibe os tabs no lugar do título; se não tem, exibe o título da página. O avatar/usuário fica sempre à direita. Isso elimina a barra dupla e economiza espaço vertical.
+
+---
+
 ## Ideias Menores / Refinamentos
 
 | Ideia | Contexto |

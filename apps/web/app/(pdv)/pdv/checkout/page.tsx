@@ -61,7 +61,7 @@ export default function PDVCheckout() {
   function addForma() {
     const usadas = pagamentos.map(p => p.forma.id)
     const livre  = formas.find(f => f.ativo && !usadas.includes(f.id))
-    if (libre) setPagamentos(prev => [...prev, { forma: livre!, valor: '', parcelas: 1 }])
+    if (livre) setPagamentos(prev => [...prev, { forma: livre!, valor: '', parcelas: 1 }])
   }
 
   function updatePag(i: number, field: keyof Pagamento, val: any) {
