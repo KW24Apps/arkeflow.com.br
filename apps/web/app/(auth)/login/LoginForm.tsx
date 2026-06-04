@@ -6,13 +6,21 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { loginRequest } from '@/lib/api/auth'
 import { useAuthStore } from '@/store/auth.store'
-import type { NivelUsuario } from '@arkeflow/shared'
+import type { NivelUsuario, JwtPayload } from '@arkeflow/shared'
 
-const redirectByNivel: Record<NivelUsuario, string> = {
-  admin_plataforma: '/admin/dashboard',
-  parceiro:         '/painel/dashboard',
-  dono_loja:        '/painel/dashboard',
-  vendedor:         '/pdv',
+// Vendedor com permissões de painel → painel. Sem permissões → PDV mobile.
+function getRedirectPath(usuario: JwtPayload): string {
+  const rotas: Record<NivelUsuario, string> = {
+    admin_plataforma: '/admin/dashboard',
+    parceiro:         '/painel/dashboard',
+    dono_loja:        '/painel/dashboard',
+    vendedor:         '/pdv',
+  }
+  if (usuario.nivel === 'vendedor') {
+    const temPainel = Array.isArray(usuario.permissoes) && usuario.permissoes.length > 0
+    return temPainel ? '/painel/dashboard' : '/pdv'
+  }
+  return rotas[usuario.nivel]
 }
 
 export function LoginForm() {
@@ -36,7 +44,7 @@ export function LoginForm() {
       // Salva em cookie para o middleware Next.js poder ler
       document.cookie = `arkeflow_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`
 
-      router.push(redirectByNivel[usuario.nivel])
+      router.push(getRedirectPath(usuario))
     } catch (err: any) {
       setErro(err?.response?.data?.error ?? 'Erro ao conectar. Tente novamente.')
     } finally {
