@@ -63,10 +63,12 @@ export async function login(email: string, senha: string, ip?: string): Promise<
     usuario.nivel === 'vendedor' ? (usuario.permissoes ?? []) : ['*']
 
   return {
-    id: usuario.id,
-    email: usuario.email,
-    nivel: usuario.nivel,
-    loja_id: usuario.loja_id ?? null,
+    id:        usuario.id,
+    nome:      usuario.nome,
+    email:     usuario.email,
+    username:  usuario.username ?? null,
+    nivel:     usuario.nivel,
+    loja_id:   usuario.loja_id ?? null,
     banco_id,
     permissoes,
   }

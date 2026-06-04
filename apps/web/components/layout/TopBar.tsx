@@ -32,7 +32,11 @@ export function TopBar({ title }: TopBarProps) {
     router.push('/login')
   }
 
-  const nomeExibido = usuario?.email?.split('@')[0] ?? 'Usuário'
+  // Prioridade: nome > username > prefixo do email
+  const nomeExibido = (usuario as any)?.nome
+    || (usuario as any)?.username
+    || usuario?.email?.split('@')[0]
+    || 'Usuário'
 
   return (
     <header className="h-14 bg-deep-ocean border-b border-ocean-depth px-4 md:px-6 pl-20 lg:pl-6 flex items-center justify-between shrink-0">
@@ -58,10 +62,11 @@ export function TopBar({ title }: TopBarProps) {
               <p className="text-steel text-xs capitalize">{usuario?.nivel?.replace('_', ' ')}</p>
             </div>
 
-            <a href="/painel/configuracoes/geral"
+            {/* Meus Dados — editar perfil próprio */}
+            <a href="/painel/perfil"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 min-h-[44px] px-4 text-sm text-steel hover:text-sea-foam hover:bg-ocean-depth transition-colors">
-              <span>⚙️</span> Configurações
+              <span>👤</span> Meus Dados
             </a>
 
             {/* Downloads do app */}

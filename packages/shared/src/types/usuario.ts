@@ -7,7 +7,9 @@ export type NivelUsuario =
 // Payload gravado no JWT após login
 export interface JwtPayload {
   id: string
+  nome: string             // nome do usuário para exibição
   email: string
+  username?: string | null
   nivel: NivelUsuario
   loja_id: string | null   // null para admin_plataforma
   banco_id: string | null  // nome do banco PostgreSQL da loja
