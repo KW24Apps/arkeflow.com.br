@@ -10,16 +10,19 @@ const auth = [authMiddleware, authorize('dono_loja', 'vendedor')]
 
 const schema = z.object({
   nome:                z.string().min(1),
+  codigo:              z.string().optional().nullable(),   // código promocional futuro
   tipo:                z.enum(['desconto_percentual','desconto_fixo','segunda_peca','compre_ganhe','primeira_compra']),
+  aplica_todos:        z.boolean().default(false),
+  categorias_alvo:     z.array(z.string()).optional(),     // múltiplas categorias
   aplicacao:           z.enum(['produtos_selecionados','categoria','todos']).default('todos'),
   valor_desconto:      z.coerce.number().min(0).optional().nullable(),
   unidade:             z.enum(['percentual','reais']).optional().nullable(),
-  quantidade_compre:   z.coerce.number().int().min(1).optional().nullable(),  // X em "compre X"
-  quantidade_brinde:   z.coerce.number().int().min(1).optional().nullable(),  // Y em "leve Y"
+  quantidade_compre:   z.coerce.number().int().min(1).optional().nullable(),
+  quantidade_brinde:   z.coerce.number().int().min(1).optional().nullable(),
   percentual_brinde:   z.coerce.number().min(0).max(100).optional().nullable(),
   inicio:              z.string().optional().nullable(),
   fim:                 z.string().optional().nullable(),
-  categoria_alvo:      z.string().optional().nullable(),
+  categoria_alvo:      z.string().optional().nullable(),   // legado
   produtos_ids:        z.array(z.string().uuid()).optional(),
   ativo:               z.boolean().default(true),
 })
@@ -68,15 +71,20 @@ export async function promocoesRoutes(app: FastifyInstance) {
 
     const { rows: [p] } = await pool.query(
       `INSERT INTO promocoes (
-         nome, tipo, aplicacao, valor_desconto, unidade,
-         quantidade_compre, quantidade_brinde, percentual_brinde,
+         nome, codigo, tipo, aplicacao, aplica_todos, categorias_alvo,
+         valor_desconto, unidade, quantidade_compre, quantidade_brinde, percentual_brinde,
          inicio, fim, categoria_alvo, ativo
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [data.nome, data.tipo, data.aplicacao, data.valor_desconto ?? null,
-       data.unidade ?? null, data.quantidade_compre ?? null,
-       data.quantidade_brinde ?? null, data.percentual_brinde ?? null,
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [data.nome, data.codigo ?? null, data.tipo,
+       data.aplica_todos ? 'todos' : (data.aplicacao ?? 'produtos_selecionados'),
+       data.aplica_todos ?? false,
+       JSON.stringify(data.categorias_alvo ?? []),
+       data.valor_desconto ?? null, data.unidade ?? null,
+       data.quantidade_compre ?? null, data.quantidade_brinde ?? null,
+       data.percentual_brinde ?? null,
        data.inicio ?? null, data.fim ?? null,
-       data.categoria_alvo ?? null, data.ativo]
+       (data.categorias_alvo?.[0]) ?? data.categoria_alvo ?? null,
+       data.ativo]
     )
 
     if (produtos_ids?.length) {
