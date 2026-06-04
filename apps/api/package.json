@@ -9,7 +9,8 @@
     "migrate:platform": "tsx src/scripts/migrate.ts platform",
     "migrate:tenant": "tsx src/scripts/migrate.ts tenant",
     "seed:platform": "tsx src/scripts/seed.ts platform",
-    "create:admin": "tsx src/scripts/create-admin.ts"
+    "create:admin": "tsx src/scripts/create-admin.ts",
+    "cleanup:logs": "tsx src/scripts/cleanup-logs.ts"
   },
   "dependencies": {
     "@arkeflow/shared": "workspace:*",
