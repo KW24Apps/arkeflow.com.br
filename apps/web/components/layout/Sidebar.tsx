@@ -98,12 +98,21 @@ export function Sidebar({ items, subtitle }: SidebarProps) {
           })}
         </nav>
 
-        <div className="p-3 border-t border-ocean-depth">
+        <div className="p-3 border-t border-ocean-depth flex flex-col gap-1">
+          <Link
+            href="/painel/configuracoes/geral"
+            onClick={() => setOpen(false)}
+            className="w-full min-h-[44px] px-4 flex items-center gap-3 rounded-xl text-sm font-medium text-steel hover:text-sea-foam hover:bg-ocean-depth transition-all"
+          >
+            <span className="text-base">⚙️</span>
+            Configurações
+          </Link>
           <button
             onClick={logout}
-            className="w-full min-h-[48px] px-4 flex items-center rounded-xl text-sm font-medium text-steel hover:text-red-400 hover:bg-ocean-depth transition-all"
+            className="w-full min-h-[44px] px-4 flex items-center gap-3 rounded-xl text-sm font-medium text-steel hover:text-red-400 hover:bg-ocean-depth transition-all"
           >
-            Sair da conta
+            <span className="text-base">🚪</span>
+            Sair
           </button>
         </div>
 

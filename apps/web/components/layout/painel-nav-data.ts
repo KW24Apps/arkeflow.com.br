@@ -1,12 +1,64 @@
-// Arquivo de dados puro — sem 'use client', importável tanto em server quanto client
+// Estrutura de navegação definitiva do painel — definida em 04/06/2026
 
 export const SECTIONS = [
-  { label: 'Dashboard',  href: '/painel/dashboard',            match: ['/painel/dashboard'],             sub: [] },
-  { label: 'Vendas',     href: '/painel/vendas',               match: ['/painel/vendas'],                sub: [] },
-  { label: 'Estoque',    href: '/painel/estoque',              match: ['/painel/estoque'],               sub: [] },
-  { label: 'Caixa',      href: '/painel/financeiro/caixa',     match: ['/painel/financeiro/caixa'],      sub: [] },
-  { label: 'Crediário',  href: '/painel/financeiro/crediario', match: ['/painel/financeiro/crediario'],  sub: [] },
-  { label: 'Relatórios', href: '/painel/relatorios',           match: ['/painel/relatorios'],            sub: [] },
+
+  // ── Operacional ─────────────────────────────────────────────────────────────
+
+  {
+    label: 'Dashboard',
+    href:  '/painel/dashboard',
+    match: ['/painel/dashboard'],
+    sub:   [],
+  },
+  {
+    label: 'Caixa',
+    href:  '/painel/caixa',
+    match: ['/painel/caixa'],
+    // Vendas + crediário = mesma tela. NF é tela separada no top bar.
+    sub: [
+      { label: 'Notas Fiscais', href: '/painel/caixa/notas-fiscais' },
+    ],
+  },
+  {
+    label: 'Promoções',
+    href:  '/painel/promocoes',
+    match: ['/painel/promocoes'],
+    // Estrutura interna a definir antes de construir
+    sub:   [],
+  },
+  {
+    label: 'Estoque',
+    href:  '/painel/estoque',
+    match: ['/painel/estoque'],
+    sub: [
+      { label: 'Posição Atual', href: '/painel/estoque' },
+      { label: 'Alertas',       href: '/painel/estoque/alertas' },
+      { label: 'Ajustes',       href: '/painel/estoque/ajustes' },
+    ],
+  },
+  {
+    label: 'Financeiro',
+    href:  '/painel/financeiro',
+    match: ['/painel/financeiro'],
+    sub: [
+      { label: 'Fluxo de Caixa',    href: '/painel/financeiro' },
+      { label: 'Contas a Receber',  href: '/painel/financeiro/contas-receber' },
+      { label: 'Lançamentos',       href: '/painel/financeiro/lancamentos' },
+    ],
+  },
+  {
+    label: 'Relatórios',
+    href:  '/painel/relatorios',
+    match: ['/painel/relatorios'],
+    sub: [
+      { label: 'Vendas',      href: '/painel/relatorios' },
+      { label: 'Produtos',    href: '/painel/relatorios/produtos' },
+      { label: 'Financeiro',  href: '/painel/relatorios/financeiro' },
+      { label: 'Clientes',    href: '/painel/relatorios/clientes' },
+    ],
+  },
+
+  // ── Cadastro ─────────────────────────────────────────────────────────────────
 
   { type: 'divider', label: 'Cadastro' },
 
@@ -14,6 +66,7 @@ export const SECTIONS = [
     label: 'Produtos',
     href:  '/painel/produtos',
     match: ['/painel/produtos', '/painel/cadastros'],
+    // "Fiscal" será adicionado quando a integração NF-e for construída
     sub: [
       { label: 'Produtos',    href: '/painel/produtos' },
       { label: 'Tamanhos',    href: '/painel/cadastros/tamanhos' },
@@ -27,8 +80,20 @@ export const SECTIONS = [
     label: 'Clientes',
     href:  '/painel/clientes',
     match: ['/painel/clientes'],
+    // Cashback vinculado ao tipo de cliente — regras e tipos ficam aqui
     sub: [
-      { label: 'Clientes', href: '/painel/clientes' },
+      { label: 'Clientes',          href: '/painel/clientes' },
+      { label: 'Tipos de Cliente',  href: '/painel/clientes/tipos' },
+      { label: 'Regras de Cashback',href: '/painel/clientes/cashback' },
+    ],
+  },
+  {
+    label: 'Colaboradores',
+    href:  '/painel/colaboradores',
+    match: ['/painel/colaboradores'],
+    sub: [
+      { label: 'Colaboradores', href: '/painel/colaboradores' },
+      { label: 'Permissões',    href: '/painel/colaboradores/permissoes' },
     ],
   },
   {
@@ -39,4 +104,8 @@ export const SECTIONS = [
       { label: 'Formas de Pagamento', href: '/painel/configuracoes/formas-pagamento' },
     ],
   },
+
+  // ── Configurações (rodapé — ícone de engrenagem, não aparece no sidebar principal)
+  // Gerenciado separadamente no componente da sidebar
+
 ] as const
