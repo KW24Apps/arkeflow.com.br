@@ -18,6 +18,7 @@ import { configuracoesRoutes }      from './modules/configuracoes/configuracoes.
 import { dadosLojaRoutes }          from './modules/configuracoes/dados-loja.routes'
 import { modelosPermissaoRoutes }   from './modules/colaboradores/modelos-permissao.routes'
 import { promocoesRoutes }          from './modules/promocoes/promocoes.routes'
+import { vendasRoutes }             from './modules/vendas/vendas.routes'
 
 export function buildApp() {
   const app = Fastify({ logger: env.NODE_ENV === 'development' })
@@ -43,6 +44,7 @@ export function buildApp() {
   app.register(dadosLojaRoutes,        { prefix: '/dados-loja' })
   app.register(modelosPermissaoRoutes, { prefix: '/modelos-permissao' })
   app.register(promocoesRoutes,        { prefix: '/promocoes' })
+  app.register(vendasRoutes,           { prefix: '/vendas' })
 
   return app
 }

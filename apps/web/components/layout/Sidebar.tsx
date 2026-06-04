@@ -6,6 +6,14 @@ import { useState } from 'react'
 import { useAuthStore } from '@/store/auth.store'
 import { useLojaStore } from '@/store/loja.store'
 import { api } from '@/lib/api/client'
+import * as LucideIcons from 'lucide-react'
+
+function NavIcon({ name, size = 16 }: { name?: string; size?: number }) {
+  if (!name) return null
+  const Icon = (LucideIcons as any)[name]
+  if (!Icon) return null
+  return <Icon size={size} strokeWidth={1.5} />
+}
 
 export interface NavItem {
   label: string
@@ -95,13 +103,18 @@ export function Sidebar({ items, subtitle }: SidebarProps) {
                 href={item.href!}
                 onClick={() => setOpen(false)}
                 className={`
-                  min-h-[48px] px-4 flex items-center rounded-xl text-sm font-medium transition-all
+                  min-h-[48px] px-4 flex items-center gap-2.5 rounded-xl text-sm font-medium transition-all
                   ${active
                     ? 'bg-electric-cyan text-midnight'
                     : 'text-steel hover:text-sea-foam hover:bg-ocean-depth active:bg-ocean-depth'
                   }
                 `}
               >
+                {(item as any).icon && (
+                  <span className="shrink-0 opacity-70">
+                    <NavIcon name={(item as any).icon} />
+                  </span>
+                )}
                 {item.label}
               </Link>
             )

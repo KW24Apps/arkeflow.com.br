@@ -2,18 +2,21 @@
 // permSlug: slug usado no sistema de permissões de colaboradores
 //   '*' = sempre visível (dono_loja), undefined = sem controle
 
+// Ícones: nomes do Lucide React (https://lucide.dev)
 export const SECTIONS = [
 
   // ── Operacional ─────────────────────────────────────────────────────────────
 
   {
     label: 'Dashboard',
+    icon:  'LayoutDashboard',
     href:  '/painel/dashboard',
     match: ['/painel/dashboard'],
     sub:   [],
   },
   {
     label: 'Caixa',
+    icon:  'ShoppingCart',
     href:  '/painel/caixa',
     match: ['/painel/caixa'],
     sub: [
@@ -23,13 +26,14 @@ export const SECTIONS = [
   },
   {
     label: 'Promoções',
+    icon:  'Tag',
     href:  '/painel/promocoes',
     match: ['/painel/promocoes'],
-    // Estrutura interna a definir antes de construir
     sub:   [],
   },
   {
     label: 'Estoque',
+    icon:  'Package',
     href:  '/painel/estoque',
     match: ['/painel/estoque'],
     sub: [
@@ -40,6 +44,7 @@ export const SECTIONS = [
   },
   {
     label: 'Financeiro',
+    icon:  'Wallet',
     href:  '/painel/financeiro',
     match: ['/painel/financeiro'],
     sub: [
@@ -49,6 +54,7 @@ export const SECTIONS = [
   },
   {
     label: 'Relatórios',
+    icon:  'BarChart2',
     href:  '/painel/relatorios',
     match: ['/painel/relatorios'],
     sub: [
@@ -65,6 +71,7 @@ export const SECTIONS = [
 
   {
     label: 'Produtos',
+    icon:  'Box',
     href:  '/painel/produtos',
     // match explícito — não usa /painel/cadastros genérico para não capturar /cadastros/configuracoes
     match: [
@@ -86,6 +93,7 @@ export const SECTIONS = [
   },
   {
     label: 'Clientes',
+    icon:  'Users',
     href:  '/painel/clientes',
     match: ['/painel/clientes'],
     sub: [
@@ -95,6 +103,7 @@ export const SECTIONS = [
   },
   {
     label: 'Colaboradores',
+    icon:  'UserCog',
     href:  '/painel/colaboradores',
     match: ['/painel/colaboradores'],
     sub: [
@@ -104,8 +113,8 @@ export const SECTIONS = [
   },
   {
     label: 'Financeiro',
+    icon:  'CreditCard',
     href:  '/painel/configuracoes/formas-pagamento',
-    // match explícito para não capturar /configuracoes/geral
     match: ['/painel/configuracoes/formas-pagamento'],
     sub: [
       { label: 'Formas de Pagamento', href: '/painel/configuracoes/formas-pagamento' },
@@ -113,6 +122,7 @@ export const SECTIONS = [
   },
   {
     label: 'Configurações',
+    icon:  'Settings',
     href:  '/painel/configuracoes/dados',
     match: ['/painel/configuracoes'],
     sub: [
