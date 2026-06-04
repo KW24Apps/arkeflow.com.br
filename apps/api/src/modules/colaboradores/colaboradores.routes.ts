@@ -9,17 +9,45 @@ import type { JwtPayload } from '@arkeflow/shared'
 
 const dono = [authMiddleware, authorize('dono_loja')]
 
+const perfilSchema = z.object({
+  // Pessoal
+  cpf:             z.string().optional().nullable(),
+  rg:              z.string().optional().nullable(),
+  data_nascimento: z.string().optional().nullable(),
+  telefone:        z.string().optional().nullable(),
+  cargo:           z.string().optional().nullable(),
+  // Endereço
+  cep:             z.string().optional().nullable(),
+  logradouro:      z.string().optional().nullable(),
+  numero:          z.string().optional().nullable(),
+  complemento:     z.string().optional().nullable(),
+  bairro:          z.string().optional().nullable(),
+  cidade:          z.string().optional().nullable(),
+  estado:          z.string().max(2).optional().nullable(),
+  // Bancário
+  banco:           z.string().optional().nullable(),
+  agencia:         z.string().optional().nullable(),
+  conta:           z.string().optional().nullable(),
+  conta_digito:    z.string().optional().nullable(),
+  tipo_conta:      z.enum(['corrente', 'poupanca']).optional().nullable(),
+  pix:             z.string().optional().nullable(),
+  // Emprego
+  data_admissao:   z.string().optional().nullable(),
+  salario:         z.coerce.number().positive().optional().nullable(),
+  tipo_contrato:   z.enum(['clt','pj','mei','autonomo','estagio','outro']).optional().nullable(),
+})
+
 const createSchema = z.object({
   nome:        z.string().min(1),
   email:       z.string().email(),
-  senha:       z.string().min(6, 'Senha mínimo 6 caracteres'),
+  senha:       z.string().min(6),
   permissoes:  z.array(z.string()).default([]),
   dias_semana: z.array(z.number().int().min(0).max(6)).optional().nullable(),
   hora_inicio: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
   hora_fim:    z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
-})
+}).merge(perfilSchema)
 
-const updateSchema = z.object({
+const updateAcessoSchema = z.object({
   nome:        z.string().min(1).optional(),
   permissoes:  z.array(z.string()).optional(),
   ativo:       z.boolean().optional(),
@@ -28,21 +56,40 @@ const updateSchema = z.object({
   hora_fim:    z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
 })
 
-const CAMPOS_LISTAGEM = `
-  id, nome, email, nivel, permissoes, ativo, ultimo_acesso,
-  dias_semana, hora_inicio, hora_fim
+const CAMPOS_USER = `
+  u.id, u.nome, u.email, u.nivel, u.permissoes, u.ativo, u.ultimo_acesso,
+  u.dias_semana, u.hora_inicio, u.hora_fim
 `
+
+async function upsertPerfil(usuario_id: string, data: z.infer<typeof perfilSchema>) {
+  const campos = Object.keys(data) as (keyof typeof data)[]
+  const valores = campos.map(k => data[k] ?? null)
+
+  if (!campos.length) return
+
+  const sets     = campos.map((k, i) => `${k} = $${i + 2}`).join(', ')
+  const inserts  = campos.map(k => k).join(', ')
+  const placeholders = campos.map((_, i) => `$${i + 2}`).join(', ')
+
+  await platformPool.query(
+    `INSERT INTO colaboradores_perfil (usuario_id, ${inserts})
+     VALUES ($1, ${placeholders})
+     ON CONFLICT (usuario_id) DO UPDATE SET ${sets}, atualizado_em = NOW()`,
+    [usuario_id, ...valores]
+  )
+}
 
 export async function colaboradoresRoutes(app: FastifyInstance) {
 
-  // Lista TODOS os usuários da loja (dono + vendedores)
   app.get('/', { preHandler: dono }, async (req, reply) => {
     const user = req.user as JwtPayload
     const { rows } = await platformPool.query(
-      `SELECT ${CAMPOS_LISTAGEM}
-       FROM usuarios
-       WHERE loja_id = $1 AND ativo = true
-       ORDER BY nivel DESC, nome`,  // dono primeiro
+      `SELECT ${CAMPOS_USER},
+         cp.cargo, cp.telefone, cp.salario, cp.tipo_contrato
+       FROM usuarios u
+       LEFT JOIN colaboradores_perfil cp ON cp.usuario_id = u.id
+       WHERE u.loja_id = $1 AND u.ativo = true
+       ORDER BY u.nivel DESC, u.nome`,
       [user.loja_id]
     )
     return reply.send(rows)
@@ -52,14 +99,20 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const user = req.user as JwtPayload
     const { id } = req.params as { id: string }
     const { rows: [c] } = await platformPool.query(
-      `SELECT ${CAMPOS_LISTAGEM} FROM usuarios WHERE id = $1 AND loja_id = $2`,
+      `SELECT ${CAMPOS_USER},
+         cp.cpf, cp.rg, cp.data_nascimento, cp.telefone, cp.cargo,
+         cp.cep, cp.logradouro, cp.numero, cp.complemento, cp.bairro, cp.cidade, cp.estado,
+         cp.banco, cp.agencia, cp.conta, cp.conta_digito, cp.tipo_conta, cp.pix,
+         cp.data_admissao, cp.salario, cp.tipo_contrato
+       FROM usuarios u
+       LEFT JOIN colaboradores_perfil cp ON cp.usuario_id = u.id
+       WHERE u.id = $1 AND u.loja_id = $2`,
       [id, user.loja_id]
     )
     if (!c) throw new AppError('Colaborador não encontrado', 404)
     return reply.send(c)
   })
 
-  // Log de acessos de um colaborador
   app.get('/:id/logs', { preHandler: dono }, async (req, reply) => {
     const user = req.user as JwtPayload
     const { id } = req.params as { id: string }
@@ -74,7 +127,6 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     return reply.send(rows)
   })
 
-  // Logs de todos os colaboradores da loja (para o dashboard)
   app.get('/logs/recentes', { preHandler: dono }, async (req, reply) => {
     const user = req.user as JwtPayload
     const { rows } = await platformPool.query(
@@ -98,52 +150,69 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     if (existe) throw new AppError('Este email já está em uso.', 409)
 
     const hash = await bcrypt.hash(data.senha, 10)
-    const { rows: [c] } = await platformPool.query(
+    const { rows: [u] } = await platformPool.query(
       `INSERT INTO usuarios (nome, email, senha_hash, nivel, loja_id, permissoes, dias_semana, hora_inicio, hora_fim, ativo)
-       VALUES ($1,$2,$3,'vendedor',$4,$5,$6,$7,$8,true) RETURNING ${CAMPOS_LISTAGEM}`,
+       VALUES ($1,$2,$3,'vendedor',$4,$5,$6,$7,$8,true) RETURNING id, nome, email, nivel`,
       [data.nome, data.email, hash, user.loja_id,
        JSON.stringify(data.permissoes),
        data.dias_semana ? JSON.stringify(data.dias_semana) : null,
        data.hora_inicio ?? null, data.hora_fim ?? null]
     )
-    return reply.status(201).send(c)
+
+    // Salva perfil complementar
+    const { nome, email, senha, permissoes, dias_semana, hora_inicio, hora_fim, ...perfil } = data
+    if (Object.values(perfil).some(v => v != null)) {
+      await upsertPerfil(u.id, perfil)
+    }
+
+    return reply.status(201).send(u)
   })
 
+  // Atualizar dados de acesso
   app.put('/:id', { preHandler: dono }, async (req, reply) => {
     const user  = req.user as JwtPayload
     const { id } = req.params as { id: string }
-    const data  = updateSchema.parse(req.body)
+    const data  = updateAcessoSchema.parse(req.body)
 
-    // Dono não pode ter permissões alteradas por aqui
     const { rows: [alvo] } = await platformPool.query(
       `SELECT nivel FROM usuarios WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
     )
     if (!alvo) throw new AppError('Colaborador não encontrado', 404)
 
-    const updates: string[] = []
-    const values: any[] = [id, user.loja_id]
+    const upd: string[] = []; const val: any[] = [id, user.loja_id]
+    const add = (f: string, v: any) => { val.push(v); upd.push(`${f} = $${val.length}`) }
 
-    const add = (field: string, val: any) => {
-      values.push(val); updates.push(`${field} = $${values.length}`)
+    if (data.nome        !== undefined) add('nome', data.nome)
+    if (data.ativo       !== undefined) add('ativo', data.ativo)
+    if (data.dias_semana !== undefined) add('dias_semana', data.dias_semana ? JSON.stringify(data.dias_semana) : null)
+    if (data.hora_inicio !== undefined) add('hora_inicio', data.hora_inicio ?? null)
+    if (data.hora_fim    !== undefined) add('hora_fim',    data.hora_fim    ?? null)
+    if (data.permissoes  !== undefined && alvo.nivel === 'vendedor') add('permissoes', JSON.stringify(data.permissoes))
+
+    if (upd.length) {
+      await platformPool.query(
+        `UPDATE usuarios SET ${upd.join(', ')} WHERE id = $1 AND loja_id = $2`, val
+      )
     }
 
-    if (data.nome       !== undefined) add('nome', data.nome)
-    if (data.ativo      !== undefined) add('ativo', data.ativo)
-    if (data.dias_semana!== undefined) add('dias_semana', data.dias_semana ? JSON.stringify(data.dias_semana) : null)
-    if (data.hora_inicio!== undefined) add('hora_inicio', data.hora_inicio ?? null)
-    if (data.hora_fim   !== undefined) add('hora_fim',    data.hora_fim ?? null)
+    return reply.send({ ok: true })
+  })
 
-    // Permissões só se for vendedor
-    if (data.permissoes !== undefined && alvo.nivel === 'vendedor') {
-      add('permissoes', JSON.stringify(data.permissoes))
-    }
+  // Atualizar perfil complementar
+  app.put('/:id/perfil', { preHandler: dono }, async (req, reply) => {
+    const user = req.user as JwtPayload
+    const { id } = req.params as { id: string }
 
-    if (!updates.length) return reply.status(400).send({ error: 'Nada para atualizar' })
+    const { rows: [alvo] } = await platformPool.query(
+      `SELECT id FROM usuarios WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+    )
+    if (!alvo) throw new AppError('Colaborador não encontrado', 404)
+
+    const perfil = perfilSchema.parse(req.body)
+    await upsertPerfil(id, perfil)
 
     const { rows: [c] } = await platformPool.query(
-      `UPDATE usuarios SET ${updates.join(', ')}
-       WHERE id = $1 AND loja_id = $2 RETURNING ${CAMPOS_LISTAGEM}`,
-      values
+      `SELECT * FROM colaboradores_perfil WHERE usuario_id = $1`, [id]
     )
     return reply.send(c)
   })
@@ -151,12 +220,9 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
   app.delete('/:id', { preHandler: dono }, async (req, reply) => {
     const user = req.user as JwtPayload
     const { id } = req.params as { id: string }
-
     if (id === user.id) throw new AppError('Você não pode desativar sua própria conta.', 400)
-
     await platformPool.query(
-      `UPDATE usuarios SET ativo = false
-       WHERE id = $1 AND loja_id = $2 AND nivel = 'vendedor'`,
+      `UPDATE usuarios SET ativo = false WHERE id = $1 AND loja_id = $2 AND nivel = 'vendedor'`,
       [id, user.loja_id]
     )
     return reply.status(204).send()
@@ -167,7 +233,6 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string }
     const { senha } = req.body as { senha: string }
     if (!senha || senha.length < 6) throw new AppError('Senha mínimo 6 caracteres', 400)
-
     const hash = await bcrypt.hash(senha, 10)
     await platformPool.query(
       `UPDATE usuarios SET senha_hash = $1 WHERE id = $2 AND loja_id = $3`,

@@ -1,6 +1,34 @@
 import { api } from './client'
 
-export interface Colaborador {
+export interface ColaboradorPerfil {
+  // Pessoal
+  cpf?:             string | null
+  rg?:              string | null
+  data_nascimento?: string | null
+  telefone?:        string | null
+  cargo?:           string | null
+  // Endereço
+  cep?:             string | null
+  logradouro?:      string | null
+  numero?:          string | null
+  complemento?:     string | null
+  bairro?:          string | null
+  cidade?:          string | null
+  estado?:          string | null
+  // Bancário
+  banco?:           string | null
+  agencia?:         string | null
+  conta?:           string | null
+  conta_digito?:    string | null
+  tipo_conta?:      'corrente' | 'poupanca' | null
+  pix?:             string | null
+  // Emprego
+  data_admissao?:   string | null
+  salario?:         number | null
+  tipo_contrato?:   'clt' | 'pj' | 'mei' | 'autonomo' | 'estagio' | 'outro' | null
+}
+
+export interface Colaborador extends ColaboradorPerfil {
   id: string
   nome: string
   email: string
@@ -31,10 +59,12 @@ export const colaboradoresApi = {
     api.get<LogAcesso[]>(`/colaboradores/${id}/logs`).then(r => r.data),
   logsRecentes: () =>
     api.get<LogAcesso[]>('/colaboradores/logs/recentes').then(r => r.data),
-  create: (data: { nome: string; email: string; senha: string; permissoes: string[]; dias_semana?: number[] | null; hora_inicio?: string | null; hora_fim?: string | null }) =>
+  create: (data: any) =>
     api.post<Colaborador>('/colaboradores', data).then(r => r.data),
-  update: (id: string, data: Partial<Colaborador> & { senha?: string }) =>
-    api.put<Colaborador>(`/colaboradores/${id}`, data).then(r => r.data),
+  updateAcesso: (id: string, data: any) =>
+    api.put(`/colaboradores/${id}`, data).then(r => r.data),
+  updatePerfil: (id: string, data: ColaboradorPerfil) =>
+    api.put(`/colaboradores/${id}/perfil`, data).then(r => r.data),
   remove: (id: string) =>
     api.delete(`/colaboradores/${id}`),
   redefinirSenha: (id: string, senha: string) =>

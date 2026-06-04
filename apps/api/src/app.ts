@@ -12,6 +12,7 @@ import { estoqueRoutes }        from './modules/estoque/estoque.routes'
 import { financeiroRoutes }     from './modules/financeiro/financeiro.routes'
 import { formasPagamentoRoutes}  from './modules/financeiro/formas-pagamento.routes'
 import { colaboradoresRoutes }   from './modules/colaboradores/colaboradores.routes'
+import { documentosRoutes }      from './modules/colaboradores/documentos.routes'
 
 export function buildApp() {
   const app = Fastify({ logger: env.NODE_ENV === 'development' })
@@ -31,6 +32,7 @@ export function buildApp() {
   app.register(financeiroRoutes,      { prefix: '/financeiro' })
   app.register(formasPagamentoRoutes, { prefix: '/formas-pagamento' })
   app.register(colaboradoresRoutes,   { prefix: '/colaboradores' })
+  app.register(documentosRoutes,      { prefix: '/colaboradores' })
 
   return app
 }
