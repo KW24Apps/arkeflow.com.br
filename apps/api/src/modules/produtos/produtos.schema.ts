@@ -1,13 +1,15 @@
 import { z } from 'zod'
 
 export const createProdutoSchema = z.object({
-  nome:              z.string().min(1),
-  categoria:         z.string().optional(),
-  marca:             z.string().optional(),
-  descricao:         z.string().optional(),
-  preco_base:        z.coerce.number().positive('Preço deve ser positivo'),
-  controle_estoque:  z.boolean().default(true),
-  atributos:         z.array(z.string().min(1)).optional(), // ex: ["tamanho", "cor"]
+  nome:             z.string().min(1),
+  tipo_id:          z.string().uuid().optional().nullable(),
+  categoria:        z.string().optional(),
+  marca:            z.string().optional(),
+  descricao:        z.string().optional(),
+  composicao:       z.string().optional(),
+  preco_base:       z.coerce.number().positive('Preço deve ser positivo'),
+  controle_estoque: z.boolean().default(true),
+  atributos:        z.array(z.string().min(1)).optional(),
 })
 
 export const updateProdutoSchema = createProdutoSchema.partial()

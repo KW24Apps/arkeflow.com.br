@@ -35,14 +35,14 @@ export async function findById(pool: Pool, id: string) {
 }
 
 export async function create(pool: Pool, data: {
-  nome: string; categoria?: string; marca?: string
-  descricao?: string; preco_base: number; controle_estoque: boolean
+  nome: string; tipo_id?: string | null; categoria?: string; marca?: string
+  descricao?: string; composicao?: string; preco_base: number; controle_estoque: boolean
 }) {
   const { rows: [p] } = await pool.query(
-    `INSERT INTO produtos (nome, categoria, marca, descricao, preco_base, controle_estoque)
-     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [data.nome, data.categoria ?? null, data.marca ?? null,
-     data.descricao ?? null, data.preco_base, data.controle_estoque]
+    `INSERT INTO produtos (nome, tipo_id, categoria, marca, descricao, composicao, preco_base, controle_estoque)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [data.nome, data.tipo_id ?? null, data.categoria ?? null, data.marca ?? null,
+     data.descricao ?? null, data.composicao ?? null, data.preco_base, data.controle_estoque]
   )
   return p
 }

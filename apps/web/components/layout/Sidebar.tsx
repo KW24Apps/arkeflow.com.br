@@ -7,7 +7,8 @@ import { useAuthStore } from '@/store/auth.store'
 
 export interface NavItem {
   label: string
-  href: string
+  href?: string
+  type?: 'divider'
 }
 
 interface SidebarProps {
@@ -69,12 +70,19 @@ export function Sidebar({ items, subtitle }: SidebarProps) {
         </div>
 
         <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto">
-          {items.map(item => {
+          {items.map((item, i) => {
+            if (item.type === 'divider') {
+              return (
+                <div key={`div-${i}`} className="pt-3 pb-1 px-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-steel/60">{item.label}</p>
+                </div>
+              )
+            }
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href!}
                 onClick={() => setOpen(false)}
                 className={`
                   min-h-[48px] px-4 flex items-center rounded-xl text-sm font-medium transition-all
