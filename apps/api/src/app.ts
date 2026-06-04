@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import { authRoutes } from './modules/auth/auth.routes'
+import { produtosRoutes } from './modules/produtos/produtos.routes'
 import jwt from '@fastify/jwt'
 import cors from '@fastify/cors'
 import { env } from './config/env'
@@ -17,7 +18,8 @@ export function buildApp() {
 
   app.get('/health', async () => ({ status: 'ok' }))
 
-  app.register(authRoutes, { prefix: '/auth' })
+  app.register(authRoutes,    { prefix: '/auth' })
+  app.register(produtosRoutes, { prefix: '/produtos' })
 
   return app
 }

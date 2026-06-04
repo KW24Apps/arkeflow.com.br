@@ -1,0 +1,65 @@
+import type { Pool } from 'pg'
+import * as repo from './produtos.repository'
+import { AppError } from '../../core/errors/AppError'
+import type { CreateProdutoInput, UpdateProdutoInput, CreateVersaoInput } from './produtos.schema'
+
+export async function listProdutos(pool: Pool, q?: string) {
+  return repo.findAll(pool, q)
+}
+
+export async function getProduto(pool: Pool, id: string) {
+  const produto = await repo.findById(pool, id)
+  if (!produto) throw new AppError('Produto não encontrado', 404)
+  return produto
+}
+
+export async function createProduto(pool: Pool, data: CreateProdutoInput) {
+  const { atributos, ...produtoData } = data
+  const produto = await repo.create(pool, produtoData)
+
+  if (atributos?.length) {
+    for (const nome of atributos) {
+      await repo.addAtributo(pool, produto.id, nome)
+    }
+  }
+
+  return repo.findById(pool, produto.id)
+}
+
+export async function updateProduto(pool: Pool, id: string, data: UpdateProdutoInput) {
+  await getProduto(pool, id) // valida existência
+  const { atributos, ...produtoData } = data
+  if (Object.keys(produtoData).length) {
+    await repo.update(pool, id, produtoData)
+  }
+  return repo.findById(pool, id)
+}
+
+export async function deleteProduto(pool: Pool, id: string) {
+  await getProduto(pool, id)
+  await repo.softDelete(pool, id)
+}
+
+// Atributos
+export async function addAtributo(pool: Pool, produto_id: string, nome: string) {
+  await getProduto(pool, produto_id)
+  return repo.addAtributo(pool, produto_id, nome)
+}
+
+export async function removeAtributo(pool: Pool, id: string) {
+  return repo.removeAtributo(pool, id)
+}
+
+// Versões
+export async function createVersao(pool: Pool, produto_id: string, data: CreateVersaoInput) {
+  await getProduto(pool, produto_id)
+  return repo.createVersao(pool, produto_id, data)
+}
+
+export async function updateVersao(pool: Pool, id: string, data: Partial<CreateVersaoInput>) {
+  return repo.updateVersao(pool, id, data)
+}
+
+export async function deleteVersao(pool: Pool, id: string) {
+  return repo.deleteVersao(pool, id)
+}
