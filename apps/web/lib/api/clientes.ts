@@ -1,0 +1,44 @@
+import { api } from './client'
+
+export interface Cliente {
+  id: string
+  nome: string
+  telefone: string | null
+  cpf: string | null
+  email: string | null
+  saldo_cashback: string
+  regra_cashback_id: string | null
+  regra_cashback_nome?: string
+  regra_cashback_percentual?: string
+  criado_em: string
+  ativo: boolean
+}
+
+export interface VendaHistorico {
+  id: string
+  total: string
+  cashback_gerado: string
+  cashback_usado: string
+  total_itens: number
+  criado_em: string
+}
+
+export const clientesApi = {
+  list: (q?: string) =>
+    api.get<Cliente[]>('/clientes', { params: q ? { q } : {} }).then(r => r.data),
+
+  get: (id: string) =>
+    api.get<Cliente>(`/clientes/${id}`).then(r => r.data),
+
+  historico: (id: string) =>
+    api.get<VendaHistorico[]>(`/clientes/${id}/historico`).then(r => r.data),
+
+  create: (data: Partial<Cliente>) =>
+    api.post<Cliente>('/clientes', data).then(r => r.data),
+
+  update: (id: string, data: Partial<Cliente>) =>
+    api.put<Cliente>(`/clientes/${id}`, data).then(r => r.data),
+
+  remove: (id: string) =>
+    api.delete(`/clientes/${id}`),
+}
