@@ -66,7 +66,15 @@ export const SECTIONS = [
   {
     label: 'Produtos',
     href:  '/painel/produtos',
-    match: ['/painel/produtos', '/painel/cadastros'],
+    // match explícito — não usa /painel/cadastros genérico para não capturar /cadastros/configuracoes
+    match: [
+      '/painel/produtos',
+      '/painel/cadastros/tamanhos',
+      '/painel/cadastros/cores',
+      '/painel/cadastros/tipos',
+      '/painel/cadastros/composicoes',
+      '/painel/cadastros/medidas',
+    ],
     sub: [
       { label: 'Produtos',    href: '/painel/produtos',              permSlug: 'cadastro-produtos/lista' },
       { label: 'Tamanhos',    href: '/painel/cadastros/tamanhos',    permSlug: 'cadastro-produtos/tamanhos' },
@@ -97,15 +105,16 @@ export const SECTIONS = [
   {
     label: 'Financeiro',
     href:  '/painel/configuracoes/formas-pagamento',
-    match: ['/painel/configuracoes'],
+    // match explícito para não capturar /configuracoes/geral
+    match: ['/painel/configuracoes/formas-pagamento'],
     sub: [
       { label: 'Formas de Pagamento', href: '/painel/configuracoes/formas-pagamento' },
     ],
   },
   {
     label: 'Configurações',
-    href:  '/painel/cadastros/configuracoes',
-    match: ['/painel/cadastros/configuracoes'],
+    href:  '/painel/configuracoes/geral',
+    match: ['/painel/configuracoes/geral', '/painel/cadastros/configuracoes'],
     sub: [],
   },
 
