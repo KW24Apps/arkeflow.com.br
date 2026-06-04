@@ -3,7 +3,11 @@ import type { Pool } from 'pg'
 export async function findAll(pool: Pool, q?: string) {
   const params: any[] = []
   let where = 'WHERE p.ativo = true'
-  if (q) { params.push(`%${q}%`); where += ` AND p.nome ILIKE $${params.length}` }
+  if (q) {
+    params.push(`%${q}%`)
+    // Busca por nome OU código do produto
+    where += ` AND (p.nome ILIKE $${params.length} OR p.codigo ILIKE $${params.length})`
+  }
 
   const { rows } = await pool.query(
     `SELECT p.*,
@@ -35,13 +39,13 @@ export async function findById(pool: Pool, id: string) {
 }
 
 export async function create(pool: Pool, data: {
-  nome: string; tipo_id?: string | null; categoria?: string; marca?: string
+  nome: string; codigo?: string | null; tipo_id?: string | null; categoria?: string; marca?: string
   descricao?: string; composicao?: string; composicao_itens?: any[]; preco_base: number; controle_estoque: boolean
 }) {
   const { rows: [p] } = await pool.query(
-    `INSERT INTO produtos (nome, tipo_id, categoria, marca, descricao, composicao, composicao_itens, preco_base, controle_estoque)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-    [data.nome, data.tipo_id ?? null, data.categoria ?? null, data.marca ?? null,
+    `INSERT INTO produtos (nome, codigo, tipo_id, categoria, marca, descricao, composicao, composicao_itens, preco_base, controle_estoque)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [data.nome, data.codigo ?? null, data.tipo_id ?? null, data.categoria ?? null, data.marca ?? null,
      data.descricao ?? null, data.composicao ?? null,
      JSON.stringify(data.composicao_itens ?? []),
      data.preco_base, data.controle_estoque]
@@ -79,13 +83,14 @@ export async function removeAtributo(pool: Pool, id: string) {
 // Versões
 export async function createVersao(pool: Pool, produto_id: string, data: {
   atributos_json: Record<string, string>; preco_especifico?: number | null
-  estoque_atual: number; estoque_minimo: number
+  estoque_atual: number; estoque_minimo: number; codigo_barras?: string | null
 }) {
   const { rows: [v] } = await pool.query(
-    `INSERT INTO versoes (produto_id, atributos_json, preco_especifico, estoque_atual, estoque_minimo)
-     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    `INSERT INTO versoes (produto_id, atributos_json, preco_especifico, estoque_atual, estoque_minimo, codigo_barras)
+     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
     [produto_id, JSON.stringify(data.atributos_json),
-     data.preco_especifico ?? null, data.estoque_atual, data.estoque_minimo]
+     data.preco_especifico ?? null, data.estoque_atual, data.estoque_minimo,
+     data.codigo_barras ?? null]
   )
   return v
 }

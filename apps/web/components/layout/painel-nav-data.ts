@@ -91,8 +91,8 @@ export const SECTIONS = [
     href:  '/painel/colaboradores',
     match: ['/painel/colaboradores'],
     sub: [
-      { label: 'Colaboradores', href: '/painel/colaboradores' },
-      { label: 'Permissões',    href: '/painel/colaboradores/permissoes' },
+      { label: 'Colaboradores',       href: '/painel/colaboradores' },
+      { label: 'Modelos de Permissão',href: '/painel/colaboradores/permissoes' },
     ],
   },
   {
@@ -102,6 +102,12 @@ export const SECTIONS = [
     sub: [
       { label: 'Formas de Pagamento', href: '/painel/configuracoes/formas-pagamento' },
     ],
+  },
+  {
+    label: 'Configurações',
+    href:  '/painel/cadastros/configuracoes',
+    match: ['/painel/cadastros/configuracoes'],
+    sub: [],
   },
 
   // ── Configurações (rodapé — ícone de engrenagem, não aparece no sidebar principal)

@@ -2,11 +2,12 @@ import { z } from 'zod'
 
 export const createProdutoSchema = z.object({
   nome:             z.string().min(1),
+  codigo:           z.string().optional().nullable(),   // SKU/referência interna
   tipo_id:          z.string().uuid().optional().nullable(),
   categoria:        z.string().optional(),
   marca:            z.string().optional(),
   descricao:        z.string().optional(),
-  composicao:       z.string().optional(),  // legado — mantido por compatibilidade
+  composicao:       z.string().optional(),
   composicao_itens: z.array(z.object({
     material:   z.string().min(1),
     percentual: z.coerce.number().int().min(1).max(100),
@@ -23,6 +24,7 @@ export const createVersaoSchema = z.object({
   preco_especifico:  z.coerce.number().positive().optional().nullable(),
   estoque_atual:     z.coerce.number().int().min(0).default(0),
   estoque_minimo:    z.coerce.number().int().min(0).default(0),
+  codigo_barras:     z.string().optional().nullable(),  // EAN/código do scanner
 })
 
 export const updateVersaoSchema = createVersaoSchema.partial()
