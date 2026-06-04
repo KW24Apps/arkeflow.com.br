@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { produtosApi } from '@/lib/api/produtos'
+import { produtosApi, type CreateProdutoPayload } from '@/lib/api/produtos'
 
 interface Atributo { nome: string; valores: string }
 
@@ -61,13 +61,15 @@ export default function NovoProdutoPage() {
 
     setLoading(true)
     try {
-      const produto = await produtosApi.create({
-        nome, categoria: categoria || undefined,
-        marca: marca || undefined,
-        preco_base: parseFloat(preco.replace(',', '.')),
+      const payload: CreateProdutoPayload = {
+        nome,
+        categoria:        categoria || undefined,
+        marca:            marca || undefined,
+        preco_base:       parseFloat(preco.replace(',', '.')),
         controle_estoque: controleEstoque,
-        atributos: atributos.filter(a => a.nome).map(a => a.nome.trim()),
-      })
+        atributos:        atributos.filter(a => a.nome).map(a => a.nome.trim()),
+      }
+      const produto = await produtosApi.create(payload)
 
       // Cria versões automaticamente se tiver atributos com valores
       const versoes = gerarVersoes(atributos)

@@ -25,6 +25,16 @@ export interface Versao {
   ativo: boolean
 }
 
+export interface CreateProdutoPayload {
+  nome: string
+  categoria?: string
+  marca?: string
+  descricao?: string
+  preco_base: number
+  controle_estoque: boolean
+  atributos?: string[]  // apenas os nomes dos atributos
+}
+
 export const produtosApi = {
   list:   (q?: string) =>
     api.get<Produto[]>('/produtos', { params: q ? { q } : {} }).then(r => r.data),
@@ -32,7 +42,7 @@ export const produtosApi = {
   get:    (id: string) =>
     api.get<Produto>(`/produtos/${id}`).then(r => r.data),
 
-  create: (data: Omit<Partial<Produto>, 'preco_base'> & { preco_base?: number; atributos?: string[] }) =>
+  create: (data: CreateProdutoPayload) =>
     api.post<Produto>('/produtos', data).then(r => r.data),
 
   update: (id: string, data: Partial<Produto>) =>
