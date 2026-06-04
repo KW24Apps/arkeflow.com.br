@@ -1,11 +1,10 @@
 import type { Pool } from 'pg'
 
-export async function findAll(pool: Pool, q?: string) {
+export async function findAll(pool: Pool, q?: string, incluirInativos = false) {
   const params: any[] = []
-  let where = 'WHERE p.ativo = true'
+  let where = incluirInativos ? 'WHERE 1=1' : 'WHERE p.ativo = true'
   if (q) {
     params.push(`%${q}%`)
-    // Busca por nome OU código do produto
     where += ` AND (p.nome ILIKE $${params.length} OR p.codigo ILIKE $${params.length})`
   }
 

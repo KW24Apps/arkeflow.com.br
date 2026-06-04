@@ -4,8 +4,8 @@ import { AppError } from '../../core/errors/AppError'
 import { verificarVinculoProduto, verificarVinculoVersao } from '../../core/guards/vinculo'
 import type { CreateProdutoInput, UpdateProdutoInput, CreateVersaoInput } from './produtos.schema'
 
-export async function listProdutos(pool: Pool, q?: string) {
-  return repo.findAll(pool, q)
+export async function listProdutos(pool: Pool, q?: string, incluirInativos = false) {
+  return repo.findAll(pool, q, incluirInativos)
 }
 
 export async function getProduto(pool: Pool, id: string) {

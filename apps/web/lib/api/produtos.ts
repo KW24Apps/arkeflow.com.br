@@ -38,8 +38,8 @@ export interface CreateProdutoPayload {
 }
 
 export const produtosApi = {
-  list:   (q?: string) =>
-    api.get<Produto[]>('/produtos', { params: q ? { q } : {} }).then(r => r.data),
+  list:   (q?: string, todos = true) =>
+    api.get<Produto[]>('/produtos', { params: { ...(q ? { q } : {}), todos: todos ? 'true' : undefined } }).then(r => r.data),
 
   get:    (id: string) =>
     api.get<Produto>(`/produtos/${id}`).then(r => r.data),

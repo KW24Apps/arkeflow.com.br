@@ -5,8 +5,9 @@ import * as svc from './produtos.service'
 
 export async function listHandler(request: FastifyRequest, reply: FastifyReply) {
   const pool = getTenantPoolFromRequest(request)
-  const { q } = request.query as { q?: string }
-  return reply.send(await svc.listProdutos(pool, q))
+  const { q, todos } = request.query as { q?: string; todos?: string }
+  // "todos=true" retorna inativos também — usado pelo painel do dono para reativar
+  return reply.send(await svc.listProdutos(pool, q, todos === 'true'))
 }
 
 export async function getHandler(request: FastifyRequest, reply: FastifyReply) {
