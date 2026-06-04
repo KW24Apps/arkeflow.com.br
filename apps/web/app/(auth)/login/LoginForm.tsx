@@ -7,20 +7,41 @@ import { Button } from '@/components/ui/Button'
 import { loginRequest } from '@/lib/api/auth'
 import { useAuthStore } from '@/store/auth.store'
 import type { NivelUsuario, JwtPayload } from '@arkeflow/shared'
+import { temPermissao } from '@/lib/permissoes'
 
-// Vendedor com permissões de painel → painel. Sem permissões → PDV mobile.
+// Ordem dos menus e suas rotas reais
+const MENU_ROTAS: { slug: string; href: string }[] = [
+  { slug: 'dashboard',              href: '/painel/dashboard' },
+  { slug: 'caixa',                  href: '/painel/caixa' },
+  { slug: 'estoque',                href: '/painel/estoque' },
+  { slug: 'financeiro',             href: '/painel/financeiro' },
+  { slug: 'cadastro-produtos',      href: '/painel/produtos' },
+  { slug: 'cadastro-clientes',      href: '/painel/clientes' },
+  { slug: 'cadastro-colaboradores', href: '/painel/colaboradores' },
+  { slug: 'cadastro-financeiro',    href: '/painel/configuracoes/formas-pagamento' },
+]
+
+// Redireciona para o primeiro menu acessível do usuário
 function getRedirectPath(usuario: JwtPayload): string {
-  const rotas: Record<NivelUsuario, string> = {
-    admin_plataforma: '/admin/dashboard',
-    parceiro:         '/painel/dashboard',
-    dono_loja:        '/painel/dashboard',
-    vendedor:         '/pdv',
+  if (usuario.nivel !== 'vendedor') {
+    const rotas: Record<NivelUsuario, string> = {
+      admin_plataforma: '/admin/dashboard',
+      parceiro:         '/painel/dashboard',
+      dono_loja:        '/painel/dashboard',
+      vendedor:         '/pdv',
+    }
+    return rotas[usuario.nivel]
   }
-  if (usuario.nivel === 'vendedor') {
-    const temPainel = Array.isArray(usuario.permissoes) && usuario.permissoes.length > 0
-    return temPainel ? '/painel/dashboard' : '/pdv'
+
+  const permissoes = Array.isArray(usuario.permissoes) ? usuario.permissoes : []
+  if (permissoes.length === 0) return '/pdv'
+
+  // Encontra o primeiro menu que o usuário pode acessar
+  for (const { slug, href } of MENU_ROTAS) {
+    if (temPermissao(permissoes, slug)) return href
   }
-  return rotas[usuario.nivel]
+
+  return '/pdv' // fallback: nenhuma seção acessível
 }
 
 export function LoginForm() {
