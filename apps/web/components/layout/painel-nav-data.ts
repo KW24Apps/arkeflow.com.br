@@ -67,14 +67,13 @@ export const SECTIONS = [
     label: 'Produtos',
     href:  '/painel/produtos',
     match: ['/painel/produtos', '/painel/cadastros'],
-    // "Fiscal" será adicionado quando a integração NF-e for construída
     sub: [
-      { label: 'Produtos',    href: '/painel/produtos' },
-      { label: 'Tamanhos',    href: '/painel/cadastros/tamanhos' },
-      { label: 'Cores',       href: '/painel/cadastros/cores' },
-      { label: 'Tipos',       href: '/painel/cadastros/tipos' },
-      { label: 'Composições', href: '/painel/cadastros/composicoes' },
-      { label: 'Medidas',     href: '/painel/cadastros/medidas' },
+      { label: 'Produtos',    href: '/painel/produtos',              permSlug: 'cadastro-produtos/lista' },
+      { label: 'Tamanhos',    href: '/painel/cadastros/tamanhos',    permSlug: 'cadastro-produtos/tamanhos' },
+      { label: 'Cores',       href: '/painel/cadastros/cores',       permSlug: 'cadastro-produtos/cores' },
+      { label: 'Tipos',       href: '/painel/cadastros/tipos',       permSlug: 'cadastro-produtos/tipos' },
+      { label: 'Composições', href: '/painel/cadastros/composicoes', permSlug: 'cadastro-produtos/composicoes' },
+      { label: 'Medidas',     href: '/painel/cadastros/medidas',     permSlug: 'cadastro-produtos/medidas' },
     ],
   },
   {
@@ -82,8 +81,8 @@ export const SECTIONS = [
     href:  '/painel/clientes',
     match: ['/painel/clientes'],
     sub: [
-      { label: 'Clientes',          href: '/painel/clientes' },
-      { label: 'Regras de Cashback',href: '/painel/clientes/cashback' },
+      { label: 'Clientes',          href: '/painel/clientes',          permSlug: 'cadastro-clientes/lista' },
+      { label: 'Regras de Cashback',href: '/painel/clientes/cashback', permSlug: 'cadastro-clientes/cashback' },
     ],
   },
   {

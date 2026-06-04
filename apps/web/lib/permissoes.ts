@@ -45,6 +45,7 @@ export const GRUPOS_PERMISSAO: GrupoPermissao[] = [
   {
     slug: 'cadastro-produtos', label: 'Cadastro — Produtos',
     sub: [
+      { slug: 'cadastro-produtos/lista',       label: 'Produtos (lista e cadastro)' },
       { slug: 'cadastro-produtos/tamanhos',    label: 'Tamanhos' },
       { slug: 'cadastro-produtos/cores',       label: 'Cores' },
       { slug: 'cadastro-produtos/tipos',       label: 'Tipos' },
@@ -55,6 +56,7 @@ export const GRUPOS_PERMISSAO: GrupoPermissao[] = [
   {
     slug: 'cadastro-clientes', label: 'Cadastro — Clientes',
     sub: [
+      { slug: 'cadastro-clientes/lista',    label: 'Clientes (lista e cadastro)' },
       { slug: 'cadastro-clientes/cashback', label: 'Regras de Cashback' },
     ]
   },
@@ -79,7 +81,10 @@ export function slugsDoGrupo(g: GrupoPermissao): string[] {
 export function temPermissao(permissoes: string[], slug: string): boolean {
   if (permissoes.includes('*')) return true
   if (permissoes.includes(slug)) return true
-  // se o slug é "caixa/notas-fiscais", verifica se tem "caixa"
+  // se o slug é "caixa/notas-fiscais", verifica se tem "caixa" (pai)
   const secao = slug.split('/')[0]
-  return permissoes.includes(secao)
+  if (secao !== slug && permissoes.includes(secao)) return true
+  // se tem qualquer sub-permissão desta seção, a seção fica visível na sidebar
+  if (permissoes.some(p => p.startsWith(slug + '/'))) return true
+  return false
 }
