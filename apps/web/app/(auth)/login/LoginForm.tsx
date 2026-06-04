@@ -49,15 +49,17 @@ export function LoginForm() {
       <Input
         label="Email"
         type="email"
+        name="email"
         placeholder="seu@email.com"
         value={email}
         onChange={e => setEmail(e.target.value)}
         required
-        autoComplete="email"
+        autoComplete="username email"
       />
       <Input
         label="Senha"
         type="password"
+        name="password"
         placeholder="••••••••"
         value={senha}
         onChange={e => setSenha(e.target.value)}
