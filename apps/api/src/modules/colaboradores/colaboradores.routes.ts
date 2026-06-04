@@ -132,7 +132,7 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     return reply.send(rows)
   })
 
-  // Colaboradores online agora (último acesso < 30 minutos)
+  // Colaboradores ativos hoje (último acesso no dia atual)
   app.get('/online', { preHandler: dono }, async (req, reply) => {
     const user = req.user as JwtPayload
     const { rows } = await platformPool.query(
@@ -141,7 +141,7 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
        FROM usuarios
        WHERE loja_id = $1
          AND ativo = true
-         AND ultimo_acesso > NOW() - INTERVAL '30 minutes'
+         AND ultimo_acesso >= CURRENT_DATE::timestamptz
        ORDER BY ultimo_acesso DESC`,
       [user.loja_id]
     )
