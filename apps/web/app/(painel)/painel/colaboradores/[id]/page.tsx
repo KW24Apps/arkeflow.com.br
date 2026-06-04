@@ -101,7 +101,10 @@ export default function ColaboradorDetalhe() {
     setSalvando(true); setMsg('')
     try {
       await colaboradoresApi.updateAcesso(id, {
-        nome, email, username: username || null, permissoes,
+        nome,
+        ...(email ? { email } : {}),
+        username: username || null,
+        permissoes,
         dias_semana: diasSemana,
         hora_inicio: diasSemana ? horaInicio : null,
         hora_fim:    diasSemana ? horaFim    : null,

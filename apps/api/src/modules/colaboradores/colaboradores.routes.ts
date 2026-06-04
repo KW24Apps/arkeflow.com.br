@@ -50,7 +50,7 @@ const createSchema = z.object({
 
 const updateAcessoSchema = z.object({
   nome:        z.string().min(1).optional(),
-  email:       z.string().email().optional(),
+  email:       z.string().email().optional().nullable(),
   username:    z.string().min(3).regex(/^[a-z0-9._]+$/).optional().nullable(),
   permissoes:  z.array(z.string()).optional(),
   ativo:       z.boolean().optional(),
