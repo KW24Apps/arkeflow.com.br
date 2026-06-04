@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARKEflow — Em Breve</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #071828, #0D2B45, #1B8B9A);
+      font-family: 'Inter', system-ui, sans-serif;
+      color: #E8F4F8;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .wordmark {
+      font-size: clamp(2.5rem, 8vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .wordmark span { color: #00C8DC; font-weight: 400; }
+
+    .tagline {
+      font-size: clamp(0.65rem, 2vw, 0.75rem);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: #5B8AA8;
+      margin-bottom: 3rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(0,200,220,0.08);
+      border: 1px solid rgba(0,200,220,0.25);
+      border-radius: 999px;
+      padding: 0.6rem 1.4rem;
+      font-size: 0.85rem;
+      color: #00C8DC;
+      margin-bottom: 1.5rem;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      background: #00C8DC;
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    p {
+      color: #5B8AA8;
+      font-size: 0.95rem;
+      max-width: 360px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="wordmark">ARKE<span>flow</span></div>
+  <div class="tagline">Tech Solutions</div>
+
+  <div class="badge">
+    <div class="dot"></div>
+    Em construção
+  </div>
+
+  <p>Estamos preparando algo especial para o seu negócio. Em breve.</p>
+</body>
+</html>
