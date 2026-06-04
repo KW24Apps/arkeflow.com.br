@@ -58,6 +58,12 @@ export function TopBar({ title }: TopBarProps) {
               <p className="text-steel text-xs capitalize">{usuario?.nivel?.replace('_', ' ')}</p>
             </div>
 
+            <a href="/painel/configuracoes/geral"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 min-h-[44px] px-4 text-sm text-steel hover:text-sea-foam hover:bg-ocean-depth transition-colors">
+              <span>⚙️</span> Configurações
+            </a>
+
             {/* Downloads do app */}
             <div className="px-4 py-2 border-b border-ocean-depth">
               <p className="text-steel text-[10px] uppercase tracking-wider mb-2">Baixar aplicativo</p>
