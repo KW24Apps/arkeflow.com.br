@@ -212,6 +212,34 @@ Planos com funcionalidades diferentes (básico, completo).
 
 ---
 
+## Contatos Reutilizáveis (CRM Básico)
+
+**Ideia:** Ao adicionar um contato (na loja ou no cliente), poder buscar por nome/email/telefone em uma base centralizada de pessoas antes de criar um novo. Evita duplicação — mesma pessoa pode ser contato de múltiplos clientes.
+
+**Estrutura futura:**
+```sql
+-- Tabela central de pessoas (tenant)
+CREATE TABLE pessoas (
+  id       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  nome     TEXT NOT NULL,
+  telefone TEXT,
+  email    TEXT,
+  UNIQUE(email)  -- ou constraint de deduplicação
+);
+
+-- Contatos do cliente referenciam pessoas
+ALTER TABLE clientes_contatos ADD COLUMN pessoa_id UUID REFERENCES pessoas(id);
+
+-- Contatos da loja também
+-- (lojas_contatos está na plataforma, precisaria de abordagem diferente)
+```
+
+**Migração:** As tabelas `lojas_contatos` e `clientes_contatos` já existem separadas — a migração futura é apenas adicionar `pessoa_id` e criar a tela de busca/reuso.
+
+**UI sugerida:** Ao clicar "+ Adicionar contato", mostra campo de busca primeiro. Se encontrar → vincula. Se não encontrar → cria novo e já vincula.
+
+---
+
 ## Ideias Menores / Refinamentos
 
 | Ideia | Contexto |
