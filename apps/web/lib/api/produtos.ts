@@ -32,7 +32,7 @@ export const produtosApi = {
   get:    (id: string) =>
     api.get<Produto>(`/produtos/${id}`).then(r => r.data),
 
-  create: (data: Partial<Produto> & { atributos?: string[] }) =>
+  create: (data: Omit<Partial<Produto>, 'preco_base'> & { preco_base?: number; atributos?: string[] }) =>
     api.post<Produto>('/produtos', data).then(r => r.data),
 
   update: (id: string, data: Partial<Produto>) =>
