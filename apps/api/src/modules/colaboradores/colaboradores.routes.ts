@@ -61,7 +61,8 @@ const updateAcessoSchema = z.object({
 })
 
 const CAMPOS_USER = `
-  u.id, u.nome, u.email, u.nivel, u.permissoes, u.ativo, u.ultimo_acesso,
+  u.id, u.nome, u.email, u.username, u.nivel, u.permissoes,
+  u.modelo_permissao_id, u.ativo, u.ultimo_acesso,
   u.dias_semana, u.hora_inicio, u.hora_fim
 `
 
