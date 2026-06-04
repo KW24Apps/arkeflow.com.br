@@ -1,4 +1,6 @@
 // Estrutura de navegação definitiva do painel — definida em 04/06/2026
+// permSlug: slug usado no sistema de permissões de colaboradores
+//   '*' = sempre visível (dono_loja), undefined = sem controle
 
 export const SECTIONS = [
 

@@ -5,7 +5,7 @@ import type { JwtPayload } from '@arkeflow/shared'
 
 export async function login(email: string, senha: string): Promise<JwtPayload> {
   const { rows } = await platformPool.query(
-    `SELECT id, email, senha_hash, nivel, loja_id
+    `SELECT id, email, senha_hash, nivel, loja_id, permissoes
      FROM usuarios
      WHERE email = $1 AND ativo = true`,
     [email]
@@ -32,11 +32,18 @@ export async function login(email: string, senha: string): Promise<JwtPayload> {
     [usuario.id]
   )
 
+  // dono_loja e acima têm acesso total; vendedor usa as permissões cadastradas
+  const permissoes: string[] =
+    usuario.nivel === 'vendedor'
+      ? (usuario.permissoes ?? [])
+      : ['*']
+
   return {
     id: usuario.id,
     email: usuario.email,
     nivel: usuario.nivel,
     loja_id: usuario.loja_id ?? null,
     banco_id,
+    permissoes,
   }
 }

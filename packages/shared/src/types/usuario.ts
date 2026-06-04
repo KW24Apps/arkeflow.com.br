@@ -11,4 +11,5 @@ export interface JwtPayload {
   nivel: NivelUsuario
   loja_id: string | null   // null para admin_plataforma
   banco_id: string | null  // nome do banco PostgreSQL da loja
+  permissoes: string[]     // slugs de menu liberados; dono_loja sempre tem ['*']
 }
