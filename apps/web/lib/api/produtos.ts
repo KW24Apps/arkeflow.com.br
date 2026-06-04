@@ -23,6 +23,7 @@ export interface Versao {
   estoque_atual: number
   estoque_minimo: number
   ativo: boolean
+  codigo_barras?: string | null
 }
 
 export interface CreateProdutoPayload {
