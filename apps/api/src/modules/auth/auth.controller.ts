@@ -4,7 +4,8 @@ import { login } from './auth.service'
 
 export async function loginHandler(request: FastifyRequest, reply: FastifyReply) {
   const { email, senha } = loginSchema.parse(request.body)
-  const payload = await login(email, senha)
+  const ip = request.headers['x-forwarded-for']?.toString() || request.ip
+  const payload = await login(email, senha, ip)
   const token = await reply.jwtSign(payload, { expiresIn: '7d' })
   return reply.send({ token, usuario: payload })
 }
