@@ -20,14 +20,16 @@ export function ComposicaoForm({ value, onChange }: Props) {
     catalogosApi.list('composicoes').then(setMateriais)
   }, [])
 
-  const total = value.reduce((s, i) => s + Number(i.percentual), 0)
+  // Guard: value pode vir como null/string de produtos antigos
+  const items = Array.isArray(value) ? value : []
+  const total = items.reduce((s, i) => s + Number(i.percentual), 0)
 
   function add() {
-    onChange([...value, { material: '', percentual: 0 }])
+    onChange([...items, { material: '', percentual: 0 }])
   }
 
   function update(i: number, campo: keyof ItemComposicao, val: string) {
-    onChange(value.map((item, idx) =>
+    onChange(items.map((item, idx) =>
       idx === i
         ? { ...item, [campo]: campo === 'percentual' ? parseInt(val) || 0 : val }
         : item
@@ -35,13 +37,12 @@ export function ComposicaoForm({ value, onChange }: Props) {
   }
 
   function remove(i: number) {
-    onChange(value.filter((_, idx) => idx !== i))
+    onChange(items.filter((_, idx) => idx !== i))
   }
 
-  // Materiais ainda não usados (para evitar duplicata)
   function disponiveisParaItem(idx: number) {
     return materiais.filter(m =>
-      m.nome === value[idx]?.material || !value.some(v => v.material === m.nome)
+      m.nome === items[idx]?.material || !items.some(v => v.material === m.nome)
     )
   }
 
@@ -49,7 +50,7 @@ export function ComposicaoForm({ value, onChange }: Props) {
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium text-steel uppercase tracking-wider">Composição</label>
-        {value.length > 0 && (
+        {items.length > 0 && (
           <span className={`text-xs font-semibold ${
             total === 100 ? 'text-mint-green' : total > 100 ? 'text-red-400' : 'text-steel'
           }`}>
@@ -60,7 +61,7 @@ export function ComposicaoForm({ value, onChange }: Props) {
         )}
       </div>
 
-      {value.map((item, i) => (
+      {items.map((item, i) => (
         <div key={i} className="flex gap-2 items-center">
           <select
             value={item.material}
@@ -91,7 +92,7 @@ export function ComposicaoForm({ value, onChange }: Props) {
         </div>
       ))}
 
-      {materiais.length > value.length && total < 100 && (
+      {materiais.length > items.length && total < 100 && (
         <button
           type="button"
           onClick={add}
@@ -101,7 +102,7 @@ export function ComposicaoForm({ value, onChange }: Props) {
         </button>
       )}
 
-      {value.length > 0 && total !== 100 && (
+      {items.length > 0 && total !== 100 && (
         <p className={`text-xs ${total > 100 ? 'text-red-400' : 'text-steel'}`}>
           {total > 100
             ? `Reduza ${total - 100}% para chegar a 100%.`
