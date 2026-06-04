@@ -23,6 +23,17 @@ export default function ColaboradoresPage() {
     setColaboradores(prev => prev.filter(c => c.id !== id))
   }
 
+  async function handleExcluir(id: string) {
+    if (!confirm('Excluir permanentemente este colaborador? Esta ação não pode ser desfeita.')) return
+    try {
+      await colaboradoresApi.excluir(id)
+      setColaboradores(prev => prev.filter(c => c.id !== id))
+    } catch (err: any) {
+      const msg = err?.response?.data?.error ?? 'Erro ao excluir.'
+      alert(msg)
+    }
+  }
+
   async function handleToggleAtivo(c: Colaborador) {
     const novoStatus = !c.ativo
     await colaboradoresApi.updateAcesso(c.id, { ativo: novoStatus })
@@ -96,6 +107,13 @@ export default function ColaboradoresPage() {
                       className="min-h-[40px] min-w-[40px] text-steel hover:text-electric-cyan rounded-lg hover:bg-ocean-depth flex items-center justify-center text-sm transition-colors">
                       ✏️
                     </Link>
+                    {!isDono && !isMe && (
+                      <button onClick={() => handleExcluir(c.id)}
+                        className="min-h-[40px] min-w-[40px] text-steel hover:text-red-400 rounded-lg hover:bg-ocean-depth flex items-center justify-center text-sm transition-colors"
+                        title="Excluir permanentemente">
+                        🗑️
+                      </button>
+                    )}
                   </div>
                 </div>
               )

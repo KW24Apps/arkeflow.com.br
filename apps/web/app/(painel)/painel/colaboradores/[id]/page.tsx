@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { Input } from '@/components/ui/Input'
 import { colaboradoresApi, type Colaborador, type LogAcesso, type ColaboradorPerfil } from '@/lib/api/colaboradores'
-import { SeletorPermissoes } from '@/components/painel/SeletorPermissoes'
 import { SeletorHorario } from '@/components/painel/SeletorHorario'
 import { api } from '@/lib/api/client'
 
@@ -35,8 +34,12 @@ export default function ColaboradorDetalhe() {
   const [salvando, setSalvando] = useState(false)
   const [msg, setMsg]       = useState('')
 
+  // Modelos de permissão disponíveis
+  const [modelos, setModelos] = useState<any[]>([])
+
   // Acesso
   const [nome,       setNome]       = useState('')
+  const [email,      setEmail]      = useState('')
   const [username,   setUsername]   = useState('')
   const [permissoes, setPermissoes] = useState<string[]>([])
   const [diasSemana, setDiasSemana] = useState<number[] | null>(null)
@@ -73,13 +76,16 @@ export default function ColaboradorDetalhe() {
   const [pix,        setPix]        = useState('')
 
   useEffect(() => {
+    // Carrega modelos de permissão disponíveis
+    api.get<any[]>('/modelos-permissao').then(r => setModelos(r.data)).catch(() => {})
+
     Promise.all([
       colaboradoresApi.get(id),
       colaboradoresApi.logs(id),
       api.get<DocItem[]>(`/colaboradores/${id}/documentos`).then(r => r.data),
     ]).then(([c, l, d]) => {
       setColab(c); setLogs(l); setDocs(d)
-      setNome(c.nome); setPermissoes(c.permissoes)
+      setNome(c.nome); setEmail(c.email); setUsername((c as any).username ?? ''); setPermissoes(c.permissoes)
       setDiasSemana(c.dias_semana); setHoraInicio(c.hora_inicio ?? '08:00'); setHoraFim(c.hora_fim ?? '18:00')
       setCpf(c.cpf ?? ''); setRg(c.rg ?? ''); setDataNascimento(c.data_nascimento ?? '')
       setTelefone(c.telefone ?? ''); setCargo(c.cargo ?? '')
@@ -95,11 +101,11 @@ export default function ColaboradorDetalhe() {
     setSalvando(true); setMsg('')
     try {
       await colaboradoresApi.updateAcesso(id, {
-        nome, permissoes,
+        nome, email, username: username || null, permissoes,
         dias_semana: diasSemana,
         hora_inicio: diasSemana ? horaInicio : null,
         hora_fim:    diasSemana ? horaFim    : null,
-      })
+      } as any)
       setMsg('Salvo com sucesso.')
     } catch (err: any) { setMsg(err?.response?.data?.error ?? 'Erro.') }
     finally { setSalvando(false) }
@@ -203,24 +209,78 @@ export default function ColaboradorDetalhe() {
             {/* ── Acesso ── */}
             {aba === 'acesso' && (
               <>
+                {/* Toggle de acesso NO TOPO */}
+                {!isDono && (
+                  <div className={`flex items-center justify-between p-4 rounded-2xl border ${
+                    colab.ativo ? 'bg-deep-ocean border-ocean-depth' : 'bg-red-500/10 border-red-500/30'
+                  }`}>
+                    <div>
+                      <p className={`text-sm font-semibold ${colab.ativo ? 'text-sea-foam' : 'text-red-400'}`}>
+                        {colab.ativo ? '🟢 Acesso ativo' : '🔴 Acesso bloqueado'}
+                      </p>
+                      <p className="text-steel text-xs mt-0.5">
+                        {colab.ativo ? 'Colaborador pode entrar no sistema' : 'Login bloqueado'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const novo = !colab.ativo
+                        await colaboradoresApi.updateAcesso(id, { ativo: novo })
+                        setColab(c => c ? { ...c, ativo: novo } : c)
+                      }}
+                      className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${colab.ativo ? 'bg-electric-cyan' : 'bg-ocean-depth'}`}
+                    >
+                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${colab.ativo ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
+                )}
+
                 <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Dados de acesso</h3>
                     {isDono && <span className="bg-electric-cyan/20 text-electric-cyan text-[10px] px-2 py-0.5 rounded-full font-medium uppercase">Dono</span>}
                   </div>
                   <Input label="Nome" value={nome} onChange={e => setNome(e.target.value)} />
-                  <div><label className="text-xs text-steel uppercase tracking-wider">Email</label>
-                    <p className="text-sea-foam text-sm mt-1 px-1">{colab.email}</p></div>
+                  <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    placeholder="email@exemplo.com" />
+                  <Input label="Usuário (opcional)" value={username} onChange={e => setUsername(e.target.value.toLowerCase())}
+                    placeholder="ex: joao.silva" />
                 </section>
 
                 {!isDono && (
                   <>
+                    {/* Modelo de permissão — dropdown simples */}
+                    <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-3">
+                      <div>
+                        <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Modelo de permissão</h3>
+                        <p className="text-steel text-xs mt-0.5">Define quais menus este colaborador pode acessar</p>
+                      </div>
+                      {modelos.filter((m: any) => !m.sistema).length === 0 ? (
+                        <p className="text-yellow-400 text-xs">
+                          Nenhum modelo criado.{' '}
+                          <a href="/painel/colaboradores/permissoes" className="underline">Criar modelo</a>
+                        </p>
+                      ) : (
+                        <select
+                          value={(colab as any).modelo_permissao_id ?? ''}
+                          onChange={async e => {
+                            const modeloId = e.target.value || null
+                            await colaboradoresApi.updateAcesso(id, { modelo_permissao_id: modeloId } as any)
+                            setColab(c => c ? { ...c, modelo_permissao_id: modeloId } as any : c)
+                          }}
+                          className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan"
+                        >
+                          <option value="">Sem modelo — sem acesso ao painel</option>
+                          {modelos.filter((m: any) => !m.sistema).map((m: any) => (
+                            <option key={m.id} value={m.id}>{m.nome}</option>
+                          ))}
+                        </select>
+                      )}
+                    </section>
+
                     <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5">
                       <SeletorHorario dias={diasSemana} horaInicio={horaInicio} horaFim={horaFim}
                         onChange={(d, i, f) => { setDiasSemana(d); setHoraInicio(i); setHoraFim(f) }} />
-                    </section>
-                    <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5">
-                      <SeletorPermissoes value={permissoes} onChange={setPermissoes} />
                     </section>
                   </>
                 )}
@@ -243,20 +303,21 @@ export default function ColaboradorDetalhe() {
 
                 {!isDono && (
                   <button
-                    onClick={colab.ativo ? handleDesativar : async () => {
-                      await colaboradoresApi.updateAcesso(id, { ativo: true })
-                      setColab(c => c ? { ...c, ativo: true } : c)
-                      setMsg('Colaborador reativado.')
+                    onClick={async () => {
+                      if (!confirm('Excluir permanentemente este colaborador?')) return
+                      try {
+                        await colaboradoresApi.excluir(id)
+                        router.push('/painel/colaboradores')
+                      } catch (err: any) {
+                        alert(err?.response?.data?.error ?? 'Erro ao excluir.')
+                      }
                     }}
-                    className={`min-h-[48px] rounded-2xl text-sm border transition-colors ${
-                      colab.ativo
-                        ? 'border-red-500/30 text-red-400 hover:bg-red-500/10'
-                        : 'border-mint-green/30 text-mint-green hover:bg-mint-green/10'
-                    }`}
+                    className={`min-h-[48px] rounded-2xl text-sm border transition-colors border-red-500/30 text-red-400 hover:bg-red-500/10`
+                  /* placeholder para manter a estrutura do bloco */.trim()}
                   >
-                    {colab.ativo ? '🔒 Bloquear acesso' : '🔓 Reativar acesso'}
-                  </button>
+                    🗑️ Excluir colaborador</button>
                 )}
+
               </>
             )}
 

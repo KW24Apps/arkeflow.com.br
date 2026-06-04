@@ -1,6 +1,7 @@
 import Fastify from 'fastify'
 import jwt from '@fastify/jwt'
 import cors from '@fastify/cors'
+import multipart from '@fastify/multipart'
 import { env } from './config/env'
 import { errorHandler } from './core/errors/handler'
 import { authRoutes }           from './modules/auth/auth.routes'
@@ -21,6 +22,7 @@ export function buildApp() {
 
   app.register(cors, { origin: true })
   app.register(jwt,  { secret: env.JWT_SECRET })
+  app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } }) // 10MB
   app.setErrorHandler(errorHandler)
 
   app.get('/health', async () => ({ status: 'ok' }))

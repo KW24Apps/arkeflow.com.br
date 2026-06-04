@@ -15,10 +15,21 @@ export function SeletorPermissoes({ value, onChange }: Props) {
     setExpandidos(prev => prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug])
   }
 
-  // Verifica se o grupo principal está ativo
-  function grupoAtivo(slug: string) { return value.includes(slug) || value.includes('*') }
+  // Retorna o status do grupo: 'full' | 'partial' | 'none'
+  function grupoStatus(g: typeof GRUPOS_PERMISSAO[0]): 'full' | 'partial' | 'none' {
+    if (value.includes('*') || value.includes(g.slug)) return 'full'
+    if (g.sub.length === 0) return 'none'
+    const marcados = g.sub.filter(s => value.includes(s.slug)).length
+    if (marcados === 0) return 'none'
+    if (marcados === g.sub.length) return 'full'
+    return 'partial'
+  }
 
-  // Verifica se um sub-item está ativo
+  function grupoAtivo(slug: string) {
+    const g = GRUPOS_PERMISSAO.find(x => x.slug === slug)!
+    return grupoStatus(g) !== 'none'
+  }
+
   function subAtivo(sub: string) {
     return value.includes(sub) || value.includes(sub.split('/')[0]) || value.includes('*')
   }
@@ -82,13 +93,21 @@ export function SeletorPermissoes({ value, onChange }: Props) {
             <div className={`flex items-center gap-3 min-h-[48px] px-4 rounded-xl border transition-colors ${
               ativo ? 'border-electric-cyan bg-electric-cyan/10' : 'border-ocean-depth hover:border-teal-current'
             }`}>
-              {/* Checkbox */}
-              <button type="button" onClick={() => toggleGrupo(g)}
-                className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
-                  ativo ? 'border-electric-cyan bg-electric-cyan' : 'border-steel'
-                }`}>
-                {ativo && <span className="text-midnight text-xs font-bold">✓</span>}
-              </button>
+              {/* Checkbox com três estados */}
+              {(() => {
+                const status = grupoStatus(g)
+                return (
+                  <button type="button" onClick={() => toggleGrupo(g)}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      status === 'full'    ? 'border-electric-cyan bg-electric-cyan' :
+                      status === 'partial' ? 'border-electric-cyan bg-transparent' :
+                                             'border-steel'
+                    }`}>
+                    {status === 'full'    && <span className="text-midnight text-xs font-bold leading-none">✓</span>}
+                    {status === 'partial' && <span className="text-electric-cyan text-sm font-bold leading-none">—</span>}
+                  </button>
+                )
+              })()}
 
               {/* Label */}
               <span className={`flex-1 text-sm font-medium ${ativo ? 'text-sea-foam' : 'text-steel'}`}>

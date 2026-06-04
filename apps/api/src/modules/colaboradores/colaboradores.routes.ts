@@ -50,6 +50,7 @@ const createSchema = z.object({
 
 const updateAcessoSchema = z.object({
   nome:        z.string().min(1).optional(),
+  email:       z.string().email().optional(),
   username:    z.string().min(3).regex(/^[a-z0-9._]+$/).optional().nullable(),
   permissoes:  z.array(z.string()).optional(),
   ativo:       z.boolean().optional(),
@@ -212,7 +213,8 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const add = (f: string, v: any) => { val.push(v); upd.push(`${f} = $${val.length}`) }
 
     if (data.nome        !== undefined) add('nome', data.nome)
-    if (data.username            !== undefined) add('username', data.username ?? null)
+    if (data.email       !== undefined) add('email', data.email)
+    if (data.username    !== undefined) add('username', data.username ?? null)
     if ((data as any).modelo_permissao_id !== undefined) add('modelo_permissao_id', (data as any).modelo_permissao_id ?? null)
     if (data.ativo               !== undefined) add('ativo', data.ativo)
     if (data.dias_semana !== undefined) add('dias_semana', data.dias_semana ? JSON.stringify(data.dias_semana) : null)
@@ -248,6 +250,7 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     return reply.send(c)
   })
 
+  // Desativar (soft)
   app.delete('/:id', { preHandler: dono }, async (req, reply) => {
     const user = req.user as JwtPayload
     const { id } = req.params as { id: string }
@@ -256,6 +259,34 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
       `UPDATE usuarios SET ativo = false WHERE id = $1 AND loja_id = $2 AND nivel = 'vendedor'`,
       [id, user.loja_id]
     )
+    return reply.status(204).send()
+  })
+
+  // Excluir permanentemente — só se não tiver nenhum histórico
+  app.delete('/:id/permanente', { preHandler: dono }, async (req, reply) => {
+    const user = req.user as JwtPayload
+    const { id } = req.params as { id: string }
+    if (id === user.id) throw new AppError('Você não pode excluir sua própria conta.', 400)
+
+    const { rows: [u] } = await platformPool.query(
+      `SELECT nivel FROM usuarios WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+    )
+    if (!u) throw new AppError('Colaborador não encontrado', 404)
+    if (u.nivel === 'dono_loja') throw new AppError('O usuário principal não pode ser excluído.', 403)
+
+    // Verifica se tem logs de acesso
+    const { rows: [logs] } = await platformPool.query(
+      `SELECT COUNT(*)::int AS total FROM logs_acesso WHERE usuario_id = $1`, [id]
+    )
+    if (logs.total > 0) {
+      throw new AppError(
+        'Este colaborador possui histórico de acessos. Use o bloqueio para desativar o acesso.',
+        409, 'TEM_HISTORICO'
+      )
+    }
+
+    // Exclui permanentemente
+    await platformPool.query(`DELETE FROM usuarios WHERE id = $1`, [id])
     return reply.status(204).send()
   })
 

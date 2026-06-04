@@ -69,6 +69,8 @@ export const colaboradoresApi = {
     api.put(`/colaboradores/${id}/perfil`, data).then(r => r.data),
   remove: (id: string) =>
     api.delete(`/colaboradores/${id}`),
+  excluir: (id: string) =>
+    api.delete(`/colaboradores/${id}/permanente`),
   redefinirSenha: (id: string, senha: string) =>
     api.put(`/colaboradores/${id}/senha`, { senha }).then(r => r.data),
 }
