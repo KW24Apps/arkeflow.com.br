@@ -1,6 +1,6 @@
 import { api } from './client'
 
-export type TipoCatalogo = 'tamanhos' | 'cores' | 'tipos_produto' | 'composicoes'
+export type TipoCatalogo = 'tamanhos' | 'cores' | 'tipos_produto' | 'composicoes' | 'medidas'
 
 export interface ItemCatalogo {
   id: string

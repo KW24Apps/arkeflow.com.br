@@ -4,7 +4,7 @@ import { authorize } from '../../core/middlewares/authorize'
 import { getTenantPoolFromRequest } from '../../core/tenant/resolver'
 
 // Tabelas válidas de catálogo
-const CATALOGOS = ['tamanhos', 'cores', 'tipos_produto', 'composicoes'] as const
+const CATALOGOS = ['tamanhos', 'cores', 'tipos_produto', 'composicoes', 'medidas'] as const
 type Catalogo = typeof CATALOGOS[number]
 
 function isCatalogo(s: string): s is Catalogo {

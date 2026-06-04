@@ -13,7 +13,8 @@ const nav = [
   { label: 'Tamanhos',   href: '/painel/cadastros/tamanhos' },
   { label: 'Cores',      href: '/painel/cadastros/cores' },
   { label: 'Tipos',      href: '/painel/cadastros/tipos' },
-  { label: 'Composições',href: '/painel/cadastros/composicoes' },
+  { label: 'Composições', href: '/painel/cadastros/composicoes' },
+  { label: 'Medidas',     href: '/painel/cadastros/medidas' },
   { type: 'divider', label: 'Configurações' } as any,
   { label: 'Formas de Pagamento', href: '/painel/configuracoes/formas-pagamento' },
 ]
