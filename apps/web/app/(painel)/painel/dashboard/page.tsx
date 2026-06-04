@@ -40,12 +40,28 @@ export default function PainelDashboard() {
     }).finally(() => setLoading(false))
   }, [])
 
-  const TIPO_LABEL: Record<string, string> = {
+  const TIPO_ICON: Record<string, string> = {
     desconto_percentual: '🏷️',
     desconto_fixo:       '💰',
     segunda_peca:        '2️⃣',
     compre_ganhe:        '🎁',
     primeira_compra:     '🌟',
+  }
+
+  function descontoLabel(p: Promocao): string {
+    switch (p.tipo) {
+      case 'desconto_percentual': return `${p.valor_desconto}% de desconto`
+      case 'desconto_fixo':       return `R$ ${Number(p.valor_desconto).toFixed(2)} de desconto`
+      case 'segunda_peca':        return `2ª peça com ${p.percentual_brinde}% off`
+      case 'compre_ganhe':        return `Compre ${p.quantidade_compre} leve ${(p.quantidade_compre ?? 0) + (p.quantidade_brinde ?? 0)}`
+      case 'primeira_compra':     return `${p.valor_desconto}% na 1ª compra`
+      default: return ''
+    }
+  }
+
+  function periodoLabel(p: Promocao): string {
+    if (!p.fim) return 'Sem vencimento'
+    return `até ${new Date(p.fim + 'T12:00:00').toLocaleDateString('pt-BR')}`
   }
 
   return (
@@ -83,17 +99,19 @@ export default function PainelDashboard() {
             <div className="flex flex-col gap-2">
               {promoAtivas.slice(0, 4).map(p => (
                 <div key={p.id} className="flex items-center gap-3">
-                  <span className="text-base">{TIPO_LABEL[p.tipo] ?? '🏷️'}</span>
+                  <span className="text-xl shrink-0">{TIPO_ICON[p.tipo] ?? '🏷️'}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sea-foam text-sm truncate">{p.nome}</p>
-                    {p.fim && (
-                      <p className="text-steel text-xs">
-                        até {new Date(p.fim + 'T12:00:00').toLocaleDateString('pt-BR')}
+                    <p className="text-sea-foam text-sm font-medium truncate">{p.nome}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-electric-cyan text-xs">{descontoLabel(p)}</p>
+                      <span className="text-steel text-xs">·</span>
+                      <p className={`text-xs ${p.fim ? 'text-steel' : 'text-teal-current'}`}>
+                        {periodoLabel(p)}
                       </p>
-                    )}
+                    </div>
                   </div>
                   {p.codigo && (
-                    <span className="bg-ocean-depth text-teal-current text-[10px] px-2 py-0.5 rounded font-mono">
+                    <span className="bg-ocean-depth text-teal-current text-[10px] px-2 py-0.5 rounded font-mono shrink-0">
                       {p.codigo}
                     </span>
                   )}
