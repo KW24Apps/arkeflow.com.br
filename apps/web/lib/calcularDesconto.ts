@@ -12,6 +12,7 @@ export interface Promocao {
   percentual_brinde?: number | null  // % de desconto na segunda peça
   categoria_alvo?: string | null
   produtos_ids?: string[]
+  codigo?: string | null
   ativo?: boolean
   inicio?: string | null
   fim?: string | null
