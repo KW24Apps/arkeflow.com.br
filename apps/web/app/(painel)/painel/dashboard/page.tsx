@@ -110,17 +110,17 @@ export default function PainelDashboard() {
         {onlineAgora.length > 0 && (
           <div className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 mb-5">
             <div className="flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 rounded-full bg-mint-green animate-pulse" />
               <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">
-                Acessos hoje ({onlineAgora.length})
+                Online agora ({onlineAgora.length})
               </h3>
             </div>
             <div className="flex flex-col gap-2">
               {onlineAgora.map((u, i) => {
                 const min   = Math.floor(u.segundos_atras / 60)
-                const ativo = u.segundos_atras < 1800  // verde se < 30 min
+                const ativo = u.segundos_atras < 600  // verde se < 10 min (2 pings)
                 const tempo = min < 1 ? 'agora'
-                            : min < 60 ? `há ${min} min`
-                            : `há ${Math.floor(min / 60)}h`
+                            : `há ${min} min`
                 return (
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

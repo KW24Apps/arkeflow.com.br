@@ -43,8 +43,13 @@ export async function create(pool: Pool, data: {
 }
 
 export async function update(pool: Pool, id: string, data: Record<string, any>) {
-  const keys   = Object.keys(data)
-  const values = Object.values(data)
+  // medidas_json precisa de serialização JSONB
+  const processed = { ...data }
+  if (processed.medidas_json !== undefined) {
+    processed.medidas_json = JSON.stringify(processed.medidas_json)
+  }
+  const keys   = Object.keys(processed)
+  const values = Object.values(processed)
   const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
   const { rows: [c] } = await pool.query(
     `UPDATE clientes SET ${set} WHERE id = $1 AND ativo = true RETURNING *`,

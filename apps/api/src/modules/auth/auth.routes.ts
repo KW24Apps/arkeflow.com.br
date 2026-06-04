@@ -8,6 +8,15 @@ export async function authRoutes(app: FastifyInstance) {
   app.post('/login', loginHandler)
   app.get('/me', { preHandler: authMiddleware }, meHandler)
 
+  // Heartbeat — atualiza ultimo_acesso enquanto o usuário está com a aba aberta
+  app.post('/ping', { preHandler: authMiddleware }, async (req, reply) => {
+    const user = req.user as JwtPayload
+    await platformPool.query(
+      'UPDATE usuarios SET ultimo_acesso = NOW() WHERE id = $1', [user.id]
+    )
+    return reply.send({ ok: true })
+  })
+
   // Registra saída e limpa sessão
   app.post('/logout', { preHandler: authMiddleware }, async (req, reply) => {
     const user = req.user as JwtPayload

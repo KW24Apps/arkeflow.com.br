@@ -6,8 +6,9 @@ import { TopBar } from '@/components/layout/TopBar'
 import { Input } from '@/components/ui/Input'
 import { clientesApi, type Cliente, type VendaHistorico } from '@/lib/api/clientes'
 import { cashbackApi, type RegraCashback } from '@/lib/api/cashback'
+import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
 
-type Aba = 'dados' | 'compras'
+type Aba = 'dados' | 'medidas' | 'compras'
 
 export default function ClienteDetalhe() {
   const { id }  = useParams<{ id: string }>()
@@ -27,10 +28,20 @@ export default function ClienteDetalhe() {
   const [email,           setEmail]           = useState('')
   const [regraCashbackId, setRegraCashbackId] = useState('')
 
+  // Medidas corporais
+  const [medidasDisponiveis, setMedidasDisponiveis] = useState<ItemCatalogo[]>([])
+  const [medidasCliente, setMedidasCliente] = useState<Record<string,string>>({})
+  const [addingMedida,   setAddingMedida]   = useState(false)
+  const [novaMedNome,    setNovaMedNome]    = useState('')
+  const [novaMedValor,   setNovaMedValor]   = useState('')
+  const [salvandoMed,    setSalvandoMed]    = useState(false)
+
   useEffect(() => {
-    Promise.all([clientesApi.get(id), clientesApi.historico(id), cashbackApi.list()])
-      .then(([c, h, rs]) => {
+    Promise.all([clientesApi.get(id), clientesApi.historico(id), cashbackApi.list(), catalogosApi.list('medidas')])
+      .then(([c, h, rs, meds]) => {
         setCliente(c); setHistorico(h); setRegras(rs)
+        setMedidasDisponiveis(meds)
+        setMedidasCliente((c as any).medidas_json ?? {})
         setNome(c.nome); setTelefone(c.telefone ?? '')
         setCpf(c.cpf ?? ''); setEmail(c.email ?? '')
         setRegraCashbackId(c.regra_cashback_id ?? '')
@@ -54,6 +65,24 @@ export default function ClienteDetalhe() {
     router.push('/painel/clientes')
   }
 
+  async function handleSalvarMedida() {
+    if (!novaMedNome || !novaMedValor) return
+    setSalvandoMed(true)
+    try {
+      const novas = { ...medidasCliente, [novaMedNome]: novaMedValor }
+      await clientesApi.update(id, { medidas_json: novas } as any)
+      setMedidasCliente(novas)
+      setAddingMedida(false); setNovaMedNome(''); setNovaMedValor('')
+    } finally { setSalvandoMed(false) }
+  }
+
+  async function handleRemoverMedida(chave: string) {
+    const novas = { ...medidasCliente }
+    delete novas[chave]
+    await clientesApi.update(id, { medidas_json: novas } as any)
+    setMedidasCliente(novas)
+  }
+
   if (loading) return (
     <><TopBar title="Cliente" />
       <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div>
@@ -70,12 +99,16 @@ export default function ClienteDetalhe() {
 
         {/* Abas */}
         <div className="bg-deep-ocean border-b border-ocean-depth flex px-4">
-          {(['dados', 'compras'] as Aba[]).map(a => (
-            <button key={a} onClick={() => setAba(a)}
-              className={`min-h-[44px] px-6 text-sm font-medium border-b-2 capitalize transition-colors ${
-                aba === a ? 'text-electric-cyan border-electric-cyan' : 'text-steel border-transparent hover:text-sea-foam'
+          {([
+            { key: 'dados',   label: 'Dados' },
+            { key: 'medidas', label: `Medidas (${Object.keys(medidasCliente).length})` },
+            { key: 'compras', label: `Compras (${historico.length})` },
+          ] as { key: Aba; label: string }[]).map(a => (
+            <button key={a.key} onClick={() => setAba(a.key)}
+              className={`min-h-[44px] px-5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                aba === a.key ? 'text-electric-cyan border-electric-cyan' : 'text-steel border-transparent hover:text-sea-foam'
               }`}>
-              {a === 'dados' ? 'Dados' : `Compras (${historico.length})`}
+              {a.label}
             </button>
           ))}
         </div>
@@ -157,6 +190,65 @@ export default function ClienteDetalhe() {
                   Remover cliente
                 </button>
               </>
+            )}
+
+            {/* ── Aba Medidas ── */}
+            {aba === 'medidas' && (
+              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sea-foam font-semibold text-sm">Medidas Corporais</h3>
+                    <p className="text-steel text-xs mt-0.5">Usado para filtrar produtos que se encaixam no cliente</p>
+                  </div>
+                </div>
+
+                {/* Medidas existentes */}
+                {Object.entries(medidasCliente).map(([chave, valor]) => (
+                  <div key={chave} className="flex items-center justify-between bg-midnight rounded-xl px-4 py-3">
+                    <div>
+                      <p className="text-steel text-xs">{chave}</p>
+                      <p className="text-sea-foam font-semibold">{valor}</p>
+                    </div>
+                    <button onClick={() => handleRemoverMedida(chave)}
+                      className="text-steel hover:text-red-400 text-xl min-h-[40px] min-w-[40px] flex items-center justify-center">×</button>
+                  </div>
+                ))}
+
+                {/* Adicionar medida */}
+                {addingMedida ? (
+                  <div className="flex flex-col gap-3 bg-midnight rounded-xl p-3">
+                    <select value={novaMedNome} onChange={e => setNovaMedNome(e.target.value)}
+                      className="min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none">
+                      <option value="">Selecione a medida...</option>
+                      {medidasDisponiveis.filter(m => !(m.nome in medidasCliente)).map(m => (
+                        <option key={m.id} value={m.nome}>{m.nome}</option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <input value={novaMedValor} onChange={e => setNovaMedValor(e.target.value)}
+                        placeholder="Ex: 96cm"
+                        className="flex-1 min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
+                      <button onClick={handleSalvarMedida} disabled={salvandoMed || !novaMedNome || !novaMedValor}
+                        className="min-h-[48px] px-4 bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40">
+                        {salvandoMed ? '...' : 'OK'}
+                      </button>
+                      <button onClick={() => { setAddingMedida(false); setNovaMedNome(''); setNovaMedValor('') }}
+                        className="min-h-[48px] px-3 text-steel rounded-xl">×</button>
+                    </div>
+                  </div>
+                ) : (
+                  medidasDisponiveis.some(m => !(m.nome in medidasCliente)) && (
+                    <button onClick={() => setAddingMedida(true)}
+                      className="text-xs text-electric-cyan/70 hover:text-electric-cyan self-start min-h-[36px]">
+                      + Adicionar medida
+                    </button>
+                  )
+                )}
+
+                {Object.keys(medidasCliente).length === 0 && !addingMedida && (
+                  <p className="text-steel text-sm text-center py-4">Nenhuma medida cadastrada</p>
+                )}
+              </section>
             )}
 
             {/* ── Aba Compras ── */}

@@ -141,7 +141,7 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
        FROM usuarios
        WHERE loja_id = $1
          AND ativo = true
-         AND ultimo_acesso >= CURRENT_DATE::timestamptz
+         AND ultimo_acesso > NOW() - INTERVAL '10 minutes'
        ORDER BY ultimo_acesso DESC`,
       [user.loja_id]
     )
