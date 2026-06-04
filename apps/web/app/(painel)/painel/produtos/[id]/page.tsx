@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { produtosApi, type Produto, type Versao } from '@/lib/api/produtos'
 import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
+import { ComposicaoForm, type ItemComposicao } from '@/components/painel/ComposicaoForm'
 
 // ─── tipos internos ────────────────────────────────────────────────────────────
 
@@ -41,17 +42,16 @@ export default function ProdutoPage() {
   const [nome,            setNome]            = useState('')
   const [tipoId,          setTipoId]          = useState('')
   const [marca,           setMarca]           = useState('')
-  const [composicao,      setComposicao]      = useState('')
+  const [composicaoItens, setComposicaoItens] = useState<ItemComposicao[]>([])
   const [descricao,       setDescricao]       = useState('')
   const [preco,           setPreco]           = useState('')
   const [controleEstoque, setControleEstoque] = useState(true)
 
   // Catálogos
-  const [tipos,       setTipos]       = useState<ItemCatalogo[]>([])
-  const [tamanhos,    setTamanhos]    = useState<ItemCatalogo[]>([])
-  const [cores,       setCores]       = useState<ItemCatalogo[]>([])
-  const [medidas,     setMedidas]     = useState<ItemCatalogo[]>([])
-  const [composicoes, setComposicoes] = useState<ItemCatalogo[]>([])
+  const [tipos,    setTipos]    = useState<ItemCatalogo[]>([])
+  const [tamanhos, setTamanhos] = useState<ItemCatalogo[]>([])
+  const [cores,    setCores]    = useState<ItemCatalogo[]>([])
+  const [medidas,  setMedidas]  = useState<ItemCatalogo[]>([])
 
   // Formulário de variação
   const [editandoForm, setEditandoForm] = useState<EditandoForm>(null)
@@ -67,17 +67,14 @@ export default function ProdutoPage() {
       catalogosApi.list('tamanhos'),
       catalogosApi.list('cores'),
       catalogosApi.list('medidas'),
-      catalogosApi.list('composicoes'),
-    ]).then(([p, tp, tam, c, med, comp]) => {
+    ]).then(([p, tp, tam, c, med]) => {
       setProduto(p)
-      setTipos(tp); setTamanhos(tam); setCores(c)
-      setMedidas(med); setComposicoes(comp)
+      setTipos(tp); setTamanhos(tam); setCores(c); setMedidas(med)
 
-      // Preenche o formulário com os dados existentes
       setNome(p.nome)
       setTipoId((p as any).tipo_id ?? '')
       setMarca(p.marca ?? '')
-      setComposicao((p as any).composicao ?? '')
+      setComposicaoItens((p as any).composicao_itens ?? [])
       setDescricao(p.descricao ?? '')
       setPreco(Number(p.preco_base).toString())
       setControleEstoque(p.controle_estoque)
@@ -88,13 +85,18 @@ export default function ProdutoPage() {
   // ─── salvar produto ─────────────────────────────────────────────────────────
   async function handleSalvarProduto() {
     if (!nome || !preco) return
+    const totalComp = composicaoItens.reduce((s, i) => s + i.percentual, 0)
+    if (composicaoItens.length > 0 && totalComp !== 100) {
+      alert(`A composição precisa totalizar 100% (atual: ${totalComp}%).`)
+      return
+    }
     setSalvandoProduto(true)
     try {
       await produtosApi.update(id, {
         nome,
         tipo_id:          tipoId || null,
         marca:            marca || undefined,
-        composicao:       composicao || undefined,
+        composicao_itens: composicaoItens as any,
         descricao:        descricao || undefined,
         preco_base:       parseFloat(preco.replace(',', '.')) as any,
         controle_estoque: controleEstoque,
@@ -210,18 +212,10 @@ export default function ProdutoPage() {
               <Input label="Marca" value={marca} onChange={e => setMarca(e.target.value)} placeholder="Ex: Nike" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Preço base (R$) *" type="text" inputMode="decimal"
-                value={preco} onChange={e => setPreco(e.target.value)} placeholder="0,00" />
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-steel uppercase tracking-wider">Composição</label>
-                <select value={composicao} onChange={e => setComposicao(e.target.value)}
-                  className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-3 text-sm text-sea-foam outline-none focus:border-electric-cyan">
-                  <option value="">Composição...</option>
-                  {composicoes.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                </select>
-              </div>
-            </div>
+            <Input label="Preço base (R$) *" type="text" inputMode="decimal"
+              value={preco} onChange={e => setPreco(e.target.value)} placeholder="0,00" />
+
+            <ComposicaoForm value={composicaoItens} onChange={setComposicaoItens} />
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-steel uppercase tracking-wider">Descrição</label>

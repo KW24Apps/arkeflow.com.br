@@ -6,6 +6,7 @@ import { TopBar } from '@/components/layout/TopBar'
 import { Input } from '@/components/ui/Input'
 import { produtosApi, type Produto, type Versao } from '@/lib/api/produtos'
 import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
+import { ComposicaoForm, type ItemComposicao } from '@/components/painel/ComposicaoForm'
 
 type FormMedida  = { nome: string; valor: string }
 type EditandoForm = null | 'novo' | string
@@ -35,17 +36,16 @@ export default function NovoProdutoPage() {
   const [nome,            setNome]            = useState('')
   const [tipoId,          setTipoId]          = useState('')
   const [marca,           setMarca]           = useState('')
-  const [composicao,      setComposicao]      = useState('')
+  const [composicaoItens, setComposicaoItens] = useState<ItemComposicao[]>([])
   const [descricao,       setDescricao]       = useState('')
   const [preco,           setPreco]           = useState('')
   const [controleEstoque, setControleEstoque] = useState(true)
 
   // Catálogos
-  const [tipos,       setTipos]       = useState<ItemCatalogo[]>([])
-  const [tamanhos,    setTamanhos]    = useState<ItemCatalogo[]>([])
-  const [cores,       setCores]       = useState<ItemCatalogo[]>([])
-  const [medidas,     setMedidas]     = useState<ItemCatalogo[]>([])
-  const [composicoes, setComposicoes] = useState<ItemCatalogo[]>([])
+  const [tipos,    setTipos]    = useState<ItemCatalogo[]>([])
+  const [tamanhos, setTamanhos] = useState<ItemCatalogo[]>([])
+  const [cores,    setCores]    = useState<ItemCatalogo[]>([])
+  const [medidas,  setMedidas]  = useState<ItemCatalogo[]>([])
 
   // Formulário de variação
   const [editandoForm, setEditandoForm] = useState<EditandoForm>(null)
@@ -59,9 +59,8 @@ export default function NovoProdutoPage() {
       catalogosApi.list('tamanhos'),
       catalogosApi.list('cores'),
       catalogosApi.list('medidas'),
-      catalogosApi.list('composicoes'),
-    ]).then(([tp, tam, c, med, comp]) => {
-      setTipos(tp); setTamanhos(tam); setCores(c); setMedidas(med); setComposicoes(comp)
+    ]).then(([tp, tam, c, med]) => {
+      setTipos(tp); setTamanhos(tam); setCores(c); setMedidas(med)
     })
   }, [])
 
@@ -70,6 +69,10 @@ export default function NovoProdutoPage() {
     setErroProduto('')
     if (!nome.trim()) { setErroProduto('Informe o nome do produto.'); return null }
     if (!preco)       { setErroProduto('Informe o preço base.'); return null }
+    const totalComp = composicaoItens.reduce((s, i) => s + i.percentual, 0)
+    if (composicaoItens.length > 0 && totalComp !== 100) {
+      setErroProduto(`A composição precisa totalizar 100% (atual: ${totalComp}%).`); return null
+    }
 
     setSalvandoProduto(true)
     try {
@@ -77,7 +80,8 @@ export default function NovoProdutoPage() {
         // Já existe — só atualiza
         await produtosApi.update(produtoId, {
           nome, tipo_id: tipoId || null, marca: marca || undefined,
-          composicao: composicao || undefined, descricao: descricao || undefined,
+          descricao: descricao || undefined,
+          composicao_itens: composicaoItens as any,
           preco_base: parseFloat(preco.replace(',', '.')) as any,
           controle_estoque: controleEstoque,
         })
@@ -88,10 +92,11 @@ export default function NovoProdutoPage() {
         // Cria novo e atualiza URL sem mudar de tela
         const p = await produtosApi.create({
           nome, tipo_id: tipoId || undefined, marca: marca || undefined,
-          composicao: composicao || undefined, descricao: descricao || undefined,
+          descricao: descricao || undefined,
+          composicao_itens: composicaoItens.length ? composicaoItens : undefined,
           preco_base: parseFloat(preco.replace(',', '.')),
           controle_estoque: controleEstoque,
-        })
+        } as any)
         setProdutoId(p!.id)
         setProduto(p!)
         router.replace(`/painel/produtos/${p!.id}`)  // atualiza URL sem navegar
@@ -182,18 +187,10 @@ export default function NovoProdutoPage() {
               <Input label="Marca" value={marca} onChange={e => setMarca(e.target.value)} placeholder="Ex: Nike" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Preço base (R$) *" type="text" inputMode="decimal"
-                value={preco} onChange={e => setPreco(e.target.value)} placeholder="0,00" />
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-steel uppercase tracking-wider">Composição</label>
-                <select value={composicao} onChange={e => setComposicao(e.target.value)}
-                  className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-3 text-sm text-sea-foam outline-none focus:border-electric-cyan">
-                  <option value="">Composição...</option>
-                  {composicoes.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                </select>
-              </div>
-            </div>
+            <Input label="Preço base (R$) *" type="text" inputMode="decimal"
+              value={preco} onChange={e => setPreco(e.target.value)} placeholder="0,00" />
+
+            <ComposicaoForm value={composicaoItens} onChange={setComposicaoItens} />
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-steel uppercase tracking-wider">Descrição</label>

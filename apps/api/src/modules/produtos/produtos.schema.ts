@@ -6,7 +6,11 @@ export const createProdutoSchema = z.object({
   categoria:        z.string().optional(),
   marca:            z.string().optional(),
   descricao:        z.string().optional(),
-  composicao:       z.string().optional(),
+  composicao:       z.string().optional(),  // legado — mantido por compatibilidade
+  composicao_itens: z.array(z.object({
+    material:   z.string().min(1),
+    percentual: z.coerce.number().int().min(1).max(100),
+  })).optional(),
   preco_base:       z.coerce.number().positive('Preço deve ser positivo'),
   controle_estoque: z.boolean().default(true),
   atributos:        z.array(z.string().min(1)).optional(),
