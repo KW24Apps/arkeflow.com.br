@@ -23,6 +23,12 @@ export default function ColaboradoresPage() {
     setColaboradores(prev => prev.filter(c => c.id !== id))
   }
 
+  async function handleToggleAtivo(c: Colaborador) {
+    const novoStatus = !c.ativo
+    await colaboradoresApi.updateAcesso(c.id, { ativo: novoStatus })
+    setColaboradores(prev => prev.map(x => x.id === c.id ? { ...x, ativo: novoStatus } : x))
+  }
+
   function horarioLabel(c: Colaborador) {
     if (!c.dias_semana && !c.hora_inicio) return null
     const dias = c.dias_semana?.map(d => DIAS_ABREV[d]).join(', ') ?? ''
@@ -75,17 +81,21 @@ export default function ColaboradoresPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-1 shrink-0">
+                  <div className="flex gap-1 shrink-0 items-center">
+                    {/* Toggle liga/desliga — só para vendedores, não para mim mesmo */}
+                    {!isDono && !isMe && (
+                      <button
+                        onClick={() => handleToggleAtivo(c)}
+                        title={c.ativo ? 'Bloquear acesso' : 'Liberar acesso'}
+                        className={`w-10 h-6 rounded-full transition-colors relative ${c.ativo ? 'bg-electric-cyan' : 'bg-ocean-depth'}`}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${c.ativo ? 'left-5' : 'left-1'}`} />
+                      </button>
+                    )}
                     <Link href={`/painel/colaboradores/${c.id}`}
                       className="min-h-[40px] min-w-[40px] text-steel hover:text-electric-cyan rounded-lg hover:bg-ocean-depth flex items-center justify-center text-sm transition-colors">
                       ✏️
                     </Link>
-                    {!isDono && !isMe && (
-                      <button onClick={() => handleDesativar(c.id)}
-                        className="min-h-[40px] min-w-[40px] text-steel hover:text-red-400 rounded-lg hover:bg-ocean-depth flex items-center justify-center text-sm transition-colors">
-                        🗑️
-                      </button>
-                    )}
                   </div>
                 </div>
               )
