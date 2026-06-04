@@ -49,14 +49,15 @@ const createSchema = z.object({
 }).merge(perfilSchema)
 
 const updateAcessoSchema = z.object({
-  nome:        z.string().min(1).optional(),
-  email:       z.string().email().optional().nullable(),
-  username:    z.string().min(3).regex(/^[a-z0-9._]+$/).optional().nullable(),
-  permissoes:  z.array(z.string()).optional(),
-  ativo:       z.boolean().optional(),
-  dias_semana: z.array(z.number().int().min(0).max(6)).optional().nullable(),
-  hora_inicio: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
-  hora_fim:    z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  nome:                z.string().min(1).optional(),
+  email:               z.string().email().optional().nullable(),
+  username:            z.string().min(3).regex(/^[a-z0-9._]+$/).optional().nullable(),
+  permissoes:          z.array(z.string()).optional().nullable(),
+  ativo:               z.boolean().optional(),
+  modelo_permissao_id: z.string().uuid().optional().nullable(),
+  dias_semana:         z.array(z.number().int().min(0).max(6)).optional().nullable(),
+  hora_inicio:         z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  hora_fim:            z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
 })
 
 const CAMPOS_USER = `
@@ -215,7 +216,7 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     if (data.nome        !== undefined) add('nome', data.nome)
     if (data.email       !== undefined) add('email', data.email)
     if (data.username    !== undefined) add('username', data.username ?? null)
-    if ((data as any).modelo_permissao_id !== undefined) add('modelo_permissao_id', (data as any).modelo_permissao_id ?? null)
+    if (data.modelo_permissao_id !== undefined) add('modelo_permissao_id', data.modelo_permissao_id ?? null)
     if (data.ativo               !== undefined) add('ativo', data.ativo)
     if (data.dias_semana !== undefined) add('dias_semana', data.dias_semana ? JSON.stringify(data.dias_semana) : null)
     if (data.hora_inicio !== undefined) add('hora_inicio', data.hora_inicio ?? null)

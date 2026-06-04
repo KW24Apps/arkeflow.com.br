@@ -34,8 +34,8 @@ export default function ColaboradorDetalhe() {
   const [salvando, setSalvando] = useState(false)
   const [msg, setMsg]       = useState('')
 
-  // Modelos de permissão disponíveis
-  const [modelos, setModelos] = useState<any[]>([])
+  const [modelos,   setModelos]   = useState<any[]>([])
+  const [modeloId,  setModeloId]  = useState<string>('')
 
   // Acesso
   const [nome,       setNome]       = useState('')
@@ -85,7 +85,9 @@ export default function ColaboradorDetalhe() {
       api.get<DocItem[]>(`/colaboradores/${id}/documentos`).then(r => r.data),
     ]).then(([c, l, d]) => {
       setColab(c); setLogs(l); setDocs(d)
-      setNome(c.nome); setEmail(c.email); setUsername((c as any).username ?? ''); setPermissoes(c.permissoes)
+      setNome(c.nome); setEmail(c.email ?? ''); setUsername((c as any).username ?? '')
+      setPermissoes(Array.isArray(c.permissoes) ? c.permissoes : [])
+      setModeloId((c as any).modelo_permissao_id ?? '')
       setDiasSemana(c.dias_semana); setHoraInicio(c.hora_inicio ?? '08:00'); setHoraFim(c.hora_fim ?? '18:00')
       setCpf(c.cpf ?? ''); setRg(c.rg ?? ''); setDataNascimento(c.data_nascimento ?? '')
       setTelefone(c.telefone ?? ''); setCargo(c.cargo ?? '')
@@ -103,11 +105,12 @@ export default function ColaboradorDetalhe() {
       await colaboradoresApi.updateAcesso(id, {
         nome,
         ...(email ? { email } : {}),
-        username: username || null,
-        permissoes,
-        dias_semana: diasSemana,
-        hora_inicio: diasSemana ? horaInicio : null,
-        hora_fim:    diasSemana ? horaFim    : null,
+        username:             username || null,
+        modelo_permissao_id:  modeloId || null,
+        permissoes:           Array.isArray(permissoes) ? permissoes : [],
+        dias_semana:          diasSemana,
+        hora_inicio:          diasSemana ? horaInicio : null,
+        hora_fim:             diasSemana ? horaFim    : null,
       } as any)
       setMsg('Salvo com sucesso.')
     } catch (err: any) { setMsg(err?.response?.data?.error ?? 'Erro.') }
@@ -265,12 +268,8 @@ export default function ColaboradorDetalhe() {
                         </p>
                       ) : (
                         <select
-                          value={(colab as any).modelo_permissao_id ?? ''}
-                          onChange={async e => {
-                            const modeloId = e.target.value || null
-                            await colaboradoresApi.updateAcesso(id, { modelo_permissao_id: modeloId } as any)
-                            setColab(c => c ? { ...c, modelo_permissao_id: modeloId } as any : c)
-                          }}
+                          value={modeloId}
+                          onChange={e => setModeloId(e.target.value)}
                           className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan"
                         >
                           <option value="">Sem modelo — sem acesso ao painel</option>
