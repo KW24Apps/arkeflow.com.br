@@ -16,6 +16,7 @@ import { colaboradoresRoutes }   from './modules/colaboradores/colaboradores.rou
 import { documentosRoutes }      from './modules/colaboradores/documentos.routes'
 import { configuracoesRoutes }      from './modules/configuracoes/configuracoes.routes'
 import { modelosPermissaoRoutes }   from './modules/colaboradores/modelos-permissao.routes'
+import { promocoesRoutes }          from './modules/promocoes/promocoes.routes'
 
 export function buildApp() {
   const app = Fastify({ logger: env.NODE_ENV === 'development' })
@@ -39,6 +40,7 @@ export function buildApp() {
   app.register(documentosRoutes,      { prefix: '/colaboradores' })
   app.register(configuracoesRoutes,    { prefix: '/configuracoes-loja' })
   app.register(modelosPermissaoRoutes, { prefix: '/modelos-permissao' })
+  app.register(promocoesRoutes,        { prefix: '/promocoes' })
 
   return app
 }
