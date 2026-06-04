@@ -27,12 +27,14 @@ export interface Versao {
 
 export interface CreateProdutoPayload {
   nome: string
+  tipo_id?: string | null
   categoria?: string
   marca?: string
   descricao?: string
+  composicao?: string
   preco_base: number
   controle_estoque: boolean
-  atributos?: string[]  // apenas os nomes dos atributos
+  atributos?: string[]
 }
 
 export const produtosApi = {
