@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth.store'
+import { api } from '@/lib/api/client'
 
 const tabs = [
   { label: 'Venda',     href: '/pdv',          icon: '🛒' },
@@ -15,7 +16,8 @@ export function BottomNav() {
   const router    = useRouter()
   const clearAuth = useAuthStore(s => s.clearAuth)
 
-  function logout() {
+  async function logout() {
+    try { await api.post('/auth/logout') } catch {}
     clearAuth()
     document.cookie = 'arkeflow_token=; path=/; max-age=0'
     router.push('/login')

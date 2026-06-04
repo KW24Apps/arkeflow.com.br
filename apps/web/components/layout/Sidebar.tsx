@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useAuthStore } from '@/store/auth.store'
+import { api } from '@/lib/api/client'
 
 export interface NavItem {
   label: string
@@ -22,7 +23,8 @@ export function Sidebar({ items, subtitle }: SidebarProps) {
   const clearAuth = useAuthStore(s => s.clearAuth)
   const [open, setOpen] = useState(false)
 
-  function logout() {
+  async function logout() {
+    try { await api.post('/auth/logout') } catch {}
     clearAuth()
     document.cookie = 'arkeflow_token=; path=/; max-age=0'
     router.push('/login')

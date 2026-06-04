@@ -16,7 +16,7 @@ export default function PainelDashboard() {
   const [totalProd, setTotalProd] = useState<number>(0)
   const [totalCli,  setTotalCli]  = useState<number>(0)
   const [alertas,   setAlertas]   = useState<number>(0)
-  const [logsRecentes, setLogsRecentes] = useState<LogAcesso[]>([])
+  const [onlineAgora, setOnlineAgora] = useState<any[]>([])
   const [loading,   setLoading]   = useState(true)
 
   useEffect(() => {
@@ -25,13 +25,13 @@ export default function PainelDashboard() {
       produtosApi.list(),
       clientesApi.list(),
       estoqueApi.list(true),
-      colaboradoresApi.logsRecentes(),
+      colaboradoresApi.onlineAgora(),
     ]).then(([r, p, c, a, l]) => {
       if (r.status === 'fulfilled') setResumo(r.value)
       if (p.status === 'fulfilled') setTotalProd(p.value.length)
       if (c.status === 'fulfilled') setTotalCli(c.value.length)
       if (a.status === 'fulfilled') setAlertas(a.value.length)
-      if (l.status === 'fulfilled') setLogsRecentes(l.value.slice(0, 10))
+      if (l.status === 'fulfilled') setOnlineAgora(l.value)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -65,25 +65,34 @@ export default function PainelDashboard() {
           />
         </div>
 
-        {/* Atividade recente */}
-        {logsRecentes.length > 0 && (
+        {/* Online agora */}
+        {onlineAgora.length > 0 && (
           <div className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 mb-2">
-            <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider mb-3">
-              Atividade recente
-            </h3>
-            <div className="flex flex-col gap-1.5">
-              {logsRecentes.map((l, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs ${l.tipo === 'login' ? 'text-mint-green' : 'text-steel'}`}>
-                      {l.tipo === 'login' ? '▶' : '◀'}
-                    </span>
-                    <span className="text-sea-foam text-xs">{l.nome}</span>
-                    <span className="text-steel text-xs">{l.nivel === 'dono_loja' ? '(dono)' : ''}</span>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 rounded-full bg-mint-green animate-pulse" />
+              <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">
+                Online agora ({onlineAgora.length})
+              </h3>
+            </div>
+            <div className="flex flex-col gap-2">
+              {onlineAgora.map((u, i) => {
+                const min = Math.floor(u.segundos_atras / 60)
+                const tempo = min < 1 ? 'agora' : min === 1 ? 'há 1 min' : `há ${min} min`
+                return (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-ocean-depth flex items-center justify-center shrink-0">
+                        <span className="text-sea-foam text-xs font-semibold">{u.nome?.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <div>
+                        <span className="text-sea-foam text-sm">{u.nome}</span>
+                        {u.nivel === 'dono_loja' && <span className="text-steel text-xs ml-1">(dono)</span>}
+                      </div>
+                    </div>
+                    <span className="text-mint-green text-xs">{tempo}</span>
                   </div>
-                  <span className="text-steel text-xs">{new Date(l.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
