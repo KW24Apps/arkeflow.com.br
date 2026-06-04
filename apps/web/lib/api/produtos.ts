@@ -47,7 +47,7 @@ export const produtosApi = {
   create: (data: CreateProdutoPayload) =>
     api.post<Produto>('/produtos', data).then(r => r.data),
 
-  update: (id: string, data: Partial<Produto> & { tipo_id?: string | null; composicao?: string; preco_base?: number }) =>
+  update: (id: string, data: Partial<Produto> & { tipo_id?: string | null; composicao?: string; composicao_itens?: any[]; preco_base?: number }) =>
     api.put<Produto>(`/produtos/${id}`, data).then(r => r.data),
 
   remove: (id: string) =>
