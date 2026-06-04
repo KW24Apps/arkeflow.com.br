@@ -113,9 +113,12 @@ export const SECTIONS = [
   },
   {
     label: 'Configurações',
-    href:  '/painel/configuracoes/geral',
-    match: ['/painel/configuracoes/geral', '/painel/cadastros/configuracoes'],
-    sub: [],
+    href:  '/painel/configuracoes/dados',
+    match: ['/painel/configuracoes'],
+    sub: [
+      { label: 'Dados da Empresa',       href: '/painel/configuracoes/dados' },
+      { label: 'Configurações do Sistema',href: '/painel/configuracoes/sistema' },
+    ],
   },
 
   // ── Configurações (rodapé — ícone de engrenagem, não aparece no sidebar principal)

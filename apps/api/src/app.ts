@@ -15,6 +15,7 @@ import { formasPagamentoRoutes}  from './modules/financeiro/formas-pagamento.rou
 import { colaboradoresRoutes }   from './modules/colaboradores/colaboradores.routes'
 import { documentosRoutes }      from './modules/colaboradores/documentos.routes'
 import { configuracoesRoutes }      from './modules/configuracoes/configuracoes.routes'
+import { dadosLojaRoutes }          from './modules/configuracoes/dados-loja.routes'
 import { modelosPermissaoRoutes }   from './modules/colaboradores/modelos-permissao.routes'
 import { promocoesRoutes }          from './modules/promocoes/promocoes.routes'
 
@@ -39,6 +40,7 @@ export function buildApp() {
   app.register(colaboradoresRoutes,   { prefix: '/colaboradores' })
   app.register(documentosRoutes,      { prefix: '/colaboradores' })
   app.register(configuracoesRoutes,    { prefix: '/configuracoes-loja' })
+  app.register(dadosLojaRoutes,        { prefix: '/dados-loja' })
   app.register(modelosPermissaoRoutes, { prefix: '/modelos-permissao' })
   app.register(promocoesRoutes,        { prefix: '/promocoes' })
 

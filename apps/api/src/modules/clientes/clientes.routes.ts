@@ -50,4 +50,33 @@ export async function clientesRoutes(app: FastifyInstance) {
     await repo.softDelete(pool, id)
     return reply.status(204).send()
   })
+
+  // Contatos do cliente
+  app.get('/:id/contatos', { preHandler: auth }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { id } = req.params as { id: string }
+    const { rows } = await pool.query(
+      `SELECT * FROM clientes_contatos WHERE cliente_id = $1 ORDER BY tipo, nome`, [id]
+    )
+    return reply.send(rows)
+  })
+
+  app.post('/:id/contatos', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { id } = req.params as { id: string }
+    const { tipo, nome, telefone, email } = req.body as any
+    const { rows: [c] } = await pool.query(
+      `INSERT INTO clientes_contatos (cliente_id, tipo, nome, telefone, email)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [id, tipo, nome, telefone ?? null, email ?? null]
+    )
+    return reply.status(201).send(c)
+  })
+
+  app.delete('/:id/contatos/:contato_id', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { contato_id } = req.params as { id: string; contato_id: string }
+    await pool.query(`DELETE FROM clientes_contatos WHERE id = $1`, [contato_id])
+    return reply.status(204).send()
+  })
 }

@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/Input'
 import { clientesApi, type Cliente, type VendaHistorico } from '@/lib/api/clientes'
 import { cashbackApi, type RegraCashback } from '@/lib/api/cashback'
 import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
+import { ContatosForm, type Contato } from '@/components/painel/ContatosForm'
+import { api } from '@/lib/api/client'
 
-type Aba = 'dados' | 'medidas' | 'compras'
+type Aba = 'dados' | 'contatos' | 'medidas' | 'compras'
 
 export default function ClienteDetalhe() {
   const { id }  = useParams<{ id: string }>()
@@ -28,6 +30,9 @@ export default function ClienteDetalhe() {
   const [email,           setEmail]           = useState('')
   const [regraCashbackId, setRegraCashbackId] = useState('')
 
+  // Contatos do cliente
+  const [contatos, setContatos] = useState<Contato[]>([])
+
   // Medidas corporais
   const [medidasDisponiveis, setMedidasDisponiveis] = useState<ItemCatalogo[]>([])
   const [medidasCliente, setMedidasCliente] = useState<Record<string,string>>({})
@@ -37,10 +42,10 @@ export default function ClienteDetalhe() {
   const [salvandoMed,    setSalvandoMed]    = useState(false)
 
   useEffect(() => {
-    Promise.all([clientesApi.get(id), clientesApi.historico(id), cashbackApi.list(), catalogosApi.list('medidas')])
-      .then(([c, h, rs, meds]) => {
+    Promise.all([clientesApi.get(id), clientesApi.historico(id), cashbackApi.list(), catalogosApi.list('medidas'), api.get<Contato[]>(`/clientes/${id}/contatos`).then(r => r.data)])
+      .then(([c, h, rs, meds, cts]) => {
         setCliente(c); setHistorico(h); setRegras(rs)
-        setMedidasDisponiveis(meds)
+        setMedidasDisponiveis(meds); setContatos(cts)
         setMedidasCliente((c as any).medidas_json ?? {})
         setNome(c.nome); setTelefone(c.telefone ?? '')
         setCpf(c.cpf ?? ''); setEmail(c.email ?? '')
@@ -100,9 +105,10 @@ export default function ClienteDetalhe() {
         {/* Abas */}
         <div className="bg-deep-ocean border-b border-ocean-depth flex px-4">
           {([
-            { key: 'dados',   label: 'Dados' },
-            { key: 'medidas', label: `Medidas (${Object.keys(medidasCliente).length})` },
-            { key: 'compras', label: `Compras (${historico.length})` },
+            { key: 'dados',    label: 'Dados' },
+            { key: 'contatos', label: `Contatos (${contatos.length})` },
+            { key: 'medidas',  label: `Medidas (${Object.keys(medidasCliente).length})` },
+            { key: 'compras',  label: `Compras (${historico.length})` },
           ] as { key: Aba; label: string }[]).map(a => (
             <button key={a.key} onClick={() => setAba(a.key)}
               className={`min-h-[44px] px-5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
@@ -190,6 +196,25 @@ export default function ClienteDetalhe() {
                   Remover cliente
                 </button>
               </>
+            )}
+
+            {/* ── Aba Contatos ── */}
+            {aba === 'contatos' && (
+              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5">
+                <h3 className="text-sea-foam font-semibold text-sm mb-1">Contatos</h3>
+                <p className="text-steel text-xs mb-4">Comercial, financeiro e sócio/representante para comunicações direcionadas.</p>
+                <ContatosForm
+                  contatos={contatos}
+                  onAdd={async (c) => {
+                    const { data } = await api.post<Contato>(`/clientes/${id}/contatos`, c)
+                    setContatos(prev => [...prev, data])
+                  }}
+                  onRemove={async (cid) => {
+                    await api.delete(`/clientes/${id}/contatos/${cid}`)
+                    setContatos(prev => prev.filter(x => x.id !== cid))
+                  }}
+                />
+              </section>
             )}
 
             {/* ── Aba Medidas ── */}
