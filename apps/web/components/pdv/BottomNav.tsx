@@ -6,8 +6,8 @@ import { useAuthStore } from '@/store/auth.store'
 import { api } from '@/lib/api/client'
 
 const tabs = [
-  { label: 'Venda',     href: '/pdv',          icon: '🛒' },
-  { label: 'Buscar',    href: '/pdv/busca',     icon: '🔍' },
+  { label: 'Sacola',    href: '/pdv',           icon: '🛒' },
+  { label: 'Clientes',  href: '/pdv/cliente',   icon: '👥' },
   { label: 'Histórico', href: '/pdv/historico', icon: '📋' },
 ]
 

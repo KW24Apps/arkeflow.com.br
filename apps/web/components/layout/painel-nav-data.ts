@@ -16,9 +16,9 @@ export const SECTIONS = [
     label: 'Caixa',
     href:  '/painel/caixa',
     match: ['/painel/caixa'],
-    // Vendas + crediário = mesma tela. NF é tela separada no top bar.
     sub: [
-      { label: 'Notas Fiscais', href: '/painel/caixa/notas-fiscais' },
+      { label: 'PDV',    href: '/painel/caixa',        permSlug: 'caixa' },
+      { label: 'Vendas', href: '/painel/caixa/vendas',  permSlug: 'caixa' },
     ],
   },
   {
