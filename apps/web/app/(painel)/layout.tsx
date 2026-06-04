@@ -1,29 +1,18 @@
 import { Sidebar } from '@/components/layout/Sidebar'
+import { PainelSecondaryNav, SECTIONS } from '@/components/layout/PainelNav'
 
-const nav = [
-  { label: 'Dashboard',  href: '/painel/dashboard' },
-  { label: 'Produtos',   href: '/painel/produtos' },
-  { label: 'Estoque',    href: '/painel/estoque' },
-  { label: 'Clientes',   href: '/painel/clientes' },
-  { label: 'Vendas',     href: '/painel/vendas' },
-  { label: 'Caixa',      href: '/painel/financeiro/caixa' },
-  { label: 'Crediário',  href: '/painel/financeiro/crediario' },
-  { label: 'Relatórios', href: '/painel/relatorios' },
-  { type: 'divider', label: 'Cadastros' } as any,
-  { label: 'Tamanhos',   href: '/painel/cadastros/tamanhos' },
-  { label: 'Cores',      href: '/painel/cadastros/cores' },
-  { label: 'Tipos',      href: '/painel/cadastros/tipos' },
-  { label: 'Composições', href: '/painel/cadastros/composicoes' },
-  { label: 'Medidas',     href: '/painel/cadastros/medidas' },
-  { type: 'divider', label: 'Configurações' } as any,
-  { label: 'Formas de Pagamento', href: '/painel/configuracoes/formas-pagamento' },
-]
+// Sidebar usa apenas as seções principais
+const sidebarItems = SECTIONS.map(s => ({ label: s.label, href: s.href }))
 
 export default function PainelLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-midnight">
-      <Sidebar items={nav} subtitle="Gestão" />
+      <Sidebar items={sidebarItems} subtitle="Gestão" />
+
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Barra de sub-navegação horizontal — muda conforme a seção ativa */}
+        <PainelSecondaryNav />
+
         {children}
       </div>
     </div>
