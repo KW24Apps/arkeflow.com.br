@@ -3,14 +3,18 @@
 import { usePathname } from 'next/navigation'
 import { SecondaryNav } from './SecondaryNav'
 
-// Definição completa da navegação do painel
 export const SECTIONS = [
-  {
-    label: 'Dashboard',
-    href:  '/painel/dashboard',
-    match: ['/painel/dashboard'],
-    sub:   [],
-  },
+  // ── Operacional ─────────────────────────────────────────────────────────────
+  { label: 'Dashboard',  href: '/painel/dashboard',             match: ['/painel/dashboard'],             sub: [] },
+  { label: 'Vendas',     href: '/painel/vendas',                match: ['/painel/vendas'],                sub: [] },
+  { label: 'Estoque',    href: '/painel/estoque',               match: ['/painel/estoque'],               sub: [] },
+  { label: 'Caixa',      href: '/painel/financeiro/caixa',      match: ['/painel/financeiro/caixa'],      sub: [] },
+  { label: 'Crediário',  href: '/painel/financeiro/crediario',  match: ['/painel/financeiro/crediario'],  sub: [] },
+  { label: 'Relatórios', href: '/painel/relatorios',            match: ['/painel/relatorios'],            sub: [] },
+
+  // ── Cadastro ─────────────────────────────────────────────────────────────────
+  { type: 'divider', label: 'Cadastro' } as any,
+
   {
     label: 'Produtos',
     href:  '/painel/produtos',
@@ -28,26 +32,12 @@ export const SECTIONS = [
     label: 'Clientes',
     href:  '/painel/clientes',
     match: ['/painel/clientes'],
-    sub:   [],
-  },
-  {
-    label: 'Vendas',
-    href:  '/painel/vendas',
-    match: ['/painel/vendas'],
-    sub:   [],
-  },
-  {
-    label: 'Financeiro',
-    href:  '/painel/financeiro/caixa',
-    match: ['/painel/financeiro', '/painel/relatorios'],
     sub: [
-      { label: 'Caixa',      href: '/painel/financeiro/caixa' },
-      { label: 'Crediário',  href: '/painel/financeiro/crediario' },
-      { label: 'Relatórios', href: '/painel/relatorios' },
+      { label: 'Clientes', href: '/painel/clientes' },
     ],
   },
   {
-    label: 'Configurações',
+    label: 'Financeiro',
     href:  '/painel/configuracoes/formas-pagamento',
     match: ['/painel/configuracoes'],
     sub: [
@@ -58,11 +48,10 @@ export const SECTIONS = [
 
 export function PainelSecondaryNav() {
   const pathname = usePathname()
-
-  // Encontra a seção ativa pelo prefixo do pathname
-  const section = SECTIONS.find(s =>
-    s.match.some(m => pathname === m || pathname.startsWith(m + '/'))
+  const section  = SECTIONS.find(s =>
+    s.match && s.match.some((m: string) => pathname === m || pathname.startsWith(m + '/'))
   )
-
   return <SecondaryNav items={section?.sub ?? []} />
 }
+
+export const sidebarItems = SECTIONS
