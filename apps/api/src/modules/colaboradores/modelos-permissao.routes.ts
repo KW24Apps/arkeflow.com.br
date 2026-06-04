@@ -40,6 +40,12 @@ export async function modelosPermissaoRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string }
     const data = schema.partial().parse(req.body)
 
+    const { rows: [modelo] } = await platformPool.query(
+      `SELECT sistema FROM modelos_permissao WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+    )
+    if (!modelo) throw new AppError('Modelo não encontrado', 404)
+    if (modelo.sistema) throw new AppError('O modelo Administrador não pode ser editado.', 403)
+
     const upd: string[] = []; const val: any[] = [id, user.loja_id]
     if (data.nome)       { val.push(data.nome);                      upd.push(`nome = $${val.length}`) }
     if (data.permissoes) { val.push(JSON.stringify(data.permissoes)); upd.push(`permissoes = $${val.length}`) }
@@ -50,7 +56,6 @@ export async function modelosPermissaoRoutes(app: FastifyInstance) {
       `UPDATE modelos_permissao SET ${upd.join(', ')} WHERE id = $1 AND loja_id = $2 RETURNING *`,
       val
     )
-    if (!r) throw new AppError('Modelo não encontrado', 404)
     return reply.send(r)
   })
 
@@ -58,7 +63,12 @@ export async function modelosPermissaoRoutes(app: FastifyInstance) {
     const user = req.user as JwtPayload
     const { id } = req.params as { id: string }
 
-    // Remove vínculo dos colaboradores antes de deletar
+    const { rows: [modelo] } = await platformPool.query(
+      `SELECT sistema FROM modelos_permissao WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+    )
+    if (!modelo) throw new AppError('Modelo não encontrado', 404)
+    if (modelo.sistema) throw new AppError('O modelo Administrador não pode ser removido.', 403)
+
     await platformPool.query(
       `UPDATE usuarios SET modelo_permissao_id = NULL WHERE modelo_permissao_id = $1`, [id]
     )

@@ -40,6 +40,7 @@ const perfilSchema = z.object({
 const createSchema = z.object({
   nome:        z.string().min(1),
   email:       z.string().email(),
+  username:    z.string().min(3).regex(/^[a-z0-9._]+$/, 'Use apenas letras minúsculas, números, ponto e _').optional().nullable(),
   senha:       z.string().min(6),
   permissoes:  z.array(z.string()).default([]),
   dias_semana: z.array(z.number().int().min(0).max(6)).optional().nullable(),
@@ -49,6 +50,7 @@ const createSchema = z.object({
 
 const updateAcessoSchema = z.object({
   nome:        z.string().min(1).optional(),
+  username:    z.string().min(3).regex(/^[a-z0-9._]+$/).optional().nullable(),
   permissoes:  z.array(z.string()).optional(),
   ativo:       z.boolean().optional(),
   dias_semana: z.array(z.number().int().min(0).max(6)).optional().nullable(),
@@ -167,11 +169,21 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     if (existe) throw new AppError('Este email já está em uso.', 409)
 
     const hash = await bcrypt.hash(data.senha, 10)
+    if (data.username) {
+      const { rows: [dupUser] } = await platformPool.query(
+        `SELECT id FROM usuarios WHERE username = $1`, [data.username]
+      )
+      if (dupUser) throw new AppError('Este nome de usuário já está em uso.', 409)
+    }
+
+    const modeloId = (data as any).modelo_permissao_id ?? null
+
     const { rows: [u] } = await platformPool.query(
-      `INSERT INTO usuarios (nome, email, senha_hash, nivel, loja_id, permissoes, dias_semana, hora_inicio, hora_fim, ativo)
-       VALUES ($1,$2,$3,'vendedor',$4,$5,$6,$7,$8,true) RETURNING id, nome, email, nivel`,
-      [data.nome, data.email, hash, user.loja_id,
+      `INSERT INTO usuarios (nome, email, username, senha_hash, nivel, loja_id, permissoes, modelo_permissao_id, dias_semana, hora_inicio, hora_fim, ativo)
+       VALUES ($1,$2,$3,$4,'vendedor',$5,$6,$7,$8,$9,$10,true) RETURNING id, nome, email, username, nivel`,
+      [data.nome, data.email, data.username ?? null, hash, user.loja_id,
        JSON.stringify(data.permissoes),
+       modeloId,
        data.dias_semana ? JSON.stringify(data.dias_semana) : null,
        data.hora_inicio ?? null, data.hora_fim ?? null]
     )
@@ -200,7 +212,9 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const add = (f: string, v: any) => { val.push(v); upd.push(`${f} = $${val.length}`) }
 
     if (data.nome        !== undefined) add('nome', data.nome)
-    if (data.ativo       !== undefined) add('ativo', data.ativo)
+    if (data.username            !== undefined) add('username', data.username ?? null)
+    if ((data as any).modelo_permissao_id !== undefined) add('modelo_permissao_id', (data as any).modelo_permissao_id ?? null)
+    if (data.ativo               !== undefined) add('ativo', data.ativo)
     if (data.dias_semana !== undefined) add('dias_semana', data.dias_semana ? JSON.stringify(data.dias_semana) : null)
     if (data.hora_inicio !== undefined) add('hora_inicio', data.hora_inicio ?? null)
     if (data.hora_fim    !== undefined) add('hora_fim',    data.hora_fim    ?? null)

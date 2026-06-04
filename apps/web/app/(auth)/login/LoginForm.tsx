@@ -47,10 +47,10 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <Input
-        label="Email"
-        type="email"
+        label="Email ou usuário"
+        type="text"
         name="email"
-        placeholder="seu@email.com"
+        placeholder="seu@email.com ou nome_usuario"
         value={email}
         onChange={e => setEmail(e.target.value)}
         required

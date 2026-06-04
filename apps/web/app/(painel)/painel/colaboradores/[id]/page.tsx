@@ -37,6 +37,7 @@ export default function ColaboradorDetalhe() {
 
   // Acesso
   const [nome,       setNome]       = useState('')
+  const [username,   setUsername]   = useState('')
   const [permissoes, setPermissoes] = useState<string[]>([])
   const [diasSemana, setDiasSemana] = useState<number[] | null>(null)
   const [horaInicio, setHoraInicio] = useState('08:00')

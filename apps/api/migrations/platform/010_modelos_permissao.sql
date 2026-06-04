@@ -4,6 +4,7 @@ CREATE TABLE modelos_permissao (
   loja_id     UUID    NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
   nome        TEXT    NOT NULL,
   permissoes  JSONB   NOT NULL DEFAULT '[]',
+  sistema     BOOLEAN NOT NULL DEFAULT false,  -- modelos do sistema não podem ser editados/deletados
   criado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

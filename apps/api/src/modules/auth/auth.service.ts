@@ -5,13 +5,13 @@ import type { JwtPayload } from '@arkeflow/shared'
 
 export async function login(email: string, senha: string, ip?: string): Promise<JwtPayload> {
   const { rows } = await platformPool.query(
-    `SELECT u.id, u.email, u.senha_hash, u.nivel, u.loja_id,
+    `SELECT u.id, u.email, u.username, u.senha_hash, u.nivel, u.loja_id,
             u.dias_semana, u.hora_inicio, u.hora_fim,
             COALESCE(mp.permissoes, u.permissoes, '[]'::jsonb) AS permissoes
      FROM usuarios u
      LEFT JOIN modelos_permissao mp ON mp.id = u.modelo_permissao_id
-     WHERE u.email = $1 AND u.ativo = true`,
-    [email]
+     WHERE (u.email = $1 OR u.username = $1) AND u.ativo = true`,
+    [email]  // parâmetro aceita email OU username
   )
 
   const usuario = rows[0]
