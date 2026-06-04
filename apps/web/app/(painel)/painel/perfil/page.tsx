@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { Input } from '@/components/ui/Input'
@@ -13,9 +13,24 @@ export default function MeusDadosPage() {
   const usuario = useAuthStore(s => s.usuario)
   const setAuth = useAuthStore(s => s.setAuth)
 
-  const [nome,     setNome]     = useState(usuario?.nome ?? '')
-  const [email,    setEmail]    = useState(usuario?.email ?? '')
-  const [username, setUsername] = useState((usuario as any)?.username ?? '')
+  const [nome,     setNome]     = useState('')
+  const [email,    setEmail]    = useState('')
+  const [username, setUsername] = useState('')
+
+  // Carrega dados do servidor — JWT pode estar stale em sessões antigas
+  useEffect(() => {
+    api.get<{ usuario: any }>('/auth/me').then(r => {
+      const u = r.data.usuario
+      setNome(u.nome ?? '')
+      setEmail(u.email ?? '')
+      setUsername(u.username ?? '')
+    }).catch(() => {
+      // fallback para o store
+      setNome(usuario?.nome ?? '')
+      setEmail(usuario?.email ?? '')
+      setUsername((usuario as any)?.username ?? '')
+    })
+  }, [])
   const [novaSenha,setNovaSenha]= useState('')
   const [confirma, setConfirma] = useState('')
 

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useAuthStore } from '@/store/auth.store'
+import { useLojaStore } from '@/store/loja.store'
 import { api } from '@/lib/api/client'
 
 export interface NavItem {
@@ -22,6 +23,7 @@ export function Sidebar({ items, subtitle }: SidebarProps) {
   const router    = useRouter()
   const clearAuth = useAuthStore(s => s.clearAuth)
   const [open, setOpen] = useState(false)
+  const logoUrl = useLojaStore(s => s.logo_url)
 
   async function logout() {
     try { await api.post('/auth/logout') } catch {}
@@ -61,13 +63,19 @@ export function Sidebar({ items, subtitle }: SidebarProps) {
         ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
 
-        <div className="px-6 py-5 border-b border-ocean-depth">
-          <span className="text-2xl font-black tracking-tight">
-            <span className="text-sea-foam">ARKE</span>
-            <span className="text-electric-cyan font-normal">flow</span>
-          </span>
-          {subtitle && (
-            <p className="text-steel text-[10px] uppercase tracking-[0.2em] mt-1">{subtitle}</p>
+        {/* Topo: logo do cliente OU ARKEflow */}
+        <div className="px-4 py-4 border-b border-ocean-depth flex items-center min-h-[64px]">
+          {logoUrl ? (
+            <img
+              src={logoUrl + '?t=' + Math.floor(Date.now() / 60000)}
+              alt="Logo"
+              className="max-h-10 max-w-[160px] object-contain"
+            />
+          ) : (
+            <span className="text-2xl font-black tracking-tight">
+              <span className="text-sea-foam">ARKE</span>
+              <span className="text-electric-cyan font-normal">flow</span>
+            </span>
           )}
         </div>
 
@@ -100,7 +108,16 @@ export function Sidebar({ items, subtitle }: SidebarProps) {
           })}
         </nav>
 
-        {/* Sair e Configurações estão no menu do usuário no topo — sidebar limpa */}
+        {/* Rodapé: ARKEflow sempre discreto na base */}
+        <div className="px-5 py-3 border-t border-ocean-depth">
+          <span className="text-xs font-black tracking-tight opacity-40">
+            <span className="text-sea-foam">ARKE</span>
+            <span className="text-electric-cyan font-normal">flow</span>
+          </span>
+          {subtitle && (
+            <p className="text-steel text-[9px] uppercase tracking-[0.15em] opacity-30">{subtitle}</p>
+          )}
+        </div>
 
       </aside>
     </>
