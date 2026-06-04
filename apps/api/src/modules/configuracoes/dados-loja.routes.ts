@@ -1,10 +1,15 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import { createWriteStream, mkdirSync } from 'fs'
+import { join } from 'path'
+import { pipeline } from 'stream/promises'
 import { authMiddleware } from '../../core/middlewares/auth'
 import { authorize } from '../../core/middlewares/authorize'
 import { platformPool } from '../../config/database'
 import { getTenantPoolFromRequest } from '../../core/tenant/resolver'
 import type { JwtPayload } from '@arkeflow/shared'
+
+const UPLOAD_DIR = '/var/www/arkeflow.com.br/uploads/logos'
 
 const dono = [authMiddleware, authorize('dono_loja')]
 const auth = [authMiddleware, authorize('dono_loja', 'vendedor')]
@@ -93,6 +98,23 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
       `DELETE FROM lojas_contatos WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
     )
     return reply.status(204).send()
+  })
+
+  // Upload de logo (arquivo redimensionado pelo browser)
+  app.post('/logo', { preHandler: dono }, async (req, reply) => {
+    const user = req.user as JwtPayload
+    const data = await req.file()
+    if (!data) return reply.status(400).send({ error: 'Nenhum arquivo enviado' })
+
+    mkdirSync(UPLOAD_DIR, { recursive: true })
+    const filename = `${user.loja_id}.webp`
+    const caminho  = join(UPLOAD_DIR, filename)
+    const logoUrl  = `/uploads/logos/${filename}`
+
+    await pipeline(data.file, createWriteStream(caminho))
+    await platformPool.query(`UPDATE lojas SET logo_url = $1 WHERE id = $2`, [logoUrl, user.loja_id])
+
+    return reply.send({ logo_url: logoUrl })
   })
 
   // Configurações do sistema (logo, estoque, link)

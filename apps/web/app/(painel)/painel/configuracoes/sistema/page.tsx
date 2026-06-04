@@ -1,40 +1,84 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
 
 interface SistemaConfig {
   controle_estoque: boolean
-  logo_url: string | null
   logo_url_loja: string | null
-  link_loja: string | null
+}
+
+// Redimensiona a imagem no browser antes de enviar (sem Sharp no servidor)
+async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const ratio = Math.min(maxW / img.width, maxH / img.height, 1)
+      const canvas = document.createElement('canvas')
+      canvas.width  = Math.round(img.width  * ratio)
+      canvas.height = Math.round(img.height * ratio)
+      const ctx = canvas.getContext('2d')!
+      // Fundo transparente para PNG/WebP
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(blob => blob ? resolve(blob) : reject('Falha ao processar imagem'), 'image/webp', 0.9)
+    }
+    img.onerror = reject
+    img.src = URL.createObjectURL(file)
+  })
 }
 
 export default function ConfigSistemaPage() {
-  const [cfg,      setCfg]      = useState<SistemaConfig | null>(null)
-  const [loading,  setLoading]  = useState(true)
-  const [salvando, setSalvando] = useState(false)
-  const [msg,      setMsg]      = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const [cfg,           setCfg]           = useState<SistemaConfig | null>(null)
+  const [loading,       setLoading]        = useState(true)
+  const [salvando,      setSalvando]       = useState(false)
+  const [enviandoLogo,  setEnviandoLogo]   = useState(false)
+  const [msg,           setMsg]            = useState('')
 
   const [controleEstoque, setControleEstoque] = useState(true)
-  const [logoUrl,         setLogoUrl]         = useState('')
+  const [preview,         setPreview]         = useState<string | null>(null)
 
   useEffect(() => {
     api.get<SistemaConfig>('/dados-loja/sistema').then(r => {
       setCfg(r.data)
       setControleEstoque(r.data.controle_estoque)
-      setLogoUrl(r.data.logo_url_loja ?? '')
+      if (r.data.logo_url_loja) setPreview(r.data.logo_url_loja)
     }).finally(() => setLoading(false))
   }, [])
+
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Preview imediato no browser
+    setPreview(URL.createObjectURL(file))
+    setEnviandoLogo(true); setMsg('')
+    try {
+      // Redimensiona no browser (max 400×200, preserva proporção)
+      const blob    = await resizeImage(file)
+      const form    = new FormData()
+      form.append('file', blob, 'logo.webp')
+      const { data } = await api.post<{ logo_url: string }>('/dados-loja/logo', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setPreview(data.logo_url)
+      setMsg('Logo enviada com sucesso.')
+    } catch {
+      setMsg('Erro ao enviar logo.')
+      setPreview(cfg?.logo_url_loja ?? null)
+    } finally {
+      setEnviandoLogo(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
 
   async function handleSalvar() {
     setSalvando(true); setMsg('')
     try {
-      await api.put('/dados-loja/sistema', {
-        controle_estoque: controleEstoque,
-        logo_url: logoUrl || null,
-      })
+      await api.put('/dados-loja/sistema', { controle_estoque: controleEstoque })
       setMsg('Configurações salvas.')
     } catch { setMsg('Erro ao salvar.') }
     finally { setSalvando(false) }
@@ -52,22 +96,54 @@ export default function ConfigSistemaPage() {
           <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
             <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Logo da Loja</h3>
             <p className="text-steel text-xs">
-              Quando configurada, a logo da loja aparece no topo do sistema no lugar do logotipo ARKEflow.
-              ARKEflow fica discreto no rodapé da sidebar.
+              Quando configurada, substitui o logotipo ARKEflow no topo do sistema.
+              Formatos aceitos: PNG, JPG, SVG, WebP. Redimensionada automaticamente para 400×200px.
             </p>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-steel uppercase tracking-wider">URL da logo (PNG ou SVG)</label>
-              <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)}
-                placeholder="https://..."
-                className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam placeholder-steel outline-none focus:border-electric-cyan" />
-              <p className="text-steel text-xs">Upload direto em breve. Por enquanto, cole a URL da imagem.</p>
-            </div>
-            {logoUrl && (
-              <div className="flex items-center gap-3 bg-midnight rounded-xl p-3">
-                <img src={logoUrl} alt="Logo" className="h-10 object-contain" onError={e => (e.currentTarget.style.display = 'none')} />
-                <p className="text-steel text-xs">Preview da logo</p>
+
+            {/* Preview */}
+            <div className="flex items-center gap-4">
+              <div className={`w-40 h-16 rounded-xl border flex items-center justify-center overflow-hidden ${
+                preview ? 'border-electric-cyan/30 bg-midnight' : 'border-ocean-depth bg-midnight'
+              }`}>
+                {preview ? (
+                  <img
+                    src={preview.startsWith('blob:') ? preview : preview + '?t=' + Date.now()}
+                    alt="Logo da loja"
+                    className="max-w-full max-h-full object-contain p-1"
+                    onError={() => setPreview(null)}
+                  />
+                ) : (
+                  <span className="text-steel text-xs text-center px-2">Sem logo</span>
+                )}
               </div>
-            )}
+              <div className="flex flex-col gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                  className="hidden"
+                  onChange={handleLogoChange}
+                />
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={enviandoLogo}
+                  className="min-h-[44px] px-5 bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40"
+                >
+                  {enviandoLogo ? 'Enviando...' : preview ? 'Trocar logo' : 'Enviar logo'}
+                </button>
+                {preview && (
+                  <button
+                    onClick={async () => {
+                      await api.put('/dados-loja/sistema', { logo_url: null })
+                      setPreview(null); setMsg('Logo removida.')
+                    }}
+                    className="text-xs text-red-400 hover:text-red-300 min-h-[36px]"
+                  >
+                    Remover logo
+                  </button>
+                )}
+              </div>
+            </div>
           </section>
 
           {/* Estoque */}
@@ -77,7 +153,7 @@ export default function ConfigSistemaPage() {
               <div>
                 <p className="text-sea-foam text-sm font-medium">Controle de estoque global</p>
                 <p className="text-steel text-xs mt-1">
-                  Desativado: nenhum produto controla quantidade — útil para lojas sem inventário.
+                  Desativado: nenhum produto controla quantidade.
                   Produtos individuais ainda podem sobrescrever.
                 </p>
               </div>
@@ -88,7 +164,7 @@ export default function ConfigSistemaPage() {
             </div>
             {!controleEstoque && (
               <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3">
-                <p className="text-yellow-400 text-xs">⚠️ Com estoque desativado, alertas e validações de quantidade ficam desabilitados.</p>
+                <p className="text-yellow-400 text-xs">⚠️ Alertas e validações de quantidade ficam desabilitados.</p>
               </div>
             )}
           </section>
@@ -99,12 +175,12 @@ export default function ConfigSistemaPage() {
             <div className="flex flex-col gap-2 text-steel text-sm">
               <p>🎨 Personalização de cores e tema</p>
               <p>🌐 Domínio personalizado</p>
-              <p>📱 Configurações do portal do cliente</p>
+              <p>📱 Portal do cliente</p>
               <p>🏢 Configurações de filiais</p>
             </div>
           </section>
 
-          {msg && <p className={`text-sm text-center ${msg.includes('salvas') ? 'text-mint-green' : 'text-red-400'}`}>{msg}</p>}
+          {msg && <p className={`text-sm text-center ${msg.includes('sucesso') || msg.includes('salvas') ? 'text-mint-green' : 'text-red-400'}`}>{msg}</p>}
 
           <button onClick={handleSalvar} disabled={salvando}
             className="min-h-[52px] bg-electric-cyan text-midnight rounded-2xl text-sm font-bold disabled:opacity-40">
