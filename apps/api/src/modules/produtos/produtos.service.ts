@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 import * as repo from './produtos.repository'
 import { AppError } from '../../core/errors/AppError'
+import { verificarVinculoProduto, verificarVinculoVersao } from '../../core/guards/vinculo'
 import type { CreateProdutoInput, UpdateProdutoInput, CreateVersaoInput } from './produtos.schema'
 
 export async function listProdutos(pool: Pool, q?: string) {
@@ -37,6 +38,7 @@ export async function updateProduto(pool: Pool, id: string, data: UpdateProdutoI
 
 export async function deleteProduto(pool: Pool, id: string) {
   await getProduto(pool, id)
+  await verificarVinculoProduto(pool, id)
   await repo.softDelete(pool, id)
 }
 
@@ -61,5 +63,6 @@ export async function updateVersao(pool: Pool, id: string, data: Partial<CreateV
 }
 
 export async function deleteVersao(pool: Pool, id: string) {
+  await verificarVinculoVersao(pool, id)
   return repo.deleteVersao(pool, id)
 }

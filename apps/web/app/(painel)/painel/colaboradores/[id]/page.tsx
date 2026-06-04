@@ -240,7 +240,22 @@ export default function ColaboradorDetalhe() {
                   </button>
                 </section>
 
-                {!isDono && <button onClick={handleDesativar} className="min-h-[48px] border border-red-500/30 text-red-400 rounded-2xl text-sm">Desativar colaborador</button>}
+                {!isDono && (
+                  <button
+                    onClick={colab.ativo ? handleDesativar : async () => {
+                      await colaboradoresApi.updateAcesso(id, { ativo: true })
+                      setColab(c => c ? { ...c, ativo: true } : c)
+                      setMsg('Colaborador reativado.')
+                    }}
+                    className={`min-h-[48px] rounded-2xl text-sm border transition-colors ${
+                      colab.ativo
+                        ? 'border-red-500/30 text-red-400 hover:bg-red-500/10'
+                        : 'border-mint-green/30 text-mint-green hover:bg-mint-green/10'
+                    }`}
+                  >
+                    {colab.ativo ? '🔒 Bloquear acesso' : '🔓 Reativar acesso'}
+                  </button>
+                )}
               </>
             )}
 

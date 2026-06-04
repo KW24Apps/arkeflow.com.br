@@ -56,14 +56,13 @@ export default function ColaboradoresPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sea-foam font-medium text-sm">{c.nome}</p>
                       {isDono && (
-                        <span className="bg-electric-cyan/20 text-electric-cyan text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide">
-                          Dono
-                        </span>
+                        <span className="bg-electric-cyan/20 text-electric-cyan text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide">Dono</span>
                       )}
                       {isMe && (
-                        <span className="bg-ocean-depth text-steel text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide">
-                          Você
-                        </span>
+                        <span className="bg-ocean-depth text-steel text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide">Você</span>
+                      )}
+                      {!c.ativo && (
+                        <span className="bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide">Bloqueado</span>
                       )}
                     </div>
                     <p className="text-steel text-xs">{c.email}</p>

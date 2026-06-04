@@ -15,10 +15,11 @@ export async function login(email: string, senha: string, ip?: string): Promise<
   )
 
   const usuario = rows[0]
-  if (!usuario) throw new AppError('Email ou senha inválidos', 401)
+  // Email não encontrado — não revela se existe ou não
+  if (!usuario) throw new AppError('Entre em contato com o administrador.', 401, 'CONTA_NAO_ENCONTRADA')
 
   const senhaValida = await bcrypt.compare(senha, usuario.senha_hash)
-  if (!senhaValida) throw new AppError('Email ou senha inválidos', 401)
+  if (!senhaValida) throw new AppError('Senha incorreta.', 401, 'SENHA_INCORRETA')
 
   // Verifica restrição de horário (só para vendedor)
   if (usuario.nivel === 'vendedor' && (usuario.dias_semana || usuario.hora_inicio)) {
