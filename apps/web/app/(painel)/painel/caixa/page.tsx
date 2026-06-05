@@ -35,10 +35,11 @@ export default function CaixaPage() {
 
   // ── Scanner / busca ───────────────────────────────────────────────────────
   const scanRef      = useRef<HTMLInputElement>(null)
-  const [scan,       setScan]       = useState('')
-  const [resultados, setResultados] = useState<ProdutoSearch[]>([])
-  const [scanErro,   setScanErro]   = useState('')
-  const [modalBusca, setModalBusca] = useState(false)
+  const [scan,            setScan]           = useState('')
+  const [resultados,      setResultados]     = useState<ProdutoSearch[]>([])
+  const [highlightedIndex,setHighlightedIndex] = useState(-1)
+  const [scanErro,        setScanErro]       = useState('')
+  const [modalBusca,      setModalBusca]     = useState(false)
 
   // ── Promoções + cliente ───────────────────────────────────────────────────
   const [promocoes,   setPromocoes]   = useState<any[]>([])
@@ -91,19 +92,50 @@ export default function CaixaPage() {
 
   async function buscarTexto(rawInput: string) {
     const { query } = parseQtyPrefix(rawInput)
-    if (!query.trim()) { setResultados([]); return }
+    if (!query.trim()) { setResultados([]); setHighlightedIndex(-1); return }
     try {
       const { data } = await api.get<ProdutoSearch[]>(`/produtos?q=${encodeURIComponent(query)}&todos=false`)
       setResultados(data)
+      setHighlightedIndex(-1)
     } catch {}
   }
 
-  async function onScanEnter(e: React.KeyboardEvent<HTMLInputElement>) {
+  async function onScanKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const dropdownOpen = resultados.length > 0
+
+    // ── Arrow navigation ────────────────────────────────────────────────────
+    if (e.key === 'ArrowDown') {
+      if (!dropdownOpen) return
+      e.preventDefault()
+      setHighlightedIndex(i => Math.min(i + 1, resultados.length - 1))
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      if (!dropdownOpen) return
+      e.preventDefault()
+      setHighlightedIndex(i => Math.max(i - 1, 0))
+      return
+    }
+    if (e.key === 'Escape') {
+      setResultados([]); setHighlightedIndex(-1); return
+    }
+
+    // ── Enter ───────────────────────────────────────────────────────────────
     if (e.key !== 'Enter') return
     e.preventDefault()
+
+    // If a dropdown item is highlighted, select it
+    if (dropdownOpen && highlightedIndex >= 0) {
+      const produto = resultados[highlightedIndex]
+      setResultados([]); setHighlightedIndex(-1)
+      await selecionarProduto(produto)
+      return
+    }
+
+    // Otherwise treat as barcode / text search confirm
     const raw = scan.trim(); if (!raw) return
     const { qty, query } = parseQtyPrefix(raw)
-    setResultados([])
+    setResultados([]); setHighlightedIndex(-1)
     const found = await buscarBarcode(query, qty)
     if (!found) setScanErro(`"${query}" não encontrado.${qty > 1 ? ` (qty: ${qty})` : ''}`)
     setScan(''); scanRef.current?.focus()
@@ -317,7 +349,7 @@ export default function CaixaPage() {
                   ref={scanRef}
                   value={scan}
                   onChange={e => { setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
-                  onKeyDown={onScanEnter}
+                  onKeyDown={onScanKeyDown}
                   onBlur={e => {
                     const next = e.relatedTarget as HTMLElement | null
                     if (next && (next.tagName === 'SELECT' || next.tagName === 'BUTTON' || next.tagName === 'INPUT' || next.closest('[data-no-refocus]'))) return
@@ -338,16 +370,21 @@ export default function CaixaPage() {
             {/* Autocomplete dropdown */}
             {resultados.length > 0 && (
               <div className="absolute bottom-full mb-1 left-3 right-3 z-20 bg-deep-ocean border border-ocean-depth rounded-xl overflow-hidden shadow-xl">
-                {resultados.slice(0, 6).map(p => (
+                {resultados.slice(0, 6).map((p, idx) => (
                   <button key={p.id} onClick={() => selecionarProduto(p)}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-ocean-depth border-b border-ocean-depth last:border-0 text-left">
+                    className={`w-full flex items-center justify-between px-4 py-3 border-b border-ocean-depth last:border-0 text-left transition-colors ${
+                      idx === highlightedIndex
+                        ? 'bg-electric-cyan/15 border-l-2 border-l-electric-cyan'
+                        : 'hover:bg-ocean-depth'
+                    }`}>
                     <div>
-                      <p className="text-sea-foam text-sm">{p.nome}</p>
+                      <p className={`text-sm font-medium ${idx === highlightedIndex ? 'text-electric-cyan' : 'text-sea-foam'}`}>{p.nome}</p>
                       <p className="text-steel text-xs">{p.total_versoes} var.</p>
                     </div>
                     <p className="text-electric-cyan text-sm font-semibold">{fmt(parseFloat(p.preco_base))}</p>
                   </button>
                 ))}
+                <p className="text-steel text-[10px] text-center py-1.5">↑↓ navegar · Enter selecionar · Esc fechar</p>
               </div>
             )}
           </div>
@@ -378,74 +415,78 @@ export default function CaixaPage() {
 
           {!vendaOK && (
             <>
-              {/* Total da venda */}
-              <div className="shrink-0 p-5 border-b border-ocean-depth">
-                <p className="text-steel text-xs uppercase tracking-wider mb-1">Total da Venda</p>
-                <p className="text-electric-cyan font-black text-4xl">{fmt(baseTotal)}</p>
-                {(totalDesconto > 0 || cashbackUsar > 0) && (
-                  <div className="mt-2 flex flex-col gap-0.5 text-xs">
-                    {totalDesconto > 0 && <span className="text-mint-green">−{fmt(totalDesconto)} promoções</span>}
-                    {cashbackUsar > 0 && <span className="text-mint-green">−{fmt(cashbackUsar)} cashback</span>}
-                    <span className="text-steel">subtotal {fmt(subtotal)}</span>
+              {/* ── Top: total + cashback (scrollable area) ─────────────── */}
+              <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+                {/* Total da venda */}
+                <div>
+                  <p className="text-steel text-xs uppercase tracking-wider mb-1">Total da Venda</p>
+                  <p className="text-electric-cyan font-black text-4xl">{fmt(baseTotal)}</p>
+                  {(totalDesconto > 0 || cashbackUsar > 0) && (
+                    <div className="mt-2 flex flex-col gap-0.5 text-xs">
+                      {totalDesconto > 0 && <span className="text-mint-green">−{fmt(totalDesconto)} promoções</span>}
+                      {cashbackUsar > 0 && <span className="text-mint-green">−{fmt(cashbackUsar)} cashback</span>}
+                      <span className="text-steel">subtotal {fmt(subtotal)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Cashback */}
+                {cashbackDisp > 0 && (
+                  <div className={`flex items-center justify-between rounded-xl px-4 py-3 border ${
+                    usarCB ? 'border-mint-green/50 bg-mint-green/10' : 'border-ocean-depth'
+                  }`}>
+                    <div>
+                      <p className="text-sea-foam text-sm font-medium">Cashback disponível</p>
+                      <p className="text-mint-green text-xs">{fmt(cashbackDisp)}</p>
+                    </div>
+                    <button onClick={() => setUsarCB(v => !v)}
+                      className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${usarCB ? 'bg-mint-green' : 'bg-ocean-depth'}`}>
+                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${usarCB ? 'left-6' : 'left-1'}`} />
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Cashback */}
-              {cashbackDisp > 0 && (
-                <div className={`shrink-0 mx-4 mt-3 flex items-center justify-between rounded-xl px-3 py-2 border ${
-                  usarCB ? 'border-mint-green/50 bg-mint-green/10' : 'border-ocean-depth'
-                }`}>
-                  <div>
-                    <p className="text-sea-foam text-xs font-medium">Cashback disponível</p>
-                    <p className="text-mint-green text-xs">{fmt(cashbackDisp)}</p>
-                  </div>
-                  <button onClick={() => setUsarCB(v => !v)}
-                    className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${usarCB ? 'bg-mint-green' : 'bg-ocean-depth'}`}>
-                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${usarCB ? 'left-4' : 'left-0.5'}`} />
+              {/* ── Bottom: ações + checkout (fixo na base) ─────────────── */}
+              <div className="shrink-0 flex flex-col gap-0 border-t border-ocean-depth">
+
+                {/* Ações do caixa */}
+                <div className="px-4 pt-4 pb-3 flex flex-col gap-2">
+                  <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Gestão do Caixa</p>
+                  <button
+                    onClick={() => setModalMov('sangria')}
+                    className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors text-left px-4"
+                  >
+                    Sangria — retirada de dinheiro
+                  </button>
+                  <button
+                    onClick={() => setModalMov('suprimento')}
+                    className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-electric-cyan/40 hover:text-electric-cyan active:bg-electric-cyan/10 transition-colors text-left px-4"
+                  >
+                    Suprimento — reforço de caixa
+                  </button>
+                  <button
+                    onClick={() => setModalFechar(true)}
+                    className="min-h-[48px] w-full border border-red-500/30 text-red-400/70 rounded-xl text-sm hover:border-red-500/60 hover:text-red-400 active:bg-red-500/10 transition-colors text-left px-4"
+                  >
+                    Fechar Caixa
                   </button>
                 </div>
-              )}
 
-              {/* Botão Finalizar */}
-              <div className="shrink-0 px-4 pt-4">
-                <button
-                  onClick={() => setModalCheckout(true)}
-                  disabled={itens.length === 0}
-                  className="w-full min-h-[56px] bg-electric-cyan text-midnight rounded-2xl text-base font-bold disabled:opacity-30 active:scale-[0.98] transition-transform"
-                >
-                  {itens.length === 0 ? 'Sacola vazia' : `Finalizar Compra — ${fmt(baseTotal)}`}
-                </button>
+                {/* Separador visual com espaçamento para evitar clique acidental */}
+                <div className="mx-4 border-t border-ocean-depth" />
+
+                {/* Botão Finalizar — sempre visível, sempre na base */}
+                <div className="px-4 pt-3 pb-4">
+                  <button
+                    onClick={() => setModalCheckout(true)}
+                    disabled={itens.length === 0}
+                    className="w-full min-h-[60px] bg-electric-cyan text-midnight rounded-2xl text-base font-bold disabled:opacity-30 active:scale-[0.98] transition-transform"
+                  >
+                    {itens.length === 0 ? 'Sacola vazia' : `Finalizar Compra — ${fmt(baseTotal)}`}
+                  </button>
+                </div>
               </div>
-
-              {/* Divisor */}
-              <div className="shrink-0 px-4 pt-5 pb-2">
-                <p className="text-steel text-[10px] uppercase tracking-wider">Gestão do Caixa</p>
-              </div>
-
-              {/* Ações do caixa */}
-              <div className="shrink-0 px-4 flex flex-col gap-2">
-                <button
-                  onClick={() => setModalMov('sangria')}
-                  className="min-h-[44px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-red-400/50 hover:text-red-400 transition-colors text-left px-4"
-                >
-                  Sangria — retirada de dinheiro
-                </button>
-                <button
-                  onClick={() => setModalMov('suprimento')}
-                  className="min-h-[44px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-electric-cyan/40 hover:text-electric-cyan transition-colors text-left px-4"
-                >
-                  Suprimento — reforço de caixa
-                </button>
-                <button
-                  onClick={() => setModalFechar(true)}
-                  className="min-h-[44px] w-full border border-red-500/30 text-red-400/70 rounded-xl text-sm hover:border-red-500/60 hover:text-red-400 transition-colors text-left px-4"
-                >
-                  Fechar Caixa
-                </button>
-              </div>
-
-              <div className="flex-1" />
             </>
           )}
         </div>
