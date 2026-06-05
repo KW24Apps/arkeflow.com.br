@@ -49,7 +49,7 @@ export default function CaixaPage() {
     } finally { setSalvando(false) }
   }
 
-  const fmt = (v?: string | number) => `R$ ${Number(v ?? 0).toFixed(2)}`
+  const fmt = (v?: string | number | null) => `R$ ${Number(v ?? 0).toFixed(2)}`
   const fmtData = (d?: string) => d ? new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
 
   if (carregando && status === 'desconhecido') {
