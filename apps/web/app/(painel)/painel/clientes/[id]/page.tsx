@@ -50,7 +50,9 @@ export default function ClienteDetalhe() {
         setNome(c.nome); setTelefone(c.telefone ?? '')
         setCpf(c.cpf ?? ''); setEmail(c.email ?? '')
         setRegraCashbackId(c.regra_cashback_id ?? '')
-      }).finally(() => setLoading(false))
+      })
+      .catch(() => setCliente(null))
+      .finally(() => setLoading(false))
   }, [id])
 
   async function handleSalvar() {

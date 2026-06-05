@@ -7,6 +7,9 @@ export const createClienteSchema = z.object({
   email:    z.string().email().optional().or(z.literal('')),
 })
 
-export const updateClienteSchema = createClienteSchema.partial()
+export const updateClienteSchema = createClienteSchema.partial().extend({
+  regra_cashback_id: z.string().uuid().nullable().optional(),
+  medidas_json:      z.record(z.string()).optional(),
+})
 
 export type CreateClienteInput = z.infer<typeof createClienteSchema>
