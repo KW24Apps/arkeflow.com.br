@@ -405,7 +405,12 @@ export default function CaixaPage() {
                   value={scan}
                   onChange={e => { setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
                   onKeyDown={onScanEnter}
-                  onBlur={() => !modalBusca && setTimeout(() => scanRef.current?.focus(), 200)}
+                  onBlur={e => {
+                    // Não rouba foco se o usuario esta interagindo com selects ou botoes
+                    const next = e.relatedTarget as HTMLElement | null
+                    if (next && (next.tagName === 'SELECT' || next.tagName === 'BUTTON' || next.tagName === 'INPUT' || next.closest('[data-no-refocus]'))) return
+                    if (!modalBusca) setTimeout(() => scanRef.current?.focus(), 250)
+                  }}
                   placeholder="Bipe o código de barras ou digite a referência..."
                   autoComplete="off"
                   className="w-full min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl pl-4 pr-4 text-sm text-sea-foam placeholder-steel/50 outline-none focus:border-electric-cyan"
@@ -440,7 +445,7 @@ export default function CaixaPage() {
         </div>
 
         {/* ── PAINEL DIREITO — Resumo + Pagamento ─────────────────────────── */}
-        <div className="w-80 xl:w-96 flex flex-col overflow-hidden bg-deep-ocean shrink-0">
+        <div className="w-80 xl:w-96 flex flex-col overflow-hidden bg-deep-ocean shrink-0" data-no-refocus>
 
           {/* Sucesso da venda */}
           {vendaOK && (

@@ -81,8 +81,8 @@ export async function documentosRoutes(app: FastifyInstance) {
     if (!doc) throw new AppError('Documento não encontrado', 404)
 
     const caminho = join(UPLOAD_DIR, doc.arquivo)
-    return reply.sendFile(doc.nome, join(UPLOAD_DIR, doc.usuario_id))
-      .catch(() => reply.sendFile(doc.arquivo, UPLOAD_DIR))
+    return (reply as any).sendFile(doc.nome, join(UPLOAD_DIR, doc.usuario_id))
+      .catch(() => (reply as any).sendFile(doc.arquivo, UPLOAD_DIR))
   })
 
   // Remover documento
