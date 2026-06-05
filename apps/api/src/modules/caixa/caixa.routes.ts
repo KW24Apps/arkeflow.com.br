@@ -117,15 +117,19 @@ export async function caixaRoutes(app: FastifyInstance) {
     return reply.status(201).send(m)
   })
 
-  // Vendas do turno atual
+  // Vendas do turno atual — filtradas pelo usuário logado
   app.get('/vendas', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
+    const user = req.user as JwtPayload
 
     const { rows: [turno] } = await pool.query(
-      `SELECT id, aberto_em FROM turnos_caixa WHERE status = 'aberto' ORDER BY aberto_em DESC LIMIT 1`
+      `SELECT id, aberto_em FROM turnos_caixa
+       WHERE status = 'aberto' AND usuario_id = $1
+       ORDER BY aberto_em DESC LIMIT 1`,
+      [user.id]
     )
 
-    const desde = turno?.aberto_em ?? new Date().toISOString().split('T')[0]
+    if (!turno) return reply.send({ turno: null, vendas: [] })
 
     const { rows } = await pool.query(
       `SELECT v.id, v.total, v.status, v.criado_em,
@@ -135,10 +139,11 @@ export async function caixaRoutes(app: FastifyInstance) {
        LEFT JOIN clientes c ON c.id = v.cliente_id
        LEFT JOIN itens_venda iv ON iv.venda_id = v.id
        WHERE v.status = 'finalizada'
-         AND v.criado_em >= $1
+         AND v.usuario_id = $1
+         AND v.criado_em >= $2
        GROUP BY v.id, c.nome
        ORDER BY v.criado_em DESC`,
-      [desde]
+      [user.id, turno.aberto_em]
     )
     return reply.send({ turno, vendas: rows })
   })

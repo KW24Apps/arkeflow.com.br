@@ -12,6 +12,7 @@ import { clientesApi } from '@/lib/api/clientes'
 import { vendasApi } from '@/lib/api/vendas'
 import { promocoesApi } from '@/lib/api/promocoes'
 import { calcularDescontos } from '@/lib/calcularDesconto'
+import { AdvancedSearchModal } from '@/components/pdv/AdvancedSearchModal'
 
 interface Pagamento {
   forma:       FormaPagamento
@@ -35,10 +36,11 @@ export default function CaixaPage() {
   const [abrindo,      setAbrindo]      = useState(false)
 
   // ── Scanner / busca ───────────────────────────────────────────────────────
-  const scanRef    = useRef<HTMLInputElement>(null)
-  const [scan,     setScan]      = useState('')
-  const [resultados,setResultados]= useState<ProdutoSearch[]>([])
-  const [scanErro, setScanErro]  = useState('')
+  const scanRef     = useRef<HTMLInputElement>(null)
+  const [scan,      setScan]       = useState('')
+  const [resultados,setResultados] = useState<ProdutoSearch[]>([])
+  const [scanErro,  setScanErro]   = useState('')
+  const [modalBusca,setModalBusca] = useState(false)
 
   // ── Pagamento ─────────────────────────────────────────────────────────────
   const [formas,     setFormas]      = useState<FormaPagamento[]>([])
@@ -394,25 +396,34 @@ export default function CaixaPage() {
           </div>
 
           {/* Input scanner — sempre visível, sempre focado */}
-          <div className="shrink-0 p-3 border-t border-ocean-depth bg-midnight">
+          <div className="shrink-0 p-3 border-t border-ocean-depth bg-midnight relative">
             {scanErro && <p className="text-red-400 text-xs mb-2 text-center">{scanErro}</p>}
-            <div className="relative">
-              <input
-                ref={scanRef}
-                value={scan}
-                onChange={e => { setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
-                onKeyDown={onScanEnter}
-                onBlur={() => setTimeout(() => scanRef.current?.focus(), 200)}
-                placeholder="Bipe o código de barras ou digite a referência..."
-                autoComplete="off"
-                className="w-full min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl pl-4 pr-12 text-sm text-sea-foam placeholder-steel/50 outline-none focus:border-electric-cyan"
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-steel text-lg">⌨</span>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  ref={scanRef}
+                  value={scan}
+                  onChange={e => { setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
+                  onKeyDown={onScanEnter}
+                  onBlur={() => !modalBusca && setTimeout(() => scanRef.current?.focus(), 200)}
+                  placeholder="Bipe o código de barras ou digite a referência..."
+                  autoComplete="off"
+                  className="w-full min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl pl-4 pr-4 text-sm text-sea-foam placeholder-steel/50 outline-none focus:border-electric-cyan"
+                />
+              </div>
+              {/* Botão busca avançada */}
+              <button
+                onClick={() => { setModalBusca(true); setScan(''); setResultados([]) }}
+                title="Busca avançada com filtros"
+                className="min-w-[48px] min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl text-steel hover:border-electric-cyan hover:text-electric-cyan transition-colors flex items-center justify-center text-lg"
+              >
+                🔍
+              </button>
             </div>
 
-            {/* Dropdown resultados */}
+            {/* Dropdown resultados autocomplete */}
             {resultados.length > 0 && (
-              <div className="mt-1 bg-deep-ocean border border-ocean-depth rounded-xl overflow-hidden shadow-xl absolute bottom-full mb-1 left-3 right-3 z-20">
+              <div className="absolute bottom-full mb-1 left-3 right-3 z-20 bg-deep-ocean border border-ocean-depth rounded-xl overflow-hidden shadow-xl">
                 {resultados.slice(0, 6).map(p => (
                   <button key={p.id} onClick={() => selecionarProduto(p)}
                     className="w-full flex items-center justify-between px-4 py-3 hover:bg-ocean-depth border-b border-ocean-depth last:border-0 text-left">
@@ -625,6 +636,13 @@ export default function CaixaPage() {
           </div>
         </div>
       )}
+
+      {/* ── Modal Busca Avançada ────────────────────────────────────────────── */}
+      <AdvancedSearchModal
+        open={modalBusca}
+        onClose={() => { setModalBusca(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onAddItem={item => { addItem(item); setTimeout(() => scanRef.current?.focus(), 100) }}
+      />
 
       {/* ── Modal Fechar Caixa ───────────────────────────────────────────────── */}
       {modalFechar && (
