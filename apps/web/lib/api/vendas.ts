@@ -15,11 +15,13 @@ export interface PagamentoVenda {
 }
 
 export interface NovaVendaPayload {
-  cliente_id?:       string | null
-  itens:             ItemVenda[]
-  pagamentos:        PagamentoVenda[]
-  cashback_usado:    number
-  desconto_promocao: number
+  cliente_id?:          string | null
+  sacola_id?:           string | null  // remote bag origin, for tracking
+  itens:                ItemVenda[]
+  pagamentos:           PagamentoVenda[]
+  cashback_usado:       number
+  desconto_promocao:    number
+  desconto_pagamento?:  number         // discount from payment method rules
 }
 
 export interface VendaHistoricoItem {
