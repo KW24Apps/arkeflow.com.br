@@ -462,7 +462,7 @@ export default function PromocoesPage() {
             Nenhuma promoção cadastrada
           </p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 220px))', gap: '12px', justifyContent: 'start' }}>
             {promos.map(p => (
               <PromoCard
                 key={p.id}
