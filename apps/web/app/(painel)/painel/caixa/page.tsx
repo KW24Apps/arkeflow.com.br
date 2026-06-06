@@ -90,6 +90,11 @@ export default function CaixaPage() {
   const [fechVendas, setFechVendas]  = useState<VendaTurno[]>([])
   const [fechLoad,   setFechLoad]    = useState(false)
 
+  // ── Seleção de variação ───────────────────────────────────────────────────
+  const [modalVariacao,   setModalVariacao]   = useState(false)
+  const [produtoVariacao, setProdutoVariacao] = useState<{ produto: any; qty: number } | null>(null)
+  const [focadoIdx,       setFocadoIdx]       = useState(0)
+
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { carregar() }, [])
 
@@ -111,6 +116,50 @@ export default function CaixaPage() {
     setFechVendas([])
     caixaApi.vendas().then(r => setFechVendas(r.vendas)).finally(() => setFechLoad(false))
   }, [modalFechar])
+
+  // Auto-focus first non-esgotado card when variant modal opens
+  useEffect(() => {
+    if (!modalVariacao || !produtoVariacao) return
+    const versoes: any[] = produtoVariacao.produto.versoes ?? []
+    const first = versoes.findIndex((v: any) => !(produtoVariacao.produto.controle_estoque && v.estoque_atual <= 0))
+    setFocadoIdx(first >= 0 ? first : 0)
+  }, [modalVariacao])
+
+  // Keyboard nav for variant modal
+  useEffect(() => {
+    if (!modalVariacao || !produtoVariacao) return
+    function onKey(e: KeyboardEvent) {
+      const versoes: any[]     = produtoVariacao!.produto.versoes ?? []
+      const disponivel = versoes.map((v: any, i: number) => ({ v, i }))
+        .filter(({ v }) => !(produtoVariacao!.produto.controle_estoque && v.estoque_atual <= 0))
+      if (e.key === 'Escape') {
+        setModalVariacao(false)
+        setTimeout(() => scanRef.current?.focus(), 100)
+        return
+      }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault()
+        const curr  = disponivel.findIndex(({ i }) => i === focadoIdx)
+        const delta = e.key === 'ArrowRight' ? 1 : -1
+        const next  = disponivel[(curr + delta + disponivel.length) % disponivel.length]
+        if (next) setFocadoIdx(next.i)
+        return
+      }
+      if (e.key === 'Enter') {
+        const versao = versoes[focadoIdx]
+        if (!versao || (produtoVariacao!.produto.controle_estoque && versao.estoque_atual <= 0)) return
+        const { produto, qty } = produtoVariacao!
+        const preco = versao.preco_especifico ? parseFloat(versao.preco_especifico) : parseFloat(produto.preco_base)
+        const item  = { versao_id: versao.id, produto_id: produto.id, nome: produto.nome, atributos: versao.atributos_json, preco_unitario: preco, codigo_barras: versao.codigo_barras ?? null }
+        qty > 1 ? addItemQtd(item, qty) : addItem(item)
+        setModalVariacao(false); setProdutoVariacao(null); setFocadoIdx(0)
+        setResultados([]); setScan('')
+        setTimeout(() => scanRef.current?.focus(), 100)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [modalVariacao, produtoVariacao, focadoIdx])
 
   // Auto-open customer modal on first item (once per transaction)
   useEffect(() => {
@@ -135,6 +184,17 @@ export default function CaixaPage() {
   const cashbackDisp = clienteInfo ? Number(clienteInfo.saldo_cashback) : 0
   const cashbackUsar = usarCB ? Math.min(cashbackDisp, subtotal - totalDesconto) : 0
   const baseTotal    = Math.max(0, subtotal - totalDesconto - cashbackUsar)
+
+  function adicionarVariacao(versao: any) {
+    if (!produtoVariacao) return
+    const { produto, qty } = produtoVariacao
+    const preco = versao.preco_especifico ? parseFloat(versao.preco_especifico) : parseFloat(produto.preco_base)
+    const item  = { versao_id: versao.id, produto_id: produto.id, nome: produto.nome, atributos: versao.atributos_json, preco_unitario: preco, codigo_barras: versao.codigo_barras ?? null }
+    qty > 1 ? addItemQtd(item, qty) : addItem(item)
+    setModalVariacao(false); setProdutoVariacao(null); setFocadoIdx(0)
+    setResultados([]); setScan('')
+    setTimeout(() => scanRef.current?.focus(), 100)
+  }
 
   // ── Scanner ───────────────────────────────────────────────────────────────
   async function buscarBarcode(codigo: string, qty: number) {
@@ -217,17 +277,20 @@ export default function CaixaPage() {
         const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras }
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
         setResultados([]); setScan('')
+        scanRef.current?.focus()
       } else if ((data.versoes?.length ?? 0) > 1) {
-        setScanErro(`${p.nome} tem variações — selecione pelo código de barras ou use a busca avançada.`)
         setResultados([])
+        setProdutoVariacao({ produto: data, qty })
+        setModalVariacao(true)
       } else {
         setScanErro(`${p.nome} sem variações cadastradas.`)
         setResultados([])
+        scanRef.current?.focus()
       }
     } catch (err: any) {
       setScanErro(err?.response?.data?.error ?? 'Erro ao carregar produto.')
+      scanRef.current?.focus()
     }
-    scanRef.current?.focus()
   }
 
   // ── Abertura ──────────────────────────────────────────────────────────────
@@ -420,7 +483,7 @@ export default function CaixaPage() {
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
                     const next = e.relatedTarget as HTMLElement | null
                     if (next && (next.tagName === 'SELECT' || next.tagName === 'BUTTON' || next.tagName === 'INPUT' || next.closest('[data-no-refocus]'))) return
-                    if (!modalBusca && !modalCheckout) setTimeout(() => scanRef.current?.focus(), 250)
+                    if (!modalBusca && !modalCheckout && !modalVariacao) setTimeout(() => scanRef.current?.focus(), 250)
                   }}
                   placeholder='Código de barras, nome... ou "3-código" para qty 3'
                   autoComplete="off"
@@ -620,6 +683,84 @@ export default function CaixaPage() {
         cashbackUsar={cashbackUsar}
         clienteId={cliente_id}
       />
+
+      {/* Modal Seleção de Variação */}
+      {modalVariacao && produtoVariacao && (() => {
+        const { produto, qty } = produtoVariacao
+        const versoes: any[]   = produto.versoes ?? []
+        return (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => { setModalVariacao(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+          >
+            <div
+              style={{ background: 'rgba(12,25,45,0.99)', border: '0.5px solid rgba(255,255,255,0.14)', borderRadius: '14px', padding: '24px 20px 20px', width: '460px', maxWidth: '90vw', maxHeight: '88vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+                <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', fontWeight: 600, margin: '0 0 4px' }}>{produto.nome}</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>
+                  {versoes.length} variação{versoes.length !== 1 ? 'ões' : ''} disponível{versoes.length !== 1 ? 'is' : ''} · clique para adicionar ao caixa
+                  {qty > 1 && <span style={{ color: 'rgba(0,239,255,0.6)' }}> · {qty} unidades</span>}
+                </p>
+              </div>
+
+              {/* Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px', marginBottom: '14px' }}>
+                {versoes.map((versao: any, idx: number) => {
+                  const esgotado = produto.controle_estoque && versao.estoque_atual <= 0
+                  const focused  = idx === focadoIdx && !esgotado
+                  const preco    = versao.preco_especifico ? parseFloat(versao.preco_especifico) : parseFloat(produto.preco_base)
+                  const atribs   = Object.entries(versao.atributos_json ?? {}) as [string, string][]
+                  return (
+                    <div
+                      key={versao.id}
+                      onClick={() => !esgotado && adicionarVariacao(versao)}
+                      onMouseEnter={() => !esgotado && setFocadoIdx(idx)}
+                      style={{
+                        position: 'relative',
+                        background: focused ? 'rgba(0,239,255,0.09)' : 'rgba(8,18,30,0.6)',
+                        border: `0.5px solid ${focused ? 'rgba(0,239,255,0.7)' : 'rgba(255,255,255,0.09)'}`,
+                        borderRadius: '10px',
+                        padding: '14px 8px',
+                        textAlign: 'center',
+                        cursor: esgotado ? 'not-allowed' : 'pointer',
+                        opacity: esgotado ? 0.35 : 1,
+                        transition: 'border-color 0.1s, background 0.1s',
+                      }}
+                    >
+                      {esgotado && (
+                        <span style={{ position: 'absolute', top: '4px', right: '4px', fontSize: '8px', background: 'rgba(240,80,80,0.18)', border: '0.5px solid rgba(240,80,80,0.3)', borderRadius: '4px', padding: '1px 4px', color: 'rgba(240,130,130,0.8)' }}>
+                          Esgotado
+                        </span>
+                      )}
+                      {atribs.length === 0 ? (
+                        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>Versão única</p>
+                      ) : atribs.map(([key, val], ai) => (
+                        <div key={key}>
+                          {ai > 0 && <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)', margin: '6px auto', width: '60%' }} />}
+                          <p style={{ fontSize: '8px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 2px' }}>{key}</p>
+                          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, margin: 0, wordBreak: 'break-word' }}>{val}</p>
+                        </div>
+                      ))}
+                      <p style={{ fontSize: '11px', color: '#0ef', marginTop: '8px', marginBottom: 0 }}>R$ {preco.toFixed(2)}</p>
+                      {produto.controle_estoque && (
+                        <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', margin: '2px 0 0' }}>{versao.estoque_atual} em estoque</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Hint */}
+              <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', margin: 0 }}>
+                ← → navegar · Enter adicionar · Esc cancelar
+              </p>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Modal Sangria / Suprimento */}
       {modalMov && (
