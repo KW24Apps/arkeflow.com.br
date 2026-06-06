@@ -263,7 +263,8 @@ export default function ProdutoPage() {
   return (
     <>
       <TopBar />
-      <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-10">
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto p-4 md:p-5 pb-3">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
 
           {/* ══ LEFT COLUMN ══════════════════════════════════════════════════ */}
@@ -348,32 +349,6 @@ export default function ProdutoPage() {
               </button>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push('/painel/produtos')}
-                className="flex-1 min-h-[44px] transition-colors"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: 'rgba(255,255,255,0.55)', fontSize: '13px' }}
-              >
-                Voltar
-              </button>
-              <button
-                onClick={handleSalvarProduto}
-                disabled={salvandoProduto || !nome || !preco}
-                className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
-                style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}
-              >
-                {salvandoProduto ? 'Salvando...' : 'Salvar Alterações'}
-              </button>
-            </div>
-
-            {/* Danger */}
-            <button
-              onClick={() => setModal({ open: true, title: 'Remover produto', message: 'O produto e todas as suas variações serão excluídos permanentemente.', confirmLabel: 'Remover', onConfirm: handleDeleteProduto })}
-              style={{ fontSize: '12px', color: 'rgba(240,100,100,0.55)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', textAlign: 'center', width: '100%' }}
-            >
-              Remover produto
-            </button>
           </div>
 
           {/* ══ RIGHT COLUMN ═════════════════════════════════════════════════ */}
@@ -635,6 +610,29 @@ export default function ProdutoPage() {
             )}
           </div>
 
+        </div>
+        </div>
+
+        {/* ── Fixed footer ──────────────────────────────────────────────── */}
+        <div
+          className="shrink-0 flex gap-3 px-4 py-3"
+          style={{ background: 'rgba(8,18,30,0.65)', backdropFilter: 'blur(8px)', borderTop: '0.5px solid rgba(255,255,255,0.07)' }}
+        >
+          <button
+            onClick={() => setModal({ open: true, title: 'Remover produto', message: 'O produto e todas as suas variações serão excluídos permanentemente.', confirmLabel: 'Remover', onConfirm: handleDeleteProduto })}
+            className="flex-1 min-h-[44px]"
+            style={{ background: 'rgba(240,100,100,0.08)', border: '0.5px solid rgba(240,100,100,0.25)', borderRadius: '8px', color: 'rgba(240,100,100,0.7)', fontSize: '13px' }}
+          >
+            Remover produto
+          </button>
+          <button
+            onClick={handleSalvarProduto}
+            disabled={salvandoProduto || !nome || !preco}
+            className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
+            style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}
+          >
+            {salvandoProduto ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
         </div>
       </main>
       <ConfirmModal
