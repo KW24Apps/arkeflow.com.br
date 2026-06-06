@@ -17,11 +17,11 @@ type EditandoForm = null | 'novo' | string
 interface VersaoForm {
   tamanho_id: string; cor_id: string
   estoque_atual: string; estoque_minimo: string; preco_especifico: string
-  medidas: FormMedida[]
+  medidas: FormMedida[]; codigo_barras: string
 }
 
 const FORM_VAZIO: VersaoForm = {
-  tamanho_id: '', cor_id: '', estoque_atual: '', estoque_minimo: '', preco_especifico: '', medidas: []
+  tamanho_id: '', cor_id: '', estoque_atual: '', estoque_minimo: '', preco_especifico: '', medidas: [], codigo_barras: ''
 }
 
 const ATRIBS_VAR = ['Tamanho', 'Cor']
@@ -110,10 +110,12 @@ export default function ProdutoPage() {
   const [cores,    setCores]    = useState<ItemCatalogo[]>([])
   const [medidas,  setMedidas]  = useState<ItemCatalogo[]>([])
 
-  const [editandoForm, setEditandoForm] = useState<EditandoForm>(null)
-  const [form,         setForm]         = useState<VersaoForm>(FORM_VAZIO)
-  const [salvandoVar,  setSalvandoVar]  = useState(false)
-  const [erroForm,     setErroForm]     = useState('')
+  const [editandoForm,   setEditandoForm]   = useState<EditandoForm>(null)
+  const [form,           setForm]           = useState<VersaoForm>(FORM_VAZIO)
+  const [salvandoVar,    setSalvandoVar]    = useState(false)
+  const [erroForm,       setErroForm]       = useState('')
+  const [searchTamanho,  setSearchTamanho]  = useState('')
+  const [searchCor,      setSearchCor]      = useState('')
 
   // ─── carga inicial ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -184,12 +186,13 @@ export default function ProdutoPage() {
       estoque_minimo: String(v.estoque_minimo),
       preco_especifico: v.preco_especifico ? String(Number(v.preco_especifico)) : '',
       medidas: med,
+      codigo_barras: (v as any).codigo_barras ?? '',
     })
     setErroForm('')
     setEditandoForm(v.id)
   }
 
-  function fecharForm() { setEditandoForm(null); setForm(FORM_VAZIO) }
+  function fecharForm() { setEditandoForm(null); setForm(FORM_VAZIO); setSearchTamanho(''); setSearchCor('') }
 
   // ─── variação: salvar ───────────────────────────────────────────────────────
   async function handleSalvarVariacao() {
@@ -211,6 +214,7 @@ export default function ProdutoPage() {
         estoque_atual:    form.estoque_atual    ? parseInt(form.estoque_atual)                        : 0,
         estoque_minimo:   form.estoque_minimo   ? parseInt(form.estoque_minimo)                       : 0,
         preco_especifico: form.preco_especifico ? parseFloat(form.preco_especifico.replace(',', '.')) : null,
+        codigo_barras:    form.codigo_barras    || null,
       }
 
       if (editandoForm !== 'novo') {
@@ -461,8 +465,16 @@ export default function ProdutoPage() {
                 {/* Tamanho */}
                 <div className="flex flex-col gap-2">
                   <Label>Tamanho</Label>
+                  <input
+                    value={searchTamanho}
+                    onChange={e => setSearchTamanho(e.target.value)}
+                    placeholder="Buscar tamanho..."
+                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '20px', padding: '5px 12px', fontSize: '12px', color: 'rgba(255,255,255,0.6)', outline: 'none', width: '100%' }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+                  />
                   <div className="flex flex-wrap gap-1.5">
-                    {tamanhos.map(t => (
+                    {tamanhos.filter(t => t.nome.toLowerCase().includes(searchTamanho.toLowerCase())).map(t => (
                       <button key={t.id} type="button"
                         onClick={() => setForm(f => ({ ...f, tamanho_id: f.tamanho_id === t.id ? '' : t.id }))}
                         className="transition-all"
@@ -482,8 +494,16 @@ export default function ProdutoPage() {
                 {/* Cor */}
                 <div className="flex flex-col gap-2">
                   <Label>Cor</Label>
+                  <input
+                    value={searchCor}
+                    onChange={e => setSearchCor(e.target.value)}
+                    placeholder="Buscar cor..."
+                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '20px', padding: '5px 12px', fontSize: '12px', color: 'rgba(255,255,255,0.6)', outline: 'none', width: '100%' }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+                  />
                   <div className="flex flex-wrap gap-1.5">
-                    {cores.map(c => (
+                    {cores.filter(c => c.nome.toLowerCase().includes(searchCor.toLowerCase())).map(c => (
                       <button key={c.id} type="button"
                         onClick={() => setForm(f => ({ ...f, cor_id: f.cor_id === c.id ? '' : c.id }))}
                         className="flex items-center gap-1.5 transition-all"
@@ -558,6 +578,20 @@ export default function ProdutoPage() {
                     )}
                   </div>
                 )}
+
+                {/* Código de barras */}
+                <div className="flex flex-col gap-1">
+                  <label style={{ display: 'block', fontSize: '9px', textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: '4px' }}>Código de barras</label>
+                  <input
+                    type="text"
+                    value={form.codigo_barras}
+                    onChange={e => setForm(f => ({ ...f, codigo_barras: e.target.value }))}
+                    placeholder="EAN-13, QR, etc."
+                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: 'rgba(255,255,255,0.75)', width: '100%', outline: 'none' }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+                  />
+                </div>
 
                 {erroForm && <p style={{ fontSize: '11px', color: 'rgba(248,113,113,0.8)', textAlign: 'center' }}>{erroForm}</p>}
 
