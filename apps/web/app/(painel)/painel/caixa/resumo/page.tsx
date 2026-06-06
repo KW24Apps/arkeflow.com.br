@@ -9,9 +9,9 @@ import { vendasApi, type VendaHistoricoItem } from '@/lib/api/vendas'
 
 type DetailMap = Record<string, any>
 
-const fmt    = (v?: number | string | null) => `R$ ${Number(v ?? 0).toFixed(2)}`
-const fmtHr  = (d: string) => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-const fmtTs  = (d: string) =>
+const fmt   = (v?: number | string | null) => `R$ ${Number(v ?? 0).toFixed(2)}`
+const fmtHr = (d: string) => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+const fmtTs = (d: string) =>
   new Date(d).toLocaleDateString('pt-BR') + ' · ' +
   new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
@@ -46,7 +46,7 @@ function ConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel
 
 // ─── VendaRow ─────────────────────────────────────────────────────────────────
 
-const GRID   = '50px 1fr 1fr 80px 40px 80px 20px'
+const GRID  = '50px 1fr 1fr 80px 40px 80px 20px'
 const BADGE: React.CSSProperties = {
   fontSize: '9px',
   background: 'rgba(255,255,255,0.06)',
@@ -56,6 +56,12 @@ const BADGE: React.CSSProperties = {
   color: 'rgba(255,255,255,0.45)',
   whiteSpace: 'nowrap',
   display: 'inline-block',
+}
+const ITEM_LABEL: React.CSSProperties = {
+  fontSize: '9px',
+  color: 'rgba(255,255,255,0.25)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
 }
 
 function VendaRow({
@@ -154,14 +160,20 @@ function VendaRow({
               </div>
             ) : (
               <>
-                {/* Itens */}
+                {/* Itens — 3-column layout */}
                 <div>
-                  <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 6px' }}>Itens</p>
+                  {/* Column headers */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 44px 88px', gap: '8px', marginBottom: '6px' }}>
+                    <span style={ITEM_LABEL}>Produto</span>
+                    <span style={{ ...ITEM_LABEL, textAlign: 'center' }}>Qtd</span>
+                    <span style={{ ...ITEM_LABEL, textAlign: 'right' }}>Valor</span>
+                  </div>
                   {(detail.itens ?? []).map((item: any, i: number) => {
                     const lineTotal = Number(item.preco_unitario) * item.quantidade - Number(item.desconto_item)
                     return (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 44px 88px', gap: '8px', alignItems: 'center', marginBottom: '5px' }}>
+                        {/* Product name + attribute chips */}
+                        <div style={{ minWidth: 0 }}>
                           <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>{item.produto_nome}</span>
                           {Object.keys(item.atributos_json ?? {}).length > 0 && (
                             <span style={{ marginLeft: '6px' }}>
@@ -173,8 +185,15 @@ function VendaRow({
                             </span>
                           )}
                         </div>
-                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginLeft: '12px', whiteSpace: 'nowrap' }}>
-                          {item.quantidade}× {fmt(lineTotal)}
+                        {/* Quantity chip */}
+                        <div style={{ textAlign: 'center' }}>
+                          <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.55)' }}>
+                            {item.quantidade}
+                          </span>
+                        </div>
+                        {/* Line total */}
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {fmt(lineTotal)}
                         </span>
                       </div>
                     )
@@ -238,7 +257,7 @@ export default function ResumoCaixaPage() {
   // Always refresh caixa status on mount
   useEffect(() => { carregar() }, [])
 
-  // Fetch vendas only when caixa is open — skip entirely otherwise
+  // Fetch vendas + eagerly load ALL sale details so aggregations are correct immediately
   useEffect(() => {
     if (status !== 'aberto' || !turno) {
       setCarregando(false)
@@ -248,44 +267,54 @@ export default function ResumoCaixaPage() {
     const abertoEm = new Date(turno.aberto_em).getTime()
     vendasApi
       .historico({ de: turno.aberto_em, ...(turno.fechado_em ? { ate: turno.fechado_em } : {}) })
-      .then(data => setVendas(data.filter(v => new Date(v.criado_em).getTime() >= abertoEm)))
+      .then(data => {
+        const filtered = data.filter(v => new Date(v.criado_em).getTime() >= abertoEm)
+        setVendas(filtered)
+        // Fetch every sale detail in parallel so summary cards are fully populated on load
+        return Promise.all(
+          filtered.map(v =>
+            vendasApi.get(v.id)
+              .then(d => ({ id: v.id, d }))
+              .catch(() => null)
+          )
+        )
+      })
+      .then(results => {
+        const fetched: DetailMap = {}
+        for (const r of results ?? []) {
+          if (r) fetched[r.id] = r.d
+        }
+        setDetails(fetched)
+      })
       .finally(() => setCarregando(false))
   }, [status, turno?.id])
 
   function handleExpand(id: string) {
+    // Data is pre-loaded; this is a fallback for any race conditions
     if (details[id]) return
     vendasApi.get(id).then(d => setDetails(prev => ({ ...prev, [id]: d })))
   }
 
-  // Aggregations from list
+  // ── Aggregations ──
   const totalGeral = vendas.reduce((s, v) => s + Number(v.total), 0)
 
-  // Pagamentos from lazily loaded details
   const porFormaMap: Record<string, { nome: string; total: number; count: number }> = {}
+  let vendasDinheiro = 0
   for (const d of Object.values(details)) {
-    for (const p of (d.pagamentos ?? []) as { forma_nome: string; valor: string }[]) {
+    for (const p of (d.pagamentos ?? []) as any[]) {
       if (!porFormaMap[p.forma_nome]) porFormaMap[p.forma_nome] = { nome: p.forma_nome, total: 0, count: 0 }
       porFormaMap[p.forma_nome].total += Number(p.valor)
       porFormaMap[p.forma_nome].count++
+      if (p.tipo === 'dinheiro') vendasDinheiro += Number(p.valor ?? 0)
     }
   }
   const porForma = Object.values(porFormaMap).sort((a, b) => b.total - a.total)
 
-  // Cash drawer computation — uses lazily loaded payment details
-  let vendasDinheiro = 0
-  let trocoTotal     = 0
-  for (const d of Object.values(details)) {
-    for (const p of (d.pagamentos ?? []) as any[]) {
-      if (p.tipo === 'dinheiro') {
-        vendasDinheiro += Number(p.valor ?? 0)
-        trocoTotal     += Number(p.troco ?? 0)
-      }
-    }
-  }
+  // Cash drawer — sangrias/suprimentos read ONCE from turno (shift-level totals, not per-sale)
   const saldoInicial     = Number((turno as any)?.saldo_inicial     ?? 0)
   const totalSangrias    = Number((turno as any)?.total_sangrias     ?? 0)
   const totalSuprimentos = Number((turno as any)?.total_suprimentos  ?? 0)
-  const esperadoGaveta   = saldoInicial + vendasDinheiro + totalSuprimentos - totalSangrias - trocoTotal
+  const esperadoGaveta   = saldoInicial + vendasDinheiro + totalSuprimentos - totalSangrias
 
   // ── Shared styles ──
   const CARD: React.CSSProperties = {
@@ -308,8 +337,17 @@ export default function ResumoCaixaPage() {
     textTransform: 'uppercase',
     letterSpacing: '0.1em',
   }
+  const META_ROW: React.CSSProperties = {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+  }
+  const META_LABEL: React.CSSProperties = {
+    fontSize: '11px', color: 'rgba(255,255,255,0.35)',
+  }
+  const META_VAL: React.CSSProperties = {
+    fontSize: '11px', color: 'rgba(255,255,255,0.6)', fontVariantNumeric: 'tabular-nums',
+  }
 
-  // ── Loading (store still resolving or vendas fetching) ──
+  // ── Loading ──
   if (status === 'desconhecido' || (status === 'aberto' && carregando)) return (
     <>
       <TopBar />
@@ -331,62 +369,52 @@ export default function ResumoCaixaPage() {
     </>
   )
 
-  const nomeOp = (turno as any)?.usuario_nome || authNome || '—'
+  const nomeOp        = (turno as any)?.usuario_nome || authNome || '—'
+  const gavetaColor   = esperadoGaveta < 0 ? 'rgba(240,130,130,0.9)' : 'rgba(100,220,160,0.95)'
 
   return (
     <>
     <TopBar />
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto' }}>
 
-      {/* ── Section 1: Turno info ── */}
-      {turno && (
-        <div style={CARD}>
-          <span style={SEC_LABEL}>Caixa aberto</span>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-            {([
-              { label: 'Operador',      value: nomeOp },
-              { label: 'Abertura',      value: fmtTs(turno.aberto_em) },
-              { label: 'Saldo inicial', value: fmt(turno.saldo_inicial) },
-            ] as const).map(f => (
-              <div key={f.label}>
-                <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '3px' }}>
-                  {f.label}
-                </span>
-                <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>{f.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Section 2: Summary cards ── */}
+      {/* ── Section 1: Three summary cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
 
-        {/* Receita total */}
+        {/* Receita total — with operador/abertura folded in */}
         <div style={CARD}>
           <span style={SEC_LABEL}>Receita total</span>
           <p style={{ fontSize: '22px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', margin: '0 0 2px' }}>
             {fmt(totalGeral)}
           </p>
-          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', margin: 0 }}>
+          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', margin: '0 0 10px' }}>
             {vendas.length} transação{vendas.length !== 1 ? 'ões' : ''}
           </p>
+          <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)', marginBottom: '8px' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={META_ROW}>
+              <span style={META_LABEL}>Operador</span>
+              <span style={META_VAL}>{nomeOp}</span>
+            </div>
+            <div style={META_ROW}>
+              <span style={META_LABEL}>Abertura</span>
+              <span style={META_VAL}>{fmtTs(turno.aberto_em)}</span>
+            </div>
+          </div>
         </div>
 
         {/* Caixa em dinheiro */}
         <div style={CARD}>
           <span style={SEC_LABEL}>Caixa em dinheiro</span>
-          <p style={{ fontSize: '22px', fontWeight: 700, color: 'rgba(100,220,160,0.95)', margin: '0 0 10px' }}>
+          <p style={{ fontSize: '22px', fontWeight: 700, color: gavetaColor, margin: '0 0 10px' }}>
             {fmt(esperadoGaveta)}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
             {([
-              { label: 'Saldo inicial',       value: saldoInicial,     color: 'rgba(255,255,255,0.5)',  show: true },
-              { label: '+ Vendas em dinheiro', value: vendasDinheiro,  color: 'rgba(100,220,160,0.8)',  show: true },
-              { label: '+ Suprimentos',        value: totalSuprimentos, color: 'rgba(100,220,160,0.8)', show: totalSuprimentos > 0 },
-              { label: '− Sangrias',           value: totalSangrias,   color: 'rgba(240,130,130,0.80)', show: totalSangrias > 0 },
-              { label: '− Troco dado',         value: trocoTotal,      color: 'rgba(240,130,130,0.80)', show: trocoTotal > 0 },
-            ] as const).filter(r => r.show).map(r => (
+              { label: 'Saldo inicial',        value: saldoInicial,     color: 'rgba(255,255,255,0.5)'  },
+              { label: '+ Vendas em dinheiro', value: vendasDinheiro,   color: 'rgba(100,220,160,0.8)'  },
+              { label: '+ Suprimentos',        value: totalSuprimentos, color: 'rgba(100,220,160,0.8)'  },
+              { label: '− Sangrias',           value: totalSangrias,    color: 'rgba(240,130,130,0.80)' },
+            ] as const).map(r => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>{r.label}</span>
                 <span style={{ fontSize: '11px', color: r.color, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.value)}</span>
@@ -395,7 +423,7 @@ export default function ResumoCaixaPage() {
             <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.08)', margin: '4px 0' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Esperado na gaveta</span>
-              <span style={{ fontSize: '12px', color: 'rgba(100,220,160,0.95)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmt(esperadoGaveta)}</span>
+              <span style={{ fontSize: '12px', color: gavetaColor, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmt(esperadoGaveta)}</span>
             </div>
           </div>
         </div>
@@ -419,14 +447,14 @@ export default function ResumoCaixaPage() {
         </div>
       </div>
 
-      {/* ── Section 3: Column headers ── */}
+      {/* ── Section 2: Column headers ── */}
       <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '4px 12px' }}>
         {(['Hora', 'Cliente', 'Vendedor', 'Forma', 'Itens', 'Total', ''] as const).map((h, i) => (
           <span key={i} style={COL_HDR}>{h}</span>
         ))}
       </div>
 
-      {/* ── Section 4: Rows ── */}
+      {/* ── Section 3: Sale rows ── */}
       {vendas.length === 0 ? (
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', padding: '32px 0' }}>
           Nenhuma venda neste turno
