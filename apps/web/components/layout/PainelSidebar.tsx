@@ -8,7 +8,7 @@ import { temPermissao } from '@/lib/permissoes'
 // Mapa label do menu → slug de permissão
 const SLUG_BY_LABEL: Record<string, string> = {
   'Dashboard':      'dashboard',
-  'Caixa':          'caixa',
+  'Vendas':         'caixa',
   'Promoções':      'promocoes',
   'Estoque':        'estoque',
   'Financeiro':     'financeiro',
