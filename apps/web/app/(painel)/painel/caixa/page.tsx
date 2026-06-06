@@ -23,6 +23,48 @@ import type { Colaborador } from '@/lib/api/colaboradores'
 
 interface ProdutoSearch { id: string; nome: string; preco_base: string; total_versoes: number }
 
+// ── CurrencyInput — stores value as integer cents, right-to-left digit entry ──
+function CurrencyInput({
+  value, onChange, onEnter, placeholder, style, className, autoFocus,
+}: {
+  value:      number
+  onChange:   (cents: number) => void
+  onEnter?:   () => void
+  placeholder?: string
+  style?:     React.CSSProperties
+  className?: string
+  autoFocus?: boolean
+}) {
+  function fmtCents(c: number) {
+    if (c === 0) return ''
+    const r = Math.floor(c / 100)
+    const cents = c % 100
+    return `R$ ${r.toLocaleString('pt-BR')},${cents.toString().padStart(2, '0')}`
+  }
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace') { e.preventDefault(); onChange(Math.floor(value / 10)); return }
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault()
+      const next = value * 10 + parseInt(e.key, 10)
+      if (next <= 99_999_999) onChange(next)
+      return
+    }
+    if (e.key === 'Enter' && onEnter) { onEnter(); return }
+  }
+  return (
+    <input
+      type="text"
+      value={fmtCents(value)}
+      onChange={() => {}}
+      onKeyDown={onKeyDown}
+      placeholder={placeholder ?? 'R$ 0,00'}
+      autoFocus={autoFocus}
+      style={style}
+      className={className}
+    />
+  )
+}
+
 function CaixaRow({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
   const [hov, setHov] = useState(false)
   const color = danger
@@ -52,7 +94,7 @@ export default function CaixaPage() {
   const usuario = useAuthStore(s => s.usuario)
 
   // ── Abertura ──────────────────────────────────────────────────────────────
-  const [saldoInicial, setSaldoInicial] = useState('')
+  const [saldoInicial, setSaldoInicial] = useState(0)
   const [obsAbertura,  setObsAbertura]  = useState('')
   const [abrindo,      setAbrindo]      = useState(false)
 
@@ -81,10 +123,10 @@ export default function CaixaPage() {
   const [modalSacolas,     setModalSacolas]     = useState(false)
 
   const [modalMov,   setModalMov]    = useState<'sangria' | 'suprimento' | null>(null)
-  const [valorMov,   setValorMov]    = useState('')
+  const [valorMov,   setValorMov]    = useState(0)
   const [motivoMov,  setMotivoMov]   = useState('')
   const [modalFechar,setModalFechar] = useState(false)
-  const [saldoFinal, setSaldoFinal]  = useState('')
+  const [saldoFinal, setSaldoFinal]  = useState(0)
   const [obsFech,    setObsFech]     = useState('')
   const [salvMov,    setSalvMov]     = useState(false)
   const [fechVendas, setFechVendas]  = useState<VendaTurno[]>([])
@@ -296,22 +338,21 @@ export default function CaixaPage() {
   // ── Abertura ──────────────────────────────────────────────────────────────
   async function handleAbrir() {
     setAbrindo(true)
-    try { await abrir(parseFloat(saldoInicial) || 0, obsAbertura || undefined) }
+    try { await abrir(saldoInicial / 100, obsAbertura || undefined) }
     finally { setAbrindo(false) }
   }
 
   // ── Gestão caixa ──────────────────────────────────────────────────────────
   async function handleMovimento() {
-    const val = parseFloat(valorMov)
-    if (!val || val <= 0 || !modalMov) return
+    if (!valorMov || valorMov <= 0 || !modalMov) return
     setSalvMov(true)
-    try { await registrarMovimento(modalMov, val, motivoMov || undefined); setModalMov(null); setValorMov(''); setMotivoMov('') }
+    try { await registrarMovimento(modalMov, valorMov / 100, motivoMov || undefined); setModalMov(null); setValorMov(0); setMotivoMov('') }
     finally { setSalvMov(false) }
   }
 
   async function handleFechar() {
     setSalvMov(true)
-    try { await fechar(parseFloat(saldoFinal) || 0, obsFech || undefined); setModalFechar(false) }
+    try { await fechar(saldoFinal / 100, obsFech || undefined); setModalFechar(false) }
     finally { setSalvMov(false) }
   }
 
@@ -368,10 +409,9 @@ export default function CaixaPage() {
           <div className="flex flex-col gap-3">
             <div>
               <label className="text-steel text-xs block mb-1">Saldo inicial em dinheiro</label>
-              <input type="number" min="0" step="0.01" value={saldoInicial}
-                onChange={e => setSaldoInicial(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAbrir()}
-                placeholder="R$ 0,00" autoFocus
+              <CurrencyInput
+                value={saldoInicial} onChange={setSaldoInicial} onEnter={handleAbrir}
+                autoFocus placeholder="R$ 0,00"
                 className="w-full min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
             </div>
             <div>
@@ -770,9 +810,9 @@ export default function CaixaPage() {
             <p className="text-steel text-xs -mt-2">{modalMov === 'sangria' ? 'Retirada de dinheiro do caixa.' : 'Reforço de dinheiro no caixa.'}</p>
             <div>
               <label className="text-steel text-xs block mb-1">Valor (R$)</label>
-              <input type="number" min="0.01" step="0.01" value={valorMov}
-                onChange={e => setValorMov(e.target.value)} autoFocus
-                onKeyDown={e => e.key === 'Enter' && handleMovimento()}
+              <CurrencyInput
+                value={valorMov} onChange={setValorMov} onEnter={handleMovimento}
+                autoFocus placeholder="R$ 0,00"
                 className="w-full min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
             </div>
             <div>
@@ -808,7 +848,7 @@ export default function CaixaPage() {
         }
         const porForma     = Object.values(porFormaMap).sort((a, b) => b.total - a.total)
         const saldoEsperado = saldoIni + dinheiroVendas + suprimentos - sangrias
-        const contado       = parseFloat(saldoFinal) || 0
+        const contado       = saldoFinal / 100
         const diferenca     = contado - saldoEsperado
         const surplusColor  = diferenca >= 0 ? '#64dca0' : '#f06464'
 
@@ -891,18 +931,15 @@ export default function CaixaPage() {
                     {/* Section 3 — Valor contado */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                       <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Valor contado em caixa</p>
-                      <input
-                        type="number" min="0" step="0.01" value={saldoFinal} autoFocus
-                        onChange={e => setSaldoFinal(e.target.value)}
-                        placeholder="R$ 0,00"
+                      <CurrencyInput
+                        value={saldoFinal} onChange={setSaldoFinal}
+                        autoFocus placeholder="R$ 0,00"
                         style={{ background: 'rgba(0,239,255,0.05)', border: '1px solid rgba(0,239,255,0.25)', borderRadius: '10px', padding: '12px 16px', fontSize: '20px', fontWeight: 600, color: 'rgba(255,255,255,0.88)', outline: 'none', width: '100%', textAlign: 'center' }}
-                        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.55)' }}
-                        onBlur={e  => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.25)' }}
                       />
                     </div>
 
                     {/* Section 4 — Diferença */}
-                    {saldoFinal !== '' && (
+                    {saldoFinal > 0 && (
                       <div style={{ background: diferenca >= 0 ? 'rgba(100,220,160,0.08)' : 'rgba(240,100,100,0.08)', border: `0.5px solid ${surplusColor}44`, borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{diferenca >= 0 ? 'Sobra' : 'Falta'}</span>
                         <span style={{ fontSize: '14px', color: surplusColor, fontWeight: 700 }}>
