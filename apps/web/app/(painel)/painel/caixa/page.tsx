@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, X } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
 import { usePDVStore } from '@/store/pdv.store'
@@ -20,6 +22,20 @@ import type { Colaborador } from '@/lib/api/colaboradores'
 
 interface ProdutoSearch { id: string; nome: string; preco_base: string; total_versoes: number }
 
+function CaixaRow({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
+  const [hov, setHov] = useState(false)
+  const color = danger
+    ? (hov ? 'rgba(240,100,100,0.9)' : 'rgba(240,100,100,0.6)')
+    : (hov ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.45)')
+  return (
+    <button onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 0', fontSize: '12px', color, background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', transition: 'color 0.12s' }}>
+      <span style={{ display: 'flex', alignItems: 'center', color: 'inherit', flexShrink: 0 }}>{icon}</span>
+      {label}
+    </button>
+  )
+}
+
 // Parses "3-7891234" → { qty: 3, query: "7891234" }
 function parseQtyPrefix(input: string): { qty: number; query: string } {
   const m = input.match(/^(\d+)-(.+)$/)
@@ -29,6 +45,7 @@ function parseQtyPrefix(input: string): { qty: number; query: string } {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CaixaPage() {
+  const router = useRouter()
   const { status, carregando: cxLoad, erro: cxErro, carregar, abrir, fechar, registrarMovimento, limparErro } = useCaixaStore()
   const { itens, cliente_id, cliente_nome, addItem, addItemQtd, removeItem, setQtd, setCliente, limpar } = usePDVStore()
   const usuario = useAuthStore(s => s.usuario)
@@ -222,7 +239,11 @@ export default function CaixaPage() {
 
   const fmt    = (v?: number | string | null) => `R$ ${Number(v ?? 0).toFixed(2)}`
   const nomeOp = (usuario as any)?.nome || (usuario as any)?.username || 'Operador'
+  const primeiroNome = nomeOp.split(' ')[0]
   const totalQtd = itens.reduce((s, i) => s + i.quantidade, 0)
+
+  const MOD: React.CSSProperties = { background: 'rgba(8,18,30,0.52)', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: '10px', padding: '12px', flexShrink: 0 }
+  const MOD_LABEL: React.CSSProperties = { fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '10px' }
 
   // ── LOADING ───────────────────────────────────────────────────────────────
   if (cxLoad && status === 'desconhecido') return (
@@ -396,11 +417,13 @@ export default function CaixaPage() {
           </div>
         </div>
 
-        {/* ── DIREITA: Total + Ações ──────────────────────────────────────── */}
-        <div className="w-72 xl:w-80 flex flex-col overflow-hidden bg-deep-ocean shrink-0" data-no-refocus>
-
-          {/* Sucesso da venda */}
-          {vendaOK && (
+        {/* ── DIREITA: Glass Sidebar ──────────────────────────────────────── */}
+        <div
+          className="hidden md:flex flex-col shrink-0 overflow-y-auto"
+          style={{ width: '240px', gap: '8px', padding: '10px', borderLeft: '0.5px solid rgba(255,255,255,0.06)' }}
+          data-no-refocus
+        >
+          {vendaOK ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 gap-4 text-center">
               <div className="w-16 h-16 rounded-full bg-mint-green/20 flex items-center justify-center">
                 <span className="text-3xl text-mint-green">✓</span>
@@ -417,156 +440,94 @@ export default function CaixaPage() {
                 Nova Venda
               </button>
             </div>
-          )}
-
-          {!vendaOK && (
+          ) : (
             <>
-              {/* ── Top: total + cashback (scrollable area) ─────────────── */}
-              <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
-                {/* Operador */}
-                <p className="text-xs text-steel flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-mint-green shrink-0" />
-                  <span className="text-mint-green font-medium">Caixa Aberto</span>
-                  <span>— {nomeOp}</span>
-                </p>
-
-                {/* Total da venda */}
-                <div>
-                  <p className="text-steel text-xs uppercase tracking-wider mb-1">Total da Venda</p>
-                  <p className="text-electric-cyan font-black text-4xl">{fmt(baseTotal)}</p>
-                  {(totalDesconto > 0 || cashbackUsar > 0) && (
-                    <div className="mt-2 flex flex-col gap-0.5 text-xs">
-                      {totalDesconto > 0 && <span className="text-mint-green">−{fmt(totalDesconto)} promoções</span>}
-                      {cashbackUsar > 0 && <span className="text-mint-green">−{fmt(cashbackUsar)} cashback</span>}
-                      <span className="text-steel">subtotal {fmt(subtotal)}</span>
-                    </div>
-                  )}
+              {/* Module 1 — Total da venda */}
+              <div style={MOD}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(100,220,160,0.9)', flexShrink: 0 }} />
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Caixa aberto — {primeiroNome}
+                  </span>
                 </div>
-
-                {/* Cashback */}
-                {cashbackDisp > 0 && (
-                  <div className={`flex items-center justify-between rounded-xl px-4 py-3 border ${
-                    usarCB ? 'border-mint-green/50 bg-mint-green/10' : 'border-ocean-depth'
-                  }`}>
-                    <div>
-                      <p className="text-sea-foam text-sm font-medium">Cashback disponível</p>
-                      <p className="text-mint-green text-xs">{fmt(cashbackDisp)}</p>
-                    </div>
-                    <button onClick={() => setUsarCB(v => !v)}
-                      className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${usarCB ? 'bg-mint-green' : 'bg-ocean-depth'}`}>
-                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${usarCB ? 'left-6' : 'left-1'}`} />
-                    </button>
-                  </div>
-                )}
+                <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', margin: '10px 0' }} />
+                <span style={{ ...MOD_LABEL, marginBottom: '4px' }}>Total da venda</span>
+                <p style={{ fontSize: '26px', fontWeight: 700, color: '#0ef', marginTop: '4px', lineHeight: 1.1, marginBottom: 0 }}>
+                  R$ {subtotal.toFixed(2)}
+                </p>
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', margin: 0 }}>
+                  {totalQtd} {totalQtd === 1 ? 'item' : 'itens'} · sem desconto
+                </p>
               </div>
 
-              {/* ── Bottom: seções fixas na base ────────────────────────── */}
-              <div className="shrink-0 flex flex-col border-t border-ocean-depth">
-
-                {/* ── Seção: Atribuição da Venda ──────────────────────────── */}
-                <div className="px-4 pt-4 pb-3 flex flex-col gap-2">
-                  <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Atribuição da Venda</p>
-
-                  {/* Cliente */}
-                  {cliente_id ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setClienteAutoAberto(false); setModalCliente(true) }}
-                        className="flex-1 min-h-[48px] border border-electric-cyan/40 text-electric-cyan rounded-xl text-sm hover:bg-electric-cyan/10 active:bg-electric-cyan/20 transition-colors px-3 text-left"
-                      >
-                        <span className="flex items-center gap-2 min-w-0">
-                          <span className="shrink-0">👤</span>
-                          <span className="truncate font-medium">{cliente_nome}</span>
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => setCliente(null, null)}
-                        title="Remover cliente"
-                        className="min-w-[48px] min-h-[48px] border border-ocean-depth text-steel rounded-xl hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors flex items-center justify-center text-xl"
-                      >×</button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => { setClienteAutoAberto(false); setModalCliente(true) }}
-                      className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-electric-cyan/40 hover:text-electric-cyan active:bg-electric-cyan/10 transition-colors text-left px-4"
-                    >
-                      👤 Adicionar Cliente
-                    </button>
-                  )}
-
-                  {/* Vendedor */}
-                  {vendedor ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setModalVendedor(true)}
-                        className="flex-1 min-h-[48px] border border-teal-current/40 text-teal-current rounded-xl text-sm hover:bg-teal-current/10 active:bg-teal-current/20 transition-colors px-3 text-left"
-                      >
-                        <span className="flex items-center gap-2 min-w-0">
-                          <span className="shrink-0">🏷</span>
-                          <span className="truncate font-medium">{vendedor.nome}</span>
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => setVendedor(null)}
-                        title="Remover vendedor"
-                        className="min-w-[48px] min-h-[48px] border border-ocean-depth text-steel rounded-xl hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors flex items-center justify-center text-xl"
-                      >×</button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setModalVendedor(true)}
-                      className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-teal-current/40 hover:text-teal-current active:bg-teal-current/10 transition-colors text-left px-4"
-                    >
-                      🏷 Adicionar Vendedor
+              {/* Module 2 — Atribuição da venda */}
+              <div style={MOD}>
+                <span style={MOD_LABEL}>Atribuição da venda</span>
+                {/* Cliente */}
+                <div
+                  role="button"
+                  onClick={() => { setClienteAutoAberto(false); setModalCliente(true) }}
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                >
+                  <User size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: '12px', color: cliente_nome ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cliente_nome ?? 'Adicionar cliente'}
+                  </span>
+                  {cliente_nome && (
+                    <button onClick={e => { e.stopPropagation(); setCliente(null, null) }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
+                      <X size={12} />
                     </button>
                   )}
                 </div>
-
-                {/* ── Divisor visual ───────────────────────────────────────── */}
-                <div className="mx-4 border-t border-ocean-depth" />
-
-                {/* ── Seção: Gestão do Caixa ───────────────────────────────── */}
-                <div className="px-4 pt-3 pb-3 flex flex-col gap-2">
-                  <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Gestão do Caixa</p>
-                  <button
-                    onClick={() => setModalSacolas(true)}
-                    className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-electric-cyan/40 hover:text-electric-cyan active:bg-electric-cyan/10 transition-colors text-left px-4"
-                  >
-                    🛍 Sacolas Pendentes
-                  </button>
-                  <button
-                    onClick={() => setModalMov('sangria')}
-                    className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors text-left px-4"
-                  >
-                    Sangria — retirada de dinheiro
-                  </button>
-                  <button
-                    onClick={() => setModalMov('suprimento')}
-                    className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-electric-cyan/40 hover:text-electric-cyan active:bg-electric-cyan/10 transition-colors text-left px-4"
-                  >
-                    Suprimento — reforço de caixa
-                  </button>
-                  <button
-                    onClick={() => setModalFechar(true)}
-                    className="min-h-[48px] w-full border border-red-500/30 text-red-400/70 rounded-xl text-sm hover:border-red-500/60 hover:text-red-400 active:bg-red-500/10 transition-colors text-left px-4"
-                  >
-                    Fechar Caixa
-                  </button>
+                {/* Vendedor */}
+                <div
+                  role="button"
+                  onClick={() => setModalVendedor(true)}
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                >
+                  <Briefcase size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: '12px', color: vendedor ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {vendedor ? vendedor.nome : 'Adicionar vendedor'}
+                  </span>
+                  {vendedor && (
+                    <button onClick={e => { e.stopPropagation(); setVendedor(null) }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
+                      <X size={12} />
+                    </button>
+                  )}
                 </div>
+              </div>
 
-                {/* Separador visual com espaçamento para evitar clique acidental */}
-                <div className="mx-4 border-t border-ocean-depth" />
+              {/* Module 3 — Gestão do caixa */}
+              <div style={MOD}>
+                <span style={MOD_LABEL}>Gestão do caixa</span>
+                <CaixaRow icon={<ShoppingBag size={13} />} label="Sacolas pendentes"   onClick={() => setModalSacolas(true)} />
+                <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
+                <CaixaRow icon={<Home        size={13} />} label="Provas em Casa"       onClick={() => router.push('/painel/prova-em-casa')} />
+                <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
+                <CaixaRow icon={<ArrowUp     size={13} />} label="Sangria — retirada"   onClick={() => setModalMov('sangria')} />
+                <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
+                <CaixaRow icon={<ArrowDown   size={13} />} label="Suprimento — reforço" onClick={() => setModalMov('suprimento')} />
+                <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
+                <CaixaRow icon={<Lock        size={13} />} label="Fechar caixa"         onClick={() => setModalFechar(true)} danger />
+              </div>
 
-                {/* Botão Finalizar — sempre visível, sempre na base */}
-                <div className="px-4 pt-3 pb-4">
-                  <button
-                    onClick={() => setModalCheckout(true)}
-                    disabled={itens.length === 0}
-                    className="w-full min-h-[60px] bg-electric-cyan text-midnight rounded-2xl text-base font-bold disabled:opacity-30 active:scale-[0.98] transition-transform"
-                  >
-                    {itens.length === 0 ? 'Sacola vazia' : `Finalizar Compra — ${fmt(baseTotal)}`}
+              {/* Spacer */}
+              <div style={{ flex: 1, minHeight: '8px' }} />
+
+              {/* Module 4 — Finalizar venda */}
+              <div style={MOD}>
+                <span style={MOD_LABEL}>Finalizar venda</span>
+                {itens.length === 0 ? (
+                  <button disabled style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.25)', cursor: 'default' }}>
+                    Sacola vazia
                   </button>
-                </div>
+                ) : (
+                  <button onClick={() => setModalCheckout(true)} style={{ width: '100%', padding: '12px', background: 'rgba(0,239,255,0.88)', color: '#0a0a1a', fontWeight: 700, borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+                    Fechar venda →
+                  </button>
+                )}
               </div>
             </>
           )}
