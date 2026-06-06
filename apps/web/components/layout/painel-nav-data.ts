@@ -73,22 +73,13 @@ export const SECTIONS = [
     label: 'Produtos',
     icon:  'Box',
     href:  '/painel/produtos',
-    // match explícito — não usa /painel/cadastros genérico para não capturar /cadastros/configuracoes
     match: [
       '/painel/produtos',
-      '/painel/cadastros/tamanhos',
-      '/painel/cadastros/cores',
-      '/painel/cadastros/tipos',
-      '/painel/cadastros/composicoes',
-      '/painel/cadastros/medidas',
+      '/painel/cadastros',
     ],
     sub: [
-      { label: 'Produtos',    href: '/painel/produtos',              permSlug: 'cadastro-produtos/lista' },
-      { label: 'Tamanhos',    href: '/painel/cadastros/tamanhos',    permSlug: 'cadastro-produtos/tamanhos' },
-      { label: 'Cores',       href: '/painel/cadastros/cores',       permSlug: 'cadastro-produtos/cores' },
-      { label: 'Tipos',       href: '/painel/cadastros/tipos',       permSlug: 'cadastro-produtos/tipos' },
-      { label: 'Composições', href: '/painel/cadastros/composicoes', permSlug: 'cadastro-produtos/composicoes' },
-      { label: 'Medidas',     href: '/painel/cadastros/medidas',     permSlug: 'cadastro-produtos/medidas' },
+      { label: 'Produtos',  href: '/painel/produtos',   permSlug: 'cadastro-produtos/lista' },
+      { label: 'Cadastros', href: '/painel/cadastros',  permSlug: 'cadastro-produtos/catalogos' },
     ],
   },
   {
