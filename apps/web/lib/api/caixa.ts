@@ -30,13 +30,35 @@ export interface CaixaStatusResponse {
   turno:  TurnoCaixa | null
 }
 
+export interface PagamentoResumo {
+  forma_nome: string
+  tipo:       string
+  valor:      string
+}
+
 export interface VendaTurno {
-  id:           string
-  total:        string
-  status:       string
-  criado_em:    string
-  cliente_nome: string | null
-  total_itens:  number
+  id:                string
+  total:             string
+  status:            string
+  criado_em:         string
+  cliente_nome:      string | null
+  cliente_telefone:  string | null
+  total_itens:       number
+  pagamentos:        PagamentoResumo[]
+}
+
+export interface ItemVendaDetalhe {
+  id:             string
+  versao_id:      string
+  produto_nome:   string
+  atributos_json: Record<string, string>
+  quantidade:     number
+  preco_unitario: string
+  desconto_item:  string
+}
+
+export interface VendaDetalhe extends VendaTurno {
+  itens: ItemVendaDetalhe[]
 }
 
 export const caixaApi = {
@@ -57,4 +79,8 @@ export const caixaApi = {
 
   historico: () =>
     api.get<TurnoCaixa[]>('/caixa/historico').then(r => r.data),
+
+  // Full sale detail with items — lazy loaded per accordion row
+  vendaDetalhe: (vendaId: string) =>
+    api.get<VendaDetalhe>(`/vendas/${vendaId}`).then(r => r.data),
 }

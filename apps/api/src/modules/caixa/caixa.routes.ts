@@ -133,15 +133,28 @@ export async function caixaRoutes(app: FastifyInstance) {
 
     const { rows } = await pool.query(
       `SELECT v.id, v.total, v.status, v.criado_em,
-              c.nome AS cliente_nome,
-              COUNT(iv.id)::int AS total_itens
+              c.nome  AS cliente_nome,
+              c.telefone AS cliente_telefone,
+              COUNT(DISTINCT iv.id)::int AS total_itens,
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'forma_nome', fp.nome,
+                    'tipo',       fp.tipo,
+                    'valor',      pv.valor
+                  ) ORDER BY pv.id
+                ) FILTER (WHERE pv.id IS NOT NULL),
+                '[]'
+              ) AS pagamentos
        FROM vendas v
-       LEFT JOIN clientes c ON c.id = v.cliente_id
-       LEFT JOIN itens_venda iv ON iv.venda_id = v.id
+       LEFT JOIN clientes c          ON c.id  = v.cliente_id
+       LEFT JOIN itens_venda iv      ON iv.venda_id = v.id
+       LEFT JOIN pagamentos_venda pv ON pv.venda_id = v.id
+       LEFT JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id
        WHERE v.status = 'finalizada'
          AND v.usuario_id = $1
          AND v.criado_em >= $2
-       GROUP BY v.id, c.nome
+       GROUP BY v.id, c.nome, c.telefone
        ORDER BY v.criado_em DESC`,
       [user.id, turno.aberto_em]
     )
