@@ -1,8 +1,42 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
 import { cashbackApi, type RegraCashback } from '@/lib/api/cashback'
+
+const CARD = {
+  background: 'rgba(8,18,30,0.48)',
+  backdropFilter: 'blur(8px)',
+  border: '0.5px solid rgba(255,255,255,0.09)',
+  borderRadius: '10px',
+}
+
+const INPUT = {
+  background: 'rgba(8,18,30,0.5)',
+  border: '0.5px solid rgba(255,255,255,0.12)',
+  borderRadius: '8px',
+  padding: '9px 12px',
+  fontSize: '13px',
+  color: 'rgba(255,255,255,0.75)',
+  width: '100%',
+  outline: 'none',
+}
+
+function Lbl({ children }: { children: React.ReactNode }) {
+  return <label style={{ display: 'block', fontSize: '9px', textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: '4px' }}>{children}</label>
+}
+
+function GInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      style={{ ...INPUT, ...props.style }}
+      className="outline-none"
+      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+      onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+    />
+  )
+}
 
 export default function CashbackRegrasPage() {
   const [regras,   setRegras]   = useState<RegraCashback[]>([])
@@ -10,11 +44,11 @@ export default function CashbackRegrasPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [saving,   setSaving]   = useState(false)
 
-  const [nome,           setNome]           = useState('')
-  const [percentual,     setPercentual]      = useState('')
-  const [validadeMeses,  setValidadeMeses]   = useState('')
-  const [padrao,         setPadrao]          = useState(false)
-  const [editandoId,     setEditandoId]      = useState<string | null>(null)
+  const [nome,          setNome]          = useState('')
+  const [percentual,    setPercentual]    = useState('')
+  const [validadeMeses, setValidadeMeses] = useState('')
+  const [padrao,        setPadrao]        = useState(false)
+  const [editandoId,    setEditandoId]    = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -52,113 +86,130 @@ export default function CashbackRegrasPage() {
 
   async function handleRemover(id: string) {
     if (!confirm('Remover esta regra?')) return
-    await cashbackApi.remove(id); setRegras(r => r.filter(x => x.id !== id))
+    await cashbackApi.remove(id)
+    setRegras(r => r.filter(x => x.id !== id))
+    setFormOpen(false)
   }
 
   return (
     <>
       <TopBar />
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10">
-        <div className="max-w-lg flex flex-col gap-4">
+      <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-20 flex flex-col gap-4">
 
-          <p className="text-steel text-sm">
-            Defina as regras de cashback. A regra padrão é aplicada automaticamente a todos os novos clientes.
-          </p>
+        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
+          Defina as regras de cashback. A regra padrão é aplicada automaticamente a todos os novos clientes.
+        </p>
 
-          {/* Formulário */}
-          {formOpen && (
-            <div className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
-              <p className="text-sea-foam font-semibold text-sm">{editandoId ? 'Editar regra' : 'Nova regra'}</p>
+        {/* ── Edit panel — above grid ─────────────────────────────────── */}
+        {formOpen && (
+          <div style={CARD} className="p-5 flex flex-col gap-4">
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>
+              {editandoId ? 'Editar regra' : 'Nova regra'}
+            </p>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-steel uppercase tracking-wider">Nome</label>
-                <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: VIP, Padrão, Premium"
-                  className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
+            <div className="flex flex-col">
+              <Lbl>Nome</Lbl>
+              <GInput value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: VIP, Padrão, Premium" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col">
+                <Lbl>% Cashback</Lbl>
+                <GInput type="number" min="0" max="100" value={percentual} onChange={e => setPercentual(e.target.value)} placeholder="Ex: 5" />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-steel uppercase tracking-wider">% Cashback</label>
-                  <input type="number" min="0" max="100" value={percentual} onChange={e => setPercentual(e.target.value)}
-                    placeholder="Ex: 5"
-                    className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-steel uppercase tracking-wider">Validade (meses)</label>
-                  <input type="number" min="1" value={validadeMeses} onChange={e => setValidadeMeses(e.target.value)}
-                    placeholder="Vazio = ilimitado"
-                    className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
-                </div>
+              <div className="flex flex-col">
+                <Lbl>Validade (meses)</Lbl>
+                <GInput type="number" min="1" value={validadeMeses} onChange={e => setValidadeMeses(e.target.value)} placeholder="Vazio = ilimitado" />
               </div>
+            </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sea-foam text-sm font-medium">Regra padrão</p>
-                  <p className="text-steel text-xs">Aplicada automaticamente a novos clientes</p>
-                </div>
-                <button type="button" onClick={() => setPadrao(v => !v)}
-                  className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${padrao ? 'bg-electric-cyan' : 'bg-ocean-depth'}`}>
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${padrao ? 'left-7' : 'left-1'}`} />
+            {/* Regra padrão toggle */}
+            <div style={{ background: 'rgba(8,18,30,0.35)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '10px 12px' }} className="flex items-center justify-between">
+              <div>
+                <p style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>Regra padrão</p>
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>Aplicada automaticamente a novos clientes</p>
+              </div>
+              <button type="button" onClick={() => setPadrao(v => !v)}
+                className="shrink-0 relative transition-colors"
+                style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: padrao ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}>
+                <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                  style={{ left: padrao ? '21px' : '3px' }} />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              {editandoId ? (
+                <button onClick={() => handleRemover(editandoId)}
+                  className="min-h-[40px] px-2 transition-colors"
+                  style={{ fontSize: '12px', color: 'rgba(248,113,113,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.85)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.5)')}
+                >
+                  Remover
                 </button>
-              </div>
-
+              ) : <span />}
               <div className="flex gap-3">
                 <button onClick={() => setFormOpen(false)}
-                  className="flex-1 min-h-[48px] border border-ocean-depth text-steel rounded-xl text-sm">
+                  className="min-h-[40px] px-5 rounded-lg text-sm transition-colors"
+                  style={{ border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px', background: 'none', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+                >
                   Cancelar
                 </button>
                 <button onClick={handleSalvar} disabled={saving || !nome || !percentual}
-                  className="flex-1 min-h-[48px] bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40">
+                  className="min-h-[40px] px-5 text-sm font-semibold rounded-lg disabled:opacity-40"
+                  style={{ background: 'rgba(0,239,255,0.85)', color: '#0a0a1a', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
                   {saving ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Lista */}
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {regras.map(r => (
-                <div key={r.id} className="bg-deep-ocean border border-ocean-depth rounded-2xl px-5 py-4 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sea-foam font-medium text-sm">{r.nome}</p>
-                      {r.padrao && (
-                        <span className="bg-electric-cyan/20 text-electric-cyan text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide">
-                          Padrão
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-steel text-xs mt-0.5">
-                      {Number(r.percentual).toFixed(1)}% cashback
-                      {r.validade_meses ? ` · vence em ${r.validade_meses} meses` : ' · sem vencimento'}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => abrirEdicao(r)}
-                      className="min-h-[40px] min-w-[40px] text-steel hover:text-electric-cyan rounded-lg hover:bg-ocean-depth transition-colors flex items-center justify-center">✏️</button>
-                    <button onClick={() => handleRemover(r.id)}
-                      className="min-h-[40px] min-w-[40px] text-steel hover:text-red-400 rounded-lg hover:bg-ocean-depth transition-colors flex items-center justify-center">🗑️</button>
-                  </div>
+        {/* ── Card grid ───────────────────────────────────────────────── */}
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : regras.length === 0 ? (
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '32px 0' }}>Nenhuma regra cadastrada</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+            {regras.map(r => (
+              <div
+                key={r.id}
+                onClick={() => abrirEdicao(r)}
+                className="p-4 flex flex-col gap-2 cursor-pointer active:scale-[0.98] transition-all"
+                style={CARD}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{r.nome}</p>
+                  {r.padrao && (
+                    <span style={{ fontSize: '9px', textTransform: 'uppercase', background: 'rgba(0,239,255,0.12)', color: '#0ef', borderRadius: '9999px', padding: '2px 7px', flexShrink: 0 }}>
+                      Padrão
+                    </span>
+                  )}
                 </div>
-              ))}
-              {regras.length === 0 && (
-                <p className="text-center text-steel text-sm py-8">Nenhuma regra cadastrada</p>
-              )}
-            </div>
-          )}
+                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(100,220,160,0.8)' }}>
+                  {Number(r.percentual).toFixed(1)}% cashback
+                </p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+                  {r.validade_meses ? `Vence em ${r.validade_meses} meses` : 'Sem vencimento'}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
-          {!formOpen && (
-            <button onClick={abrirNova}
-              className="min-h-[52px] bg-electric-cyan text-midnight rounded-2xl text-sm font-semibold">
-              + Nova Regra de Cashback
-            </button>
-          )}
-        </div>
+        {/* FAB */}
+        <button onClick={abrirNova}
+          className="fixed bottom-6 right-6 z-50 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          style={{ width: '48px', height: '48px', background: 'rgba(0,239,255,0.9)', borderRadius: '50%', color: '#0a0a1a', fontSize: '24px', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+          +
+        </button>
       </main>
     </>
   )
