@@ -42,6 +42,11 @@ function Lbl({ children }: { children: React.ReactNode }) {
   )
 }
 
+function fmtCEP(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 8)
+  return d.length > 5 ? `${d.slice(0,5)}-${d.slice(5)}` : d
+}
+
 function GInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
@@ -60,6 +65,7 @@ export default function DadosEmpresaPage() {
   const [salvando, setSalvando] = useState(false)
   const [msg,      setMsg]      = useState('')
 
+  const [buscandoCep, setBuscandoCep] = useState(false)
   const [cep,         setCep]         = useState('')
   const [logradouro,  setLogradouro]  = useState('')
   const [numero,      setNumero]      = useState('')
@@ -80,6 +86,23 @@ export default function DadosEmpresaPage() {
       setContatos(d.contatos)
     }).finally(() => setLoading(false))
   }, [])
+
+  async function buscarCep() {
+    const raw = cep.replace(/\D/g, '')
+    if (raw.length !== 8) return
+    setBuscandoCep(true)
+    try {
+      const res  = await fetch(`https://viacep.com.br/ws/${raw}/json/`)
+      const data = await res.json()
+      if (!data.erro) {
+        setLogradouro(data.logradouro || '')
+        setBairro(data.bairro || '')
+        setCidade(data.localidade || '')
+        setEstado(data.uf || '')
+      }
+    } catch {}
+    finally { setBuscandoCep(false) }
+  }
 
   async function handleSalvar() {
     setSalvando(true); setMsg('')
@@ -138,7 +161,19 @@ export default function DadosEmpresaPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2 flex flex-col">
                   <Lbl>CEP</Lbl>
-                  <GInput value={cep} onChange={e => setCep(e.target.value)} placeholder="00000-000" />
+                  <div className="flex gap-2">
+                    <GInput
+                      value={cep}
+                      onChange={e => setCep(fmtCEP(e.target.value))}
+                      onBlur={() => buscarCep()}
+                      placeholder="00000-000"
+                      style={{ flex: 1 }}
+                    />
+                    <button onClick={buscarCep} disabled={buscandoCep}
+                      style={{ background: 'rgba(0,239,255,0.15)', border: '0.5px solid rgba(0,239,255,0.3)', borderRadius: '8px', padding: '9px 14px', fontSize: '12px', color: '#0ef', flexShrink: 0 }}>
+                      {buscandoCep ? '...' : 'Buscar'}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-col">
                   <Lbl>Estado</Lbl>

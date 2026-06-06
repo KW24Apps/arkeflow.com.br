@@ -89,6 +89,11 @@ function GSelect({ label, value, onChange, children }: { label: string; value: s
   )
 }
 
+function fmtCEP(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 8)
+  return d.length > 5 ? `${d.slice(0,5)}-${d.slice(5)}` : d
+}
+
 function SaveBtn({ onClick, disabled, label }: { onClick: () => void; disabled: boolean; label: string }) {
   return (
     <button
@@ -154,6 +159,7 @@ export default function ColaboradorDetalhe() {
   const [bairro,      setBairro]      = useState('')
   const [cidade,      setCidade]      = useState('')
   const [estado,      setEstado]      = useState('')
+  const [buscandoCep, setBuscandoCep] = useState(false)
 
   // Bancário
   const [banco,       setBanco]       = useState('')
@@ -230,6 +236,23 @@ export default function ColaboradorDetalhe() {
       setMsg('Salvo com sucesso.')
     } catch (err: any) { setMsg(err?.response?.data?.error ?? 'Erro.') }
     finally { setSalvando(false) }
+  }
+
+  async function buscarCep() {
+    const raw = cep.replace(/\D/g, '')
+    if (raw.length !== 8) return
+    setBuscandoCep(true)
+    try {
+      const res  = await fetch(`https://viacep.com.br/ws/${raw}/json/`)
+      const data = await res.json()
+      if (!data.erro) {
+        setLogradouro(data.logradouro || '')
+        setBairro(data.bairro || '')
+        setCidade(data.localidade || '')
+        setEstado(data.uf || '')
+      }
+    } catch {}
+    finally { setBuscandoCep(false) }
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -490,7 +513,24 @@ export default function ColaboradorDetalhe() {
             <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Endereço</p>
 
             <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2"><GField label="CEP" value={cep} onChange={setCep} placeholder="00000-000" /></div>
+              <div className="col-span-2 flex flex-col">
+                <Lbl>CEP</Lbl>
+                <div className="flex gap-2">
+                  <input
+                    value={cep}
+                    onChange={e => setCep(fmtCEP(e.target.value))}
+                    onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; buscarCep() }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+                    placeholder="00000-000"
+                    style={{ ...INPUT, flex: 1 }}
+                    className="outline-none"
+                  />
+                  <button onClick={buscarCep} disabled={buscandoCep}
+                    style={{ background: 'rgba(0,239,255,0.15)', border: '0.5px solid rgba(0,239,255,0.3)', borderRadius: '8px', padding: '9px 14px', fontSize: '12px', color: '#0ef', flexShrink: 0 }}>
+                    {buscandoCep ? '...' : 'Buscar'}
+                  </button>
+                </div>
+              </div>
               <GField label="Estado" value={estado} onChange={setEstado} placeholder="SP" />
             </div>
             <GField label="Logradouro" value={logradouro} onChange={setLogradouro} placeholder="Rua, Av., etc." />
