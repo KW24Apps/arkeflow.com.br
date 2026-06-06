@@ -17,7 +17,8 @@ export interface SacolaRemota {
   cliente_id:       string | null
   cliente_nome:     string | null
   cliente_telefone: string | null
-  criado_por:       string | null  // nome do vendedor que montou a sacola
+  criado_por:       string | null  // usuario_id
+  nome_vendedor:    string | null  // nome denormalizado do vendedor
   criado_em:        string
   status:           SacolaStatus
   observacao:       string | null
