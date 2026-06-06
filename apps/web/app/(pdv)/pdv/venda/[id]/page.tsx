@@ -28,6 +28,11 @@ export default function VendaConcluidaPage() {
         <h2 className="text-sea-foam font-bold text-2xl">Venda concluída!</h2>
         <p className="text-mint-green text-lg font-semibold mt-1">R$ {Number(venda.total).toFixed(2)}</p>
         {venda.cliente_nome && <p className="text-steel text-sm mt-1">Cliente: {venda.cliente_nome}</p>}
+        {(venda.pagamentos ?? []).filter((p: any) => p.tipo === 'dinheiro' && Number(p.troco) > 0).map((p: any, i: number) => (
+          <p key={i} className="text-mint-green text-sm mt-1">
+            Troco: R$ {Number(p.troco).toFixed(2)}
+          </p>
+        ))}
         {Number(venda.cashback_gerado) > 0 && (
           <p className="text-mint-green text-sm mt-1">
             +R$ {Number(venda.cashback_gerado).toFixed(2)} de cashback gerado

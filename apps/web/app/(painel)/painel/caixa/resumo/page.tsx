@@ -188,6 +188,7 @@ function VendaRow({
                     {(detail.pagamentos ?? []).map((p: any, i: number) => (
                       <span key={i} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '4px 10px', color: 'rgba(255,255,255,0.6)' }}>
                         {p.forma_nome} · {fmt(p.valor)}
+                        {p.tipo === 'dinheiro' && Number(p.troco) > 0 && ` · troco ${fmt(p.troco)}`}
                       </span>
                     ))}
                   </div>

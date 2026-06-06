@@ -170,9 +170,16 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
       let remaining = effectiveTotal
       const pagamentosParaAPI = lista
         .map(p => {
-          const capped   = Math.min(p.valor, remaining)
-          remaining      = Math.max(0, remaining - capped)
-          return { forma_pagamento_id: p.forma.id, valor: capped, parcelas: p.parcelas }
+          const capped      = Math.min(p.valor, remaining)
+          remaining         = Math.max(0, remaining - capped)
+          const isDinheiro  = p.forma.tipo === 'dinheiro'
+          return {
+            forma_pagamento_id: p.forma.id,
+            valor:              capped,
+            parcelas:           p.parcelas,
+            valor_recebido:     isDinheiro ? p.valor : undefined,
+            troco:              isDinheiro && p.valor > capped ? p.valor - capped : undefined,
+          }
         })
         .filter(p => p.valor > 0)
 

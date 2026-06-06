@@ -17,9 +17,11 @@ const itemSchema = z.object({
 
 const pagamentoSchema = z.object({
   forma_pagamento_id: z.string().uuid(),
-  valor:    z.coerce.number().positive(),
-  parcelas: z.coerce.number().int().min(1).default(1),
-  detalhe:  z.string().optional().nullable(),
+  valor:          z.coerce.number().positive(),
+  parcelas:       z.coerce.number().int().min(1).default(1),
+  detalhe:        z.string().optional().nullable(),
+  valor_recebido: z.coerce.number().min(0).optional().nullable(),
+  troco:          z.coerce.number().min(0).optional().nullable(),
 })
 
 const vendaSchema = z.object({
@@ -122,9 +124,9 @@ export async function vendasRoutes(app: FastifyInstance) {
           `SELECT tipo FROM formas_pagamento WHERE id = $1`, [pag.forma_pagamento_id]
         )
         const { rows: [pv] } = await client.query(
-          `INSERT INTO pagamentos_venda (venda_id, forma_pagamento_id, valor, parcelas, detalhe)
-           VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-          [venda_id, pag.forma_pagamento_id, pag.valor, pag.parcelas, pag.detalhe ?? null]
+          `INSERT INTO pagamentos_venda (venda_id, forma_pagamento_id, valor, parcelas, detalhe, valor_recebido, troco)
+           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+          [venda_id, pag.forma_pagamento_id, pag.valor, pag.parcelas, pag.detalhe ?? null, pag.valor_recebido ?? null, pag.troco ?? null]
         )
         const pv_id = pv.id
 
