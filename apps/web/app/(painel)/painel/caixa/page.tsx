@@ -552,7 +552,14 @@ export default function CaixaPage() {
                 <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
                 <CaixaRow icon={<ArrowDown   size={13} />} label="Suprimento — reforço" onClick={() => setModalMov('suprimento')} />
                 <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
-                <CaixaRow icon={<Lock        size={13} />} label="Fechar caixa"         onClick={() => setModalFechar(true)} danger />
+                <div style={{ opacity: itens.length > 0 ? 0.5 : 1 }}>
+                  <CaixaRow icon={<Lock size={13} />} label="Fechar caixa" onClick={() => { if (itens.length > 0) return; setModalFechar(true) }} danger />
+                </div>
+                {itens.length > 0 && (
+                  <p style={{ fontSize: '11px', color: 'rgba(240,130,130,0.75)', margin: '-2px 0 4px', lineHeight: 1.4 }}>
+                    Finalize ou cancele a venda atual antes de fechar o caixa.
+                  </p>
+                )}
               </div>
 
               {/* Spacer */}

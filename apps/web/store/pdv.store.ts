@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { SacolaItemRemoto } from '@/lib/api/sacolas'
 
 export interface SacolaItem {
@@ -30,64 +31,76 @@ interface PDVStore {
   limpar:        () => void
 }
 
-export const usePDVStore = create<PDVStore>((set) => ({
-  itens:         [],
-  cliente_id:    null,
-  cliente_nome:  null,
-  sacola_id:     null,
-  vendedor_id:   null,
-  vendedor_nome: null,
+export const usePDVStore = create<PDVStore>()(
+  persist(
+    (set) => ({
+      itens:         [],
+      cliente_id:    null,
+      cliente_nome:  null,
+      sacola_id:     null,
+      vendedor_id:   null,
+      vendedor_nome: null,
 
-  addItem: (item) => set(state => {
-    const existente = state.itens.find(i => i.versao_id === item.versao_id)
-    if (existente) {
-      return { itens: state.itens.map(i =>
-        i.versao_id === item.versao_id ? { ...i, quantidade: i.quantidade + 1 } : i
-      )}
+      addItem: (item) => set(state => {
+        const existente = state.itens.find(i => i.versao_id === item.versao_id)
+        if (existente) {
+          return { itens: state.itens.map(i =>
+            i.versao_id === item.versao_id ? { ...i, quantidade: i.quantidade + 1 } : i
+          )}
+        }
+        return { itens: [...state.itens, { ...item, quantidade: 1 }] }
+      }),
+
+      addItemQtd: (item, qtd) => set(state => {
+        const existente = state.itens.find(i => i.versao_id === item.versao_id)
+        if (existente) {
+          return { itens: state.itens.map(i =>
+            i.versao_id === item.versao_id ? { ...i, quantidade: i.quantidade + qtd } : i
+          )}
+        }
+        return { itens: [...state.itens, { ...item, quantidade: qtd }] }
+      }),
+
+      removeItem: (versao_id) => set(state => ({
+        itens: state.itens.filter(i => i.versao_id !== versao_id)
+      })),
+
+      setQtd: (versao_id, qtd) => set(state => ({
+        itens: qtd <= 0
+          ? state.itens.filter(i => i.versao_id !== versao_id)
+          : state.itens.map(i => i.versao_id === versao_id ? { ...i, quantidade: qtd } : i)
+      })),
+
+      setCliente: (id, nome) => set({ cliente_id: id, cliente_nome: nome }),
+
+      setVendedor: (id, nome) => set({ vendedor_id: id, vendedor_nome: nome }),
+
+      carregarSacola: (sacola_id, itens, cliente_id, cliente_nome, vendedor_id = null, vendedor_nome = null) => set({
+        sacola_id,
+        cliente_id,
+        cliente_nome,
+        vendedor_id,
+        vendedor_nome,
+        itens: itens.map(i => ({
+          versao_id:      i.versao_id,
+          produto_id:     i.produto_id,
+          nome:           i.nome,
+          atributos:      i.atributos,
+          preco_unitario: i.preco_unitario,
+          quantidade:     i.quantidade,
+          codigo_barras:  i.codigo_barras ?? null,
+        })),
+      }),
+
+      limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null, vendedor_id: null, vendedor_nome: null }),
+    }),
+    {
+      name: 'pdv-store',
+      partialize: (state) => ({
+        itens:        state.itens,
+        cliente_id:   state.cliente_id,
+        cliente_nome: state.cliente_nome,
+      }),
     }
-    return { itens: [...state.itens, { ...item, quantidade: 1 }] }
-  }),
-
-  addItemQtd: (item, qtd) => set(state => {
-    const existente = state.itens.find(i => i.versao_id === item.versao_id)
-    if (existente) {
-      return { itens: state.itens.map(i =>
-        i.versao_id === item.versao_id ? { ...i, quantidade: i.quantidade + qtd } : i
-      )}
-    }
-    return { itens: [...state.itens, { ...item, quantidade: qtd }] }
-  }),
-
-  removeItem: (versao_id) => set(state => ({
-    itens: state.itens.filter(i => i.versao_id !== versao_id)
-  })),
-
-  setQtd: (versao_id, qtd) => set(state => ({
-    itens: qtd <= 0
-      ? state.itens.filter(i => i.versao_id !== versao_id)
-      : state.itens.map(i => i.versao_id === versao_id ? { ...i, quantidade: qtd } : i)
-  })),
-
-  setCliente: (id, nome) => set({ cliente_id: id, cliente_nome: nome }),
-
-  setVendedor: (id, nome) => set({ vendedor_id: id, vendedor_nome: nome }),
-
-  carregarSacola: (sacola_id, itens, cliente_id, cliente_nome, vendedor_id = null, vendedor_nome = null) => set({
-    sacola_id,
-    cliente_id,
-    cliente_nome,
-    vendedor_id,
-    vendedor_nome,
-    itens: itens.map(i => ({
-      versao_id:      i.versao_id,
-      produto_id:     i.produto_id,
-      nome:           i.nome,
-      atributos:      i.atributos,
-      preco_unitario: i.preco_unitario,
-      quantidade:     i.quantidade,
-      codigo_barras:  i.codigo_barras ?? null,
-    })),
-  }),
-
-  limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null, vendedor_id: null, vendedor_nome: null }),
-}))
+  )
+)
