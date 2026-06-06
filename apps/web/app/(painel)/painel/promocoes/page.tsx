@@ -74,7 +74,7 @@ function TipoIcon({ tipo, size = 20 }: { tipo: string; size?: number }) {
 export default function PromocoesPage() {
   const [promos,     setPromos]     = useState<Promocao[]>([])
   const [loading,    setLoading]    = useState(true)
-  const [filtro,     setFiltro]     = useState<'ativas' | 'todas'>('ativas')
+  const [busca,      setBusca]      = useState('')
   const [formOpen,   setFormOpen]   = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [salvando,   setSalvando]   = useState(false)
@@ -96,11 +96,11 @@ export default function PromocoesPage() {
 
   async function load() {
     setLoading(true)
-    try { setPromos(await promocoesApi.list(filtro === 'todas')) }
+    try { setPromos(await promocoesApi.list(true)) }
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [filtro])
+  useEffect(() => { load() }, [])
 
   function abrirNova() {
     setTipo('desconto_percentual'); setNome(''); setCodigo(''); setValor('')
@@ -189,6 +189,23 @@ export default function PromocoesPage() {
     })
   }
 
+  // Sort: active first; within active sort by fim asc (null fim = no expiry = last)
+  const promosOrdenadas = [...promos].sort((a, b) => {
+    if (!!a.ativo !== !!b.ativo) return a.ativo ? -1 : 1
+    if (a.ativo && b.ativo) {
+      if (!a.fim && !b.fim) return 0
+      if (!a.fim) return 1
+      if (!b.fim) return -1
+      return a.fim.localeCompare(b.fim)
+    }
+    return 0
+  })
+
+  const q = busca.trim().toLowerCase()
+  const promosFiltradas = q
+    ? promosOrdenadas.filter(p => p.nome.toLowerCase().includes(q))
+    : promosOrdenadas
+
   function descricao(p: Promocao): string {
     switch (p.tipo) {
       case 'desconto_percentual': return `${p.valor_desconto}% de desconto`
@@ -204,25 +221,6 @@ export default function PromocoesPage() {
     <>
       <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10 flex flex-col gap-5">
-
-        {/* Filter tabs */}
-        <div style={{ display: 'inline-flex', background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
-          {(['ativas', 'todas'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFiltro(f)}
-              style={{
-                padding: '6px 14px', fontSize: '13px', borderRadius: '6px', border: 'none', cursor: 'pointer',
-                background: filtro === f ? 'rgba(0,239,255,0.15)' : 'transparent',
-                color: filtro === f ? '#0ef' : 'rgba(255,255,255,0.4)',
-                fontWeight: filtro === f ? 500 : 400,
-                transition: 'all 0.15s',
-              }}
-            >
-              {f === 'ativas' ? 'Ativas' : 'Todas'}
-            </button>
-          ))}
-        </div>
 
         {/* ── Inline form panel ─────────────────────────────────────────────── */}
         {formOpen && (
@@ -252,6 +250,15 @@ export default function PromocoesPage() {
                     {t.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Filial */}
+            <div>
+              <Lbl>Filial</Lbl>
+              <div style={{ ...INPUT_STYLE, opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Todas as filiais</span>
+                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>(em breve)</span>
               </div>
             </div>
 
@@ -453,17 +460,37 @@ export default function PromocoesPage() {
         )}
 
         {/* ── Card grid ─────────────────────────────────────────────────────── */}
+        {!loading && (
+          <input
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            placeholder="Buscar promoção..."
+            style={{
+              background: 'rgba(8,18,30,0.5)',
+              border: '0.5px solid rgba(255,255,255,0.12)',
+              borderRadius: '8px',
+              padding: '9px 12px',
+              fontSize: '13px',
+              color: 'rgba(255,255,255,0.75)',
+              width: '100%',
+              marginBottom: '12px',
+              outline: 'none',
+            }}
+            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+          />
+        )}
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : promos.length === 0 ? (
+        ) : promosFiltradas.length === 0 ? (
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', textAlign: 'center', paddingTop: '48px' }}>
-            Nenhuma promoção cadastrada
+            {busca.trim() ? `Nenhuma promoção encontrada para "${busca}"` : 'Nenhuma promoção cadastrada'}
           </p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 220px))', gap: '12px', justifyContent: 'start' }}>
-            {promos.map(p => (
+            {promosFiltradas.map(p => (
               <PromoCard
                 key={p.id}
                 promo={p}
