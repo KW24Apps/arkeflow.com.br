@@ -370,7 +370,10 @@ export default function ResumoCaixaPage() {
   )
 
   const nomeOp        = (turno as any)?.usuario_nome || authNome || '—'
-  const gavetaColor   = esperadoGaveta < 0 ? 'rgba(240,130,130,0.9)' : 'rgba(100,220,160,0.95)'
+  // Round to cents before color check — floating-point subtraction can yield -2e-14
+  // at zero, which would incorrectly trigger the danger color.
+  const gavetaArredondado = Math.round(esperadoGaveta * 100) / 100
+  const gavetaColor       = gavetaArredondado < 0 ? 'rgba(240,130,130,0.9)' : 'rgba(100,220,160,0.95)'
 
   return (
     <>
@@ -406,7 +409,7 @@ export default function ResumoCaixaPage() {
         <div style={CARD}>
           <span style={SEC_LABEL}>Caixa em dinheiro</span>
           <p style={{ fontSize: '22px', fontWeight: 700, color: gavetaColor, margin: '0 0 10px' }}>
-            {fmt(esperadoGaveta)}
+            {fmt(gavetaArredondado)}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
             {([
@@ -423,7 +426,7 @@ export default function ResumoCaixaPage() {
             <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.08)', margin: '4px 0' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Esperado na gaveta</span>
-              <span style={{ fontSize: '12px', color: gavetaColor, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmt(esperadoGaveta)}</span>
+              <span style={{ fontSize: '12px', color: gavetaColor, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmt(gavetaArredondado)}</span>
             </div>
           </div>
         </div>

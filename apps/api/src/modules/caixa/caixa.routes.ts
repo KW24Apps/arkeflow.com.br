@@ -17,22 +17,36 @@ export async function caixaRoutes(app: FastifyInstance) {
     const user = req.user as JwtPayload
 
     // Turno aberto DO USUÁRIO LOGADO
+    // Correlated subqueries keep vendas and movimentos aggregations independent —
+    // a single JOIN of both tables would fan-out rows (vendas × movimentos) before
+    // GROUP BY, causing each SUM to multiply by the other table's row count.
     const { rows: [turnoAberto] } = await pool.query(
       `SELECT t.*,
-         COALESCE(SUM(v.total), 0)::numeric AS total_vendas,
-         COUNT(v.id)::int                   AS qtd_vendas,
-         COALESCE(SUM(mv.valor) FILTER (WHERE mv.tipo = 'sangria'), 0)::numeric    AS total_sangrias,
-         COALESCE(SUM(mv.valor) FILTER (WHERE mv.tipo = 'suprimento'), 0)::numeric AS total_suprimentos
+         COALESCE((
+           SELECT SUM(v.total) FROM vendas v
+           WHERE v.usuario_id = t.usuario_id
+             AND v.status = 'finalizada'
+             AND v.criado_em >= t.aberto_em
+             AND (t.fechado_em IS NULL OR v.criado_em <= t.fechado_em)
+         ), 0)::numeric AS total_vendas,
+         COALESCE((
+           SELECT COUNT(v.id)::int FROM vendas v
+           WHERE v.usuario_id = t.usuario_id
+             AND v.status = 'finalizada'
+             AND v.criado_em >= t.aberto_em
+             AND (t.fechado_em IS NULL OR v.criado_em <= t.fechado_em)
+         ), 0)::int AS qtd_vendas,
+         COALESCE((
+           SELECT SUM(mv.valor) FROM movimentos_caixa mv
+           WHERE mv.turno_id = t.id AND mv.tipo = 'sangria'
+         ), 0)::numeric AS total_sangrias,
+         COALESCE((
+           SELECT SUM(mv.valor) FROM movimentos_caixa mv
+           WHERE mv.turno_id = t.id AND mv.tipo = 'suprimento'
+         ), 0)::numeric AS total_suprimentos
        FROM turnos_caixa t
-       LEFT JOIN vendas v
-         ON v.usuario_id = t.usuario_id
-         AND v.status = 'finalizada'
-         AND v.criado_em >= t.aberto_em
-         AND (t.fechado_em IS NULL OR v.criado_em <= t.fechado_em)
-       LEFT JOIN movimentos_caixa mv ON mv.turno_id = t.id
        WHERE t.status = 'aberto'
          AND t.usuario_id = $1
-       GROUP BY t.id
        ORDER BY t.aberto_em DESC
        LIMIT 1`,
       [user.id]
@@ -42,18 +56,24 @@ export async function caixaRoutes(app: FastifyInstance) {
     if (!turnoAberto) {
       const { rows: [ultimo] } = await pool.query(
         `SELECT t.*,
-           COALESCE(SUM(v.total), 0)::numeric AS total_vendas,
-           COUNT(v.id)::int                   AS qtd_vendas
+           COALESCE((
+             SELECT SUM(v.total) FROM vendas v
+             WHERE v.usuario_id = t.usuario_id
+               AND v.status = 'finalizada'
+               AND v.criado_em >= t.aberto_em
+               AND v.criado_em <= t.fechado_em
+           ), 0)::numeric AS total_vendas,
+           COALESCE((
+             SELECT COUNT(v.id)::int FROM vendas v
+             WHERE v.usuario_id = t.usuario_id
+               AND v.status = 'finalizada'
+               AND v.criado_em >= t.aberto_em
+               AND v.criado_em <= t.fechado_em
+           ), 0)::int AS qtd_vendas
          FROM turnos_caixa t
-         LEFT JOIN vendas v
-           ON v.usuario_id = t.usuario_id
-           AND v.status = 'finalizada'
-           AND v.criado_em >= t.aberto_em
-           AND v.criado_em <= t.fechado_em
          WHERE DATE(t.aberto_em) = CURRENT_DATE
            AND t.status = 'fechado'
            AND t.usuario_id = $1
-         GROUP BY t.id
          ORDER BY t.aberto_em DESC
          LIMIT 1`,
         [user.id]
