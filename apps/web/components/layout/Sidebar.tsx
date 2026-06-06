@@ -78,7 +78,7 @@ export function Sidebar({ items }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-50 w-60 h-screen
+          fixed lg:static inset-y-0 left-0 z-50 w-44 h-screen
           bg-midnight/60 backdrop-blur-sm
           flex flex-col transition-transform duration-300
           ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
