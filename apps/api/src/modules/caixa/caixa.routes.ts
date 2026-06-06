@@ -70,12 +70,12 @@ export async function caixaRoutes(app: FastifyInstance) {
     const user = req.user as JwtPayload
     const { saldo_inicial, observacao } = req.body as { saldo_inicial?: number; observacao?: string }
 
-    // Verifica se este usuário já tem turno aberto
+    // Se já tem turno aberto, devolve o existente (idempotente — evita duplicar turnos)
     const { rows: [aberto] } = await pool.query(
-      `SELECT id FROM turnos_caixa WHERE status = 'aberto' AND usuario_id = $1 LIMIT 1`,
+      `SELECT * FROM turnos_caixa WHERE status = 'aberto' AND usuario_id = $1 LIMIT 1`,
       [user.id]
     )
-    if (aberto) throw new AppError('Você já tem um caixa aberto. Feche-o antes de abrir um novo.', 400)
+    if (aberto) return reply.send(aberto)
 
     const { rows: [t] } = await pool.query(
       `INSERT INTO turnos_caixa (usuario_id, saldo_inicial, observacao)
@@ -104,9 +104,13 @@ export async function caixaRoutes(app: FastifyInstance) {
   // Sangria / Suprimento
   app.post('/movimento', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
+    const user = req.user as JwtPayload
     const { tipo, valor, motivo } = req.body as { tipo: 'sangria' | 'suprimento'; valor: number; motivo?: string }
 
-    const { rows: [t] } = await pool.query(`SELECT id FROM turnos_caixa WHERE status = 'aberto' LIMIT 1`)
+    const { rows: [t] } = await pool.query(
+      `SELECT id FROM turnos_caixa WHERE status = 'aberto' AND usuario_id = $1 LIMIT 1`,
+      [user.id]
+    )
     if (!t) throw new AppError('Abra o caixa primeiro.', 400)
 
     const { rows: [m] } = await pool.query(
