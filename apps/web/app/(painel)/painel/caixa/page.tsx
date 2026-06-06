@@ -13,7 +13,9 @@ import { calcularDescontos } from '@/lib/calcularDesconto'
 import { AdvancedSearchModal } from '@/components/pdv/AdvancedSearchModal'
 import { CheckoutModal, type CheckoutResult } from '@/components/pdv/CheckoutModal'
 import { CustomerSearchModal } from '@/components/pdv/CustomerSearchModal'
+import { SalespersonSearchModal } from '@/components/pdv/SalespersonSearchModal'
 import type { Cliente } from '@/lib/api/clientes'
+import type { Colaborador } from '@/lib/api/colaboradores'
 
 interface ProdutoSearch { id: string; nome: string; preco_base: string; total_versoes: number }
 
@@ -51,9 +53,12 @@ export default function CaixaPage() {
   // ── Modais ────────────────────────────────────────────────────────────────
   const [modalCheckout, setModalCheckout] = useState(false)
   const [vendaOK,       setVendaOK]       = useState<CheckoutResult | null>(null)
-  const [modalCliente,  setModalCliente]  = useState(false)
-  const [clienteAutoAberto, setClienteAutoAberto] = useState(false)
-  const autoOpenedRef = useRef(false)  // prevents re-opening during same transaction
+  const [modalCliente,     setModalCliente]     = useState(false)
+  const [clienteAutoAberto,setClienteAutoAberto] = useState(false)
+  const autoOpenedRef = useRef(false)
+
+  const [modalVendedor,    setModalVendedor]    = useState(false)
+  const [vendedor,         setVendedor]         = useState<Colaborador | null>(null)
 
   const [modalMov,   setModalMov]    = useState<'sangria' | 'suprimento' | null>(null)
   const [valorMov,   setValorMov]    = useState('')
@@ -204,6 +209,7 @@ export default function CaixaPage() {
     setModalCheckout(false)
     setVendaOK(r)
     limpar()
+    setVendedor(null)
     autoOpenedRef.current = false
   }
 
@@ -470,26 +476,29 @@ export default function CaixaPage() {
                 )}
               </div>
 
-              {/* ── Bottom: ações + checkout (fixo na base) ─────────────── */}
-              <div className="shrink-0 flex flex-col gap-0 border-t border-ocean-depth">
+              {/* ── Bottom: seções fixas na base ────────────────────────── */}
+              <div className="shrink-0 flex flex-col border-t border-ocean-depth">
 
-                {/* Ações do caixa */}
+                {/* ── Seção: Atribuição da Venda ──────────────────────────── */}
                 <div className="px-4 pt-4 pb-3 flex flex-col gap-2">
-                  <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Ações</p>
+                  <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Atribuição da Venda</p>
 
-                  {/* Manage customer — contextual */}
+                  {/* Cliente */}
                   {cliente_id ? (
                     <div className="flex gap-2">
                       <button
                         onClick={() => { setClienteAutoAberto(false); setModalCliente(true) }}
-                        className="flex-1 min-h-[48px] border border-electric-cyan/40 text-electric-cyan rounded-xl text-sm hover:bg-electric-cyan/10 active:bg-electric-cyan/20 transition-colors px-3 text-left truncate"
+                        className="flex-1 min-h-[48px] border border-electric-cyan/40 text-electric-cyan rounded-xl text-sm hover:bg-electric-cyan/10 active:bg-electric-cyan/20 transition-colors px-3 text-left"
                       >
-                        👤 {cliente_nome}
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="shrink-0">👤</span>
+                          <span className="truncate font-medium">{cliente_nome}</span>
+                        </span>
                       </button>
                       <button
                         onClick={() => setCliente(null, null)}
                         title="Remover cliente"
-                        className="min-w-[48px] min-h-[48px] border border-ocean-depth text-steel rounded-xl hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors flex items-center justify-center text-lg"
+                        className="min-w-[48px] min-h-[48px] border border-ocean-depth text-steel rounded-xl hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors flex items-center justify-center text-xl"
                       >×</button>
                     </div>
                   ) : (
@@ -501,8 +510,40 @@ export default function CaixaPage() {
                     </button>
                   )}
 
-                  <div className="border-t border-ocean-depth/50 my-1" />
+                  {/* Vendedor */}
+                  {vendedor ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setModalVendedor(true)}
+                        className="flex-1 min-h-[48px] border border-teal-current/40 text-teal-current rounded-xl text-sm hover:bg-teal-current/10 active:bg-teal-current/20 transition-colors px-3 text-left"
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="shrink-0">🏷</span>
+                          <span className="truncate font-medium">{vendedor.nome}</span>
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => setVendedor(null)}
+                        title="Remover vendedor"
+                        className="min-w-[48px] min-h-[48px] border border-ocean-depth text-steel rounded-xl hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors flex items-center justify-center text-xl"
+                      >×</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setModalVendedor(true)}
+                      className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-teal-current/40 hover:text-teal-current active:bg-teal-current/10 transition-colors text-left px-4"
+                    >
+                      🏷 Adicionar Vendedor
+                    </button>
+                  )}
+                </div>
 
+                {/* ── Divisor visual ───────────────────────────────────────── */}
+                <div className="mx-4 border-t border-ocean-depth" />
+
+                {/* ── Seção: Gestão do Caixa ───────────────────────────────── */}
+                <div className="px-4 pt-3 pb-3 flex flex-col gap-2">
+                  <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Gestão do Caixa</p>
                   <button
                     onClick={() => setModalMov('sangria')}
                     className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors text-left px-4"
@@ -555,6 +596,12 @@ export default function CaixaPage() {
         autoAberto={clienteAutoAberto}
         onClose={() => { setModalCliente(false); setClienteAutoAberto(false); setTimeout(() => scanRef.current?.focus(), 100) }}
         onSelect={handleClienteSelecionado}
+      />
+
+      <SalespersonSearchModal
+        open={modalVendedor}
+        onClose={() => { setModalVendedor(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onSelect={c => { setVendedor(c); setModalVendedor(false); setTimeout(() => scanRef.current?.focus(), 100) }}
       />
 
       <CheckoutModal
