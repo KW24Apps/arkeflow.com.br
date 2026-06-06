@@ -135,7 +135,13 @@ function VendaRow({ venda }: { venda: VendaTurno }) {
             <>
               {/* Items */}
               <div>
-                <p className="text-steel text-[10px] uppercase tracking-wider mb-2">Itens</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-steel text-[10px] uppercase tracking-wider">Itens</p>
+                  <div className="flex items-center gap-4 shrink-0 ml-3">
+                    <span className="text-steel text-[10px] uppercase tracking-wider">Qtd</span>
+                    <span className="text-steel text-[10px] uppercase tracking-wider w-20 text-right">Valor</span>
+                  </div>
+                </div>
                 <div className="flex flex-col gap-1.5">
                   {detalhe.itens?.map((item, i) => {
                     return (
@@ -153,7 +159,7 @@ function VendaRow({ venda }: { venda: VendaTurno }) {
                           )}
                         </div>
                         <div className="flex items-center gap-4 shrink-0 ml-3">
-                          <span className="text-steel text-xs">{item.quantidade}×</span>
+                          <span className="text-steel text-xs">{item.quantidade} un</span>
                           {Number(item.desconto_item) > 0 && (
                             <span className="text-mint-green text-xs">−{fmt(item.desconto_item)}</span>
                           )}
@@ -180,9 +186,16 @@ function VendaRow({ venda }: { venda: VendaTurno }) {
                 <p className="text-steel text-[10px] uppercase tracking-wider mb-2">Pagamento</p>
                 <div className="flex flex-wrap gap-2">
                   {detalhe.pagamentos?.map((p: any, i: number) => (
-                    <div key={i} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs ${formaColor(p.tipo)}`}>
-                      <span className="font-medium">{p.forma_nome}</span>
-                      <span>{fmt(p.valor)}</span>
+                    <div key={i} className={`flex flex-col px-3 py-1.5 rounded-xl border text-xs ${formaColor(p.tipo)}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{p.forma_nome}</span>
+                        <span>{fmt(p.valor)}</span>
+                      </div>
+                      {Number(p.troco) > 0 && (
+                        <span style={{ color: 'rgba(100,220,160,0.9)', fontSize: '10px', marginTop: '2px' }}>
+                          Recebido {fmt(p.valor_recebido)} · Troco {fmt(p.troco)}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

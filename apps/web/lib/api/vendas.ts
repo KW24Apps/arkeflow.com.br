@@ -9,9 +9,11 @@ export interface ItemVenda {
 
 export interface PagamentoVenda {
   forma_pagamento_id: string
-  valor:    number
-  parcelas: number
-  detalhe?: string | null
+  valor:          number
+  parcelas:       number
+  detalhe?:       string | null
+  valor_recebido?: number
+  troco?:          number
 }
 
 export interface NovaVendaPayload {
