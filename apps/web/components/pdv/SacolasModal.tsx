@@ -64,7 +64,9 @@ export function SacolasModal({ open, onClose, onCarregada }: Props) {
         sacola.id,
         sacola.itens,
         sacola.cliente_id,
-        sacola.cliente_nome
+        sacola.cliente_nome,
+        sacola.criado_por,
+        sacola.nome_vendedor,
       )
       onClose()
       onCarregada?.()

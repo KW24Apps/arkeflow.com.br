@@ -45,6 +45,8 @@ export interface VendaTurno {
   cliente_telefone:  string | null
   total_itens:       number
   pagamentos:        PagamentoResumo[]
+  vendedor_id?:      string | null
+  vendedor_nome?:    string | null
 }
 
 export interface ItemVendaDetalhe {

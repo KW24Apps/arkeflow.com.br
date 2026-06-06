@@ -92,6 +92,11 @@ function VendaRow({ venda }: { venda: VendaTurno }) {
           {venda.cliente_telefone && (
             <p className="text-steel text-xs truncate">{venda.cliente_telefone}</p>
           )}
+          {venda.vendedor_nome && (
+            <p className="text-steel text-xs truncate">
+              <span className="opacity-60">Vendedor: </span>{venda.vendedor_nome}
+            </p>
+          )}
         </div>
 
         {/* Payment chips */}
@@ -154,6 +159,14 @@ function VendaRow({ venda }: { venda: VendaTurno }) {
                   })}
                 </div>
               </div>
+
+              {/* Vendedor */}
+              {detalhe.vendedor_nome && (
+                <div>
+                  <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Vendedor</p>
+                  <p className="text-sea-foam text-sm">{detalhe.vendedor_nome}</p>
+                </div>
+              )}
 
               {/* Payments */}
               <div>

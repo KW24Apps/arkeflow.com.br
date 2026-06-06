@@ -22,6 +22,8 @@ export interface NovaVendaPayload {
   cashback_usado:       number
   desconto_promocao:    number
   desconto_pagamento?:  number         // discount from payment method rules
+  vendedor_id?:         string | null
+  vendedor_nome?:       string | null
 }
 
 export interface VendaHistoricoItem {

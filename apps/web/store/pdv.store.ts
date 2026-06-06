@@ -12,26 +12,31 @@ export interface SacolaItem {
 }
 
 interface PDVStore {
-  itens:        SacolaItem[]
-  cliente_id:   string | null
-  cliente_nome: string | null
-  sacola_id:    string | null  // remote bag this cart was loaded from
+  itens:         SacolaItem[]
+  cliente_id:    string | null
+  cliente_nome:  string | null
+  sacola_id:     string | null  // remote bag this cart was loaded from
+  vendedor_id:   string | null
+  vendedor_nome: string | null
 
   addItem:       (item: Omit<SacolaItem, 'quantidade'>) => void
   addItemQtd:    (item: Omit<SacolaItem, 'quantidade'>, qtd: number) => void
   removeItem:    (versao_id: string) => void
   setQtd:        (versao_id: string, qtd: number) => void
   setCliente:    (id: string | null, nome: string | null) => void
+  setVendedor:   (id: string | null, nome: string | null) => void
   // Loads a remote bag into the cart (replaces current cart)
-  carregarSacola:(sacola_id: string, itens: SacolaItemRemoto[], cliente_id: string | null, cliente_nome: string | null) => void
+  carregarSacola:(sacola_id: string, itens: SacolaItemRemoto[], cliente_id: string | null, cliente_nome: string | null, vendedor_id?: string | null, vendedor_nome?: string | null) => void
   limpar:        () => void
 }
 
 export const usePDVStore = create<PDVStore>((set) => ({
-  itens:        [],
-  cliente_id:   null,
-  cliente_nome: null,
-  sacola_id:    null,
+  itens:         [],
+  cliente_id:    null,
+  cliente_nome:  null,
+  sacola_id:     null,
+  vendedor_id:   null,
+  vendedor_nome: null,
 
   addItem: (item) => set(state => {
     const existente = state.itens.find(i => i.versao_id === item.versao_id)
@@ -65,10 +70,14 @@ export const usePDVStore = create<PDVStore>((set) => ({
 
   setCliente: (id, nome) => set({ cliente_id: id, cliente_nome: nome }),
 
-  carregarSacola: (sacola_id, itens, cliente_id, cliente_nome) => set({
+  setVendedor: (id, nome) => set({ vendedor_id: id, vendedor_nome: nome }),
+
+  carregarSacola: (sacola_id, itens, cliente_id, cliente_nome, vendedor_id = null, vendedor_nome = null) => set({
     sacola_id,
     cliente_id,
     cliente_nome,
+    vendedor_id,
+    vendedor_nome,
     itens: itens.map(i => ({
       versao_id:      i.versao_id,
       produto_id:     i.produto_id,
@@ -80,5 +89,5 @@ export const usePDVStore = create<PDVStore>((set) => ({
     })),
   }),
 
-  limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null }),
+  limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null, vendedor_id: null, vendedor_nome: null }),
 }))

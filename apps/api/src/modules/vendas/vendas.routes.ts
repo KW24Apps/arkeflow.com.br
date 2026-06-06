@@ -23,11 +23,13 @@ const pagamentoSchema = z.object({
 })
 
 const vendaSchema = z.object({
-  cliente_id:      z.string().uuid().optional().nullable(),
-  itens:           z.array(itemSchema).min(1),
-  pagamentos:      z.array(pagamentoSchema).min(1),
-  cashback_usado:  z.coerce.number().min(0).default(0),
+  cliente_id:        z.string().uuid().optional().nullable(),
+  itens:             z.array(itemSchema).min(1),
+  pagamentos:        z.array(pagamentoSchema).min(1),
+  cashback_usado:    z.coerce.number().min(0).default(0),
   desconto_promocao: z.coerce.number().min(0).default(0),
+  vendedor_id:       z.string().uuid().optional().nullable(),
+  vendedor_nome:     z.string().optional().nullable(),
 })
 
 export async function vendasRoutes(app: FastifyInstance) {
@@ -96,10 +98,12 @@ export async function vendasRoutes(app: FastifyInstance) {
       // Cria venda
       const { rows: [venda] } = await client.query(
         `INSERT INTO vendas (cliente_id, usuario_id, subtotal, desconto_promocao,
-           desconto_pagamento, cashback_usado, total, cashback_gerado, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'finalizada') RETURNING id`,
+           desconto_pagamento, cashback_usado, total, cashback_gerado, status,
+           vendedor_id, vendedor_nome)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'finalizada',$9,$10) RETURNING id`,
         [data.cliente_id ?? null, user.id, subtotal, data.desconto_promocao,
-         0, data.cashback_usado, total, cashback_gerado]
+         0, data.cashback_usado, total, cashback_gerado,
+         data.vendedor_id ?? null, data.vendedor_nome ?? null]
       )
       const venda_id = venda.id
 
@@ -197,6 +201,7 @@ export async function vendasRoutes(app: FastifyInstance) {
     const { rows } = await pool.query(
       `SELECT v.id, v.total, v.subtotal, v.desconto_promocao, v.cashback_usado,
               v.cashback_gerado, v.status, v.criado_em,
+              v.vendedor_id, v.vendedor_nome,
               c.nome AS cliente_nome, c.telefone AS cliente_telefone,
               COUNT(iv.id)::int AS total_itens
        FROM vendas v

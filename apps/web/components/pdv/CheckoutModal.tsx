@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 import { vendasApi } from '@/lib/api/vendas'
+import { usePDVStore } from '@/store/pdv.store'
 import type { ItemComDesconto } from '@/lib/calcularDesconto'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -175,6 +176,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
         })
         .filter(p => p.valor > 0)
 
+      const { vendedor_id, vendedor_nome } = usePDVStore.getState()
       const r = await vendasApi.registrar({
         cliente_id:         clienteId ?? null,
         itens:              itensComDesconto.map(i => ({
@@ -187,6 +189,8 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
         cashback_usado:     cashbackUsar,
         desconto_promocao:  totalDesconto,
         desconto_pagamento: totalDescontosPag,
+        vendedor_id:        vendedor_id ?? null,
+        vendedor_nome:      vendedor_nome ?? null,
       })
 
       if (troco > 0.01) {

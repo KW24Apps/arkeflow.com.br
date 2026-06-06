@@ -1,0 +1,2 @@
+ALTER TABLE vendas ADD COLUMN IF NOT EXISTS vendedor_id UUID;
+ALTER TABLE vendas ADD COLUMN IF NOT EXISTS vendedor_nome TEXT;

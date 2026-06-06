@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { colaboradoresApi, type Colaborador } from '@/lib/api/colaboradores'
+import { usePDVStore } from '@/store/pdv.store'
 
 interface Props {
   open:     boolean
@@ -101,7 +102,7 @@ export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
           {!carregando && filtrados.map(c => (
             <button
               key={c.id}
-              onClick={() => onSelect(c)}
+              onClick={() => { usePDVStore.getState().setVendedor(c.id, c.nome); onSelect(c) }}
               className="flex items-center gap-3 p-4 bg-midnight border border-ocean-depth rounded-2xl text-left hover:border-electric-cyan active:bg-ocean-depth transition-colors"
             >
               <div className="w-10 h-10 rounded-full bg-ocean-depth flex items-center justify-center shrink-0">

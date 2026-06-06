@@ -133,6 +133,7 @@ export async function caixaRoutes(app: FastifyInstance) {
 
     const { rows } = await pool.query(
       `SELECT v.id, v.total, v.status, v.criado_em,
+              v.vendedor_id, v.vendedor_nome,
               c.nome  AS cliente_nome,
               c.telefone AS cliente_telefone,
               COUNT(DISTINCT iv.id)::int AS total_itens,

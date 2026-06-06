@@ -17,7 +17,7 @@ interface Pagamento {
 
 export default function PDVCheckout() {
   const router = useRouter()
-  const { itens, cliente_id, cliente_nome, limpar } = usePDVStore()
+  const { itens, cliente_id, cliente_nome, vendedor_id, vendedor_nome, limpar } = usePDVStore()
 
   const [formas,       setFormas]       = useState<FormaPagamento[]>([])
   const [pagamentos,   setPagamentos]   = useState<Pagamento[]>([])
@@ -102,6 +102,8 @@ export default function PDVCheckout() {
           })),
         cashback_usado:    cashbackUsar,
         desconto_promocao: totalDesconto,
+        vendedor_id:       vendedor_id ?? null,
+        vendedor_nome:     vendedor_nome ?? null,
       }
 
       const result = await vendasApi.registrar(payload)
