@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
 import { ContatosForm, type Contato } from '@/components/painel/ContatosForm'
+import { GlassSelect } from '@/components/ui/GlassSelect'
 import { api } from '@/lib/api/client'
 
 interface DadosLoja {
@@ -60,17 +61,6 @@ function GInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   )
 }
 
-function GSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      style={{ ...INPUT, ...props.style }}
-      className="outline-none"
-      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)'; props.onFocus?.(e) }}
-      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; props.onBlur?.(e) }}
-    />
-  )
-}
 
 export default function DadosEmpresaPage() {
   const [dados,    setDados]    = useState<DadosLoja | null>(null)
@@ -184,13 +174,17 @@ export default function DadosEmpresaPage() {
 
               <div className="flex flex-col">
                 <Lbl>Regime Tributário</Lbl>
-                <GSelect value={regimeTributario} onChange={e => setRegimeTributario(e.target.value)}>
-                  <option value="">Selecione...</option>
-                  <option value="MEI">MEI</option>
-                  <option value="Simples Nacional">Simples Nacional</option>
-                  <option value="Lucro Presumido">Lucro Presumido</option>
-                  <option value="Lucro Real">Lucro Real</option>
-                </GSelect>
+                <GlassSelect
+                  value={regimeTributario}
+                  onChange={setRegimeTributario}
+                  placeholder="Selecione..."
+                  options={[
+                    { value: 'MEI', label: 'MEI' },
+                    { value: 'Simples Nacional', label: 'Simples Nacional' },
+                    { value: 'Lucro Presumido', label: 'Lucro Presumido' },
+                    { value: 'Lucro Real', label: 'Lucro Real' },
+                  ]}
+                />
               </div>
 
               <div className="flex flex-col">
