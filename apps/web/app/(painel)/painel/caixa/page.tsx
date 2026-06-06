@@ -14,6 +14,7 @@ import { AdvancedSearchModal } from '@/components/pdv/AdvancedSearchModal'
 import { CheckoutModal, type CheckoutResult } from '@/components/pdv/CheckoutModal'
 import { CustomerSearchModal } from '@/components/pdv/CustomerSearchModal'
 import { SalespersonSearchModal } from '@/components/pdv/SalespersonSearchModal'
+import { SacolasModal }           from '@/components/pdv/SacolasModal'
 import type { Cliente } from '@/lib/api/clientes'
 import type { Colaborador } from '@/lib/api/colaboradores'
 
@@ -59,6 +60,7 @@ export default function CaixaPage() {
 
   const [modalVendedor,    setModalVendedor]    = useState(false)
   const [vendedor,         setVendedor]         = useState<Colaborador | null>(null)
+  const [modalSacolas,     setModalSacolas]     = useState(false)
 
   const [modalMov,   setModalMov]    = useState<'sangria' | 'suprimento' | null>(null)
   const [valorMov,   setValorMov]    = useState('')
@@ -545,6 +547,12 @@ export default function CaixaPage() {
                 <div className="px-4 pt-3 pb-3 flex flex-col gap-2">
                   <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Gestão do Caixa</p>
                   <button
+                    onClick={() => setModalSacolas(true)}
+                    className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-electric-cyan/40 hover:text-electric-cyan active:bg-electric-cyan/10 transition-colors text-left px-4"
+                  >
+                    🛍 Sacolas Pendentes
+                  </button>
+                  <button
                     onClick={() => setModalMov('sangria')}
                     className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors text-left px-4"
                   >
@@ -602,6 +610,12 @@ export default function CaixaPage() {
         open={modalVendedor}
         onClose={() => { setModalVendedor(false); setTimeout(() => scanRef.current?.focus(), 100) }}
         onSelect={c => { setVendedor(c); setModalVendedor(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+      />
+
+      <SacolasModal
+        open={modalSacolas}
+        onClose={() => { setModalSacolas(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onCarregada={() => setTimeout(() => scanRef.current?.focus(), 100)}
       />
 
       <CheckoutModal
