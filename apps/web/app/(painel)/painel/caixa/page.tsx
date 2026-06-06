@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, X, Search } from 'lucide-react'
+import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, X, Search, Check, Clock, DollarSign } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
 import { caixaApi, type VendaTurno } from '@/lib/api/caixa'
@@ -85,6 +85,61 @@ function parseQtyPrefix(input: string): { qty: number; query: string } {
   return m ? { qty: parseInt(m[1], 10), query: m[2].trim() } : { qty: 1, query: input }
 }
 
+// ── Boas-vindas ───────────────────────────────────────────────────────────────
+
+const PARTE1 = (nome: string, hora: number, diaSemana: number) => {
+  const periodo = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
+  const dias = ['Boa domingo', 'Boa segunda', 'Feliz terça', 'Boa quarta', 'Quase sexta, é quinta', 'Boa sexta', 'Bom sábado']
+  const opcoes = [
+    `${periodo}, ${nome}!`,
+    `${periodo}!`,
+    `Olá, ${nome}!`,
+    `E aí, ${nome}?`,
+    `${dias[diaSemana]}!`,
+    `${dias[diaSemana]}, ${nome}!`,
+    `Tudo pronto, ${nome}?`,
+    `Hora de trabalhar, ${nome}!`,
+    `Chegou a hora, ${nome}!`,
+    `Vamos nessa, ${nome}!`,
+    `${periodo}, ${nome}! Caixa aberto.`,
+    `Bem-vindo de volta, ${nome}!`,
+    `${nome}, é hora de vender!`,
+    `Preparado, ${nome}?`,
+    `Vamos lá, ${nome}!`,
+  ]
+  return opcoes[Math.floor(Math.random() * opcoes.length)]
+}
+
+const PARTE2 = [
+  'Que as vendas fluam hoje.',
+  'Foco e energia!',
+  'Cada cliente é uma oportunidade.',
+  'Bora fechar bem o dia.',
+  'Hoje pode ser incrível.',
+  'Um cliente de cada vez.',
+  'Ótimas vendas pela frente!',
+  'Sorria, você está no caixa!',
+  'Que venham os clientes.',
+  'Faça cada atendimento valer.',
+  'Energia boa atrai cliente bom.',
+  'O melhor ainda está por vir.',
+  'Boas vendas começam com bom humor.',
+  'Cada venda conta.',
+  'Hoje é dia de superar.',
+  'Atenção e simpatia fazem a diferença.',
+  'Bora bater as metas!',
+  'Um dia de cada vez.',
+  'Tudo começa com o primeiro cliente.',
+  'Foco no que importa.',
+]
+
+function getMensagem(nome: string): string {
+  const now = new Date()
+  const p1  = PARTE1(nome, now.getHours(), now.getDay())
+  const p2  = PARTE2[Math.floor(Math.random() * PARTE2.length)]
+  return `${p1} ${p2}`
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CaixaPage() {
@@ -142,8 +197,14 @@ export default function CaixaPage() {
   const [produtoVariacao, setProdutoVariacao] = useState<{ produto: any; qty: number } | null>(null)
   const [focadoIdx,       setFocadoIdx]       = useState(0)
 
+  // ── Boas-vindas ───────────────────────────────────────────────────────────
+  const [modalBoasVindas,  setModalBoasVindas]  = useState(false)
+  const boasVindasRef      = useRef<{ msg: string; hora: string } | null>(null)
+  const boasVindasTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { carregar() }, [])
+  useEffect(() => () => { if (boasVindasTimerRef.current) clearTimeout(boasVindasTimerRef.current) }, [])
 
   useEffect(() => {
     if (status !== 'aberto') return
@@ -350,7 +411,16 @@ export default function CaixaPage() {
   // ── Abertura ──────────────────────────────────────────────────────────────
   async function handleAbrir() {
     setAbrindo(true)
-    try { await abrir(saldoInicial / 100, obsAbertura || undefined) }
+    try {
+      await abrir(saldoInicial / 100, obsAbertura || undefined)
+      const now = new Date()
+      boasVindasRef.current = {
+        msg:  getMensagem(primeiroNome),
+        hora: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      }
+      setModalBoasVindas(true)
+      boasVindasTimerRef.current = setTimeout(() => setModalBoasVindas(false), 4000)
+    }
     finally { setAbrindo(false) }
   }
 
@@ -735,6 +805,46 @@ export default function CaixaPage() {
         cashbackUsar={cashbackUsar}
         clienteId={cliente_id}
       />
+
+      {/* Modal Boas-vindas */}
+      {modalBoasVindas && boasVindasRef.current && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => { setModalBoasVindas(false); if (boasVindasTimerRef.current) clearTimeout(boasVindasTimerRef.current) }}
+        >
+          <div
+            style={{ background: 'rgb(8,18,30)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '36px 32px', width: '340px', maxWidth: '90vw', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Check circle */}
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(100,220,160,0.1)', border: '1px solid rgba(100,220,160,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+              <Check size={22} style={{ color: 'rgba(100,220,160,0.9)' }} />
+            </div>
+
+            {/* Message */}
+            <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.8)', fontWeight: 500, lineHeight: 1.5, margin: 0 }}>
+              {boasVindasRef.current.msg}
+            </p>
+
+            {/* Info rows */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.4)', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={14} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+                <span>Caixa aberto às {boasVindasRef.current.hora}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <DollarSign size={14} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+                <span>Saldo inicial: {fmt(saldoInicial / 100)}</span>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }} />
+
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', margin: 0 }}>Fechando em instantes...</p>
+          </div>
+        </div>
+      )}
 
       {/* Modal Seleção de Variação */}
       {modalVariacao && produtoVariacao && (() => {
