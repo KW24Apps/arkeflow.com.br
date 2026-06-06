@@ -12,7 +12,6 @@ import * as LucideIcons from 'lucide-react'
 const HREF_ICONS: Record<string, string> = {
   '/painel/dashboard':                      'LayoutDashboard',
   '/painel/caixa':                          'ShoppingCart',
-  '/pdv':                                   'ShoppingCart',
   '/painel/promocoes':                      'Tag',
   '/painel/estoque':                        'Package',
   '/painel/financeiro':                     'Wallet',
@@ -36,7 +35,6 @@ export interface NavItem {
   label: string
   href?: string
   type?: 'divider'
-  external?: boolean
 }
 
 interface SidebarProps {
@@ -141,23 +139,23 @@ export function Sidebar({ items }: SidebarProps) {
             const active = !!(item.href && (pathname === item.href || pathname.startsWith(item.href + '/')))
             const iconName = (item as any).icon ?? (item.href ? HREF_ICONS[item.href] : undefined)
 
-            const navClass = `min-h-[40px] px-3 flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-all ${active ? 'bg-cyan-500/10 text-electric-cyan' : 'text-white/50 hover:text-white/80 hover:bg-white/5'}`
-            const navContent = (
-              <>
+            return (
+              <Link
+                key={item.href}
+                href={item.href!}
+                onClick={() => setOpen(false)}
+                className={`
+                  min-h-[40px] px-3 flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-all
+                  ${active
+                    ? 'bg-cyan-500/10 text-electric-cyan'
+                    : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                  }
+                `}
+              >
                 <span className={`shrink-0 ${active ? 'opacity-100' : 'opacity-60'}`}>
                   <NavIcon name={iconName} />
                 </span>
                 {item.label}
-              </>
-            )
-
-            return item.external ? (
-              <a key={item.href} href={item.href!} className={navClass}>
-                {navContent}
-              </a>
-            ) : (
-              <Link key={item.href} href={item.href!} onClick={() => setOpen(false)} className={navClass}>
-                {navContent}
               </Link>
             )
           })}
