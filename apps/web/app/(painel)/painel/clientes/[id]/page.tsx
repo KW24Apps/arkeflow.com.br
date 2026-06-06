@@ -14,28 +14,41 @@ type Aba = 'main' | 'compras'
 
 function fmtCPF(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11)
-  if (d.length > 9) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, '$1.$2.$3-$4')
-  if (d.length > 6) return d.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3')
-  if (d.length > 3) return d.replace(/(\d{3})(\d{0,3})/, '$1.$2')
-  return d
+  if (d.length <= 3) return d
+  if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`
+  if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`
+  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`
 }
 
 function fmtCNPJ(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 14)
-  if (d.length > 12) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, '$1.$2.$3/$4-$5')
-  if (d.length > 8)  return d.replace(/(\d{2})(\d{3})(\d{3})(\d{0,4})/, '$1.$2.$3/$4')
-  if (d.length > 5)  return d.replace(/(\d{2})(\d{3})(\d{0,3})/, '$1.$2.$3')
-  if (d.length > 2)  return d.replace(/(\d{2})(\d{0,3})/, '$1.$2')
-  return d
+  if (d.length <= 2)  return d
+  if (d.length <= 5)  return `${d.slice(0,2)}.${d.slice(2)}`
+  if (d.length <= 8)  return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5)}`
+  if (d.length <= 12) return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8)}`
+  return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`
 }
 
 function fmtPhone(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11)
-  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
-  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
-  if (d.length > 6)    return d.replace(/(\d{2})(\d{4})(\d+)/, '($1) $2-$3')
-  if (d.length > 2)    return d.replace(/(\d{2})(\d+)/, '($1) $2')
-  return d
+  if (d.length === 0) return ''
+  if (d.length <= 2)  return `(${d}`
+  if (d.length <= 6)  return `(${d.slice(0,2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`
+  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`
+}
+
+function validateCPF(cpf: string): boolean {
+  const d = cpf.replace(/\D/g, '')
+  if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false
+  let s = 0
+  for (let i = 0; i < 9; i++) s += +d[i] * (10 - i)
+  let r = (s * 10) % 11; if (r >= 10) r = 0
+  if (r !== +d[9]) return false
+  s = 0
+  for (let i = 0; i < 10; i++) s += +d[i] * (11 - i)
+  r = (s * 10) % 11; if (r >= 10) r = 0
+  return r === +d[10]
 }
 
 function fmtCEP(v: string) {
@@ -110,6 +123,7 @@ export default function ClienteDetalhe() {
   const [tipoPessoa,      setTipoPessoa]      = useState<'fisica' | 'juridica'>('fisica')
   const [nome,            setNome]            = useState('')
   const [cpf,             setCpf]             = useState('')
+  const [cpfValidity,     setCpfValidity]     = useState<null | 'valid' | 'invalid'>(null)
   const [telefones,       setTelefones]       = useState<string[]>([''])
   const [emails,          setEmails]          = useState<string[]>([''])
   const [emailErrors,     setEmailErrors]     = useState<Record<number,boolean>>({})
@@ -317,7 +331,7 @@ export default function ClienteDetalhe() {
               {/* PF / PJ toggle */}
               <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '3px' }} className="flex gap-1">
                 {(['fisica', 'juridica'] as const).map(tp => (
-                  <button key={tp} onClick={() => setTipoPessoa(tp)}
+                  <button key={tp} onClick={() => { setTipoPessoa(tp); setCpfValidity(null) }}
                     style={{
                       flex: 1, padding: '7px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, border: 'none',
                       background: tipoPessoa === tp ? 'rgba(0,239,255,0.15)' : 'transparent',
@@ -341,9 +355,25 @@ export default function ClienteDetalhe() {
                 <Lbl>{tipoPessoa === 'juridica' ? 'CNPJ' : 'CPF'}</Lbl>
                 <GInput
                   value={cpf}
-                  onChange={e => setCpf(tipoPessoa === 'juridica' ? fmtCNPJ(e.target.value) : fmtCPF(e.target.value))}
+                  onChange={e => {
+                    setCpfValidity(null)
+                    setCpf(tipoPessoa === 'juridica' ? fmtCNPJ(e.target.value) : fmtCPF(e.target.value))
+                  }}
+                  onBlur={() => {
+                    if (tipoPessoa === 'fisica' && cpf.replace(/\D/g, '').length === 11) {
+                      setCpfValidity(validateCPF(cpf) ? 'valid' : 'invalid')
+                    }
+                  }}
+                  borderColor={
+                    cpfValidity === 'invalid' ? 'rgba(240,100,100,0.5)' :
+                    cpfValidity === 'valid'   ? 'rgba(100,220,160,0.4)' :
+                    undefined
+                  }
                   placeholder={tipoPessoa === 'juridica' ? '00.000.000/0000-00' : '000.000.000-00'}
                 />
+                {cpfValidity === 'invalid' && tipoPessoa === 'fisica' && (
+                  <p style={{ fontSize: '10px', color: 'rgba(240,100,100,0.7)', marginTop: '3px' }}>CPF inválido</p>
+                )}
               </div>
 
               {/* Telefones */}
