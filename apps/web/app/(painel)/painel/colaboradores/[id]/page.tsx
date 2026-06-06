@@ -364,24 +364,23 @@ export default function ColaboradorDetalhe() {
             </div>
           </div>
 
-          {/* Tab bar (main) or back button (logs) */}
-          {view === 'main' ? (
-            <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px' }} className="flex shrink-0">
-              <button style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', background: 'rgba(0,239,255,0.15)', color: '#0ef', cursor: 'default' }}>
-                Dados cadastrais
-              </button>
-              <button onClick={() => setView('logs')} style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
-                Logs ({logs.length})
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => setView('main')} style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>
-                ← Voltar aos dados
-              </button>
-              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>Logs de acesso ({logs.length})</span>
-            </div>
-          )}
+          {/* Tab bar — always visible */}
+          <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px' }} className="flex shrink-0">
+            <button onClick={() => setView('main')}
+              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: view === 'main' ? 'default' : 'pointer', transition: 'background 0.15s, color 0.15s',
+                background: view === 'main' ? 'rgba(0,239,255,0.15)' : 'transparent',
+                color:      view === 'main' ? '#0ef' : 'rgba(255,255,255,0.4)',
+              }}>
+              Dados cadastrais
+            </button>
+            <button onClick={() => setView('logs')}
+              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: view === 'logs' ? 'default' : 'pointer', transition: 'background 0.15s, color 0.15s', whiteSpace: 'nowrap',
+                background: view === 'logs' ? 'rgba(0,239,255,0.15)' : 'transparent',
+                color:      view === 'logs' ? '#0ef' : 'rgba(255,255,255,0.4)',
+              }}>
+              Logs ({logs.length})
+            </button>
+          </div>
         </div>
 
         {/* ── Scrollable content ─────────────────────────────────────────── */}

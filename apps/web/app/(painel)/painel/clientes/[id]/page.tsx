@@ -317,36 +317,32 @@ export default function ClienteDetalhe() {
             </div>
           </div>
 
-          {/* KPIs + tab bar */}
+          {/* KPIs + tab bar — always visible */}
           <div className="shrink-0 flex items-center gap-2">
-            {aba === 'main' && (
-              <>
-                <div style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px 10px', textAlign: 'right' }}>
-                  <p style={{ fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)' }}>Total gasto</p>
-                  <p style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginTop: '1px' }}>R$ {totalGasto.toFixed(0)}</p>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px 10px', textAlign: 'right' }}>
-                  <p style={{ fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)' }}>Cashback</p>
-                  <p style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginTop: '1px' }}>R$ {Number(cliente.saldo_cashback).toFixed(2)}</p>
-                </div>
-                <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px' }} className="flex">
-                  <button style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', background: 'rgba(0,239,255,0.15)', color: '#0ef', cursor: 'default' }}>
-                    Dados
-                  </button>
-                  <button onClick={() => setAba('compras')} style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                    Compras ({historico.length})
-                  </button>
-                </div>
-              </>
-            )}
-            {aba === 'compras' && (
-              <>
-                <button onClick={() => setAba('main')} style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>
-                  ← Voltar aos dados
-                </button>
-                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>Histórico de compras</span>
-              </>
-            )}
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px 10px', textAlign: 'right' }}>
+              <p style={{ fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)' }}>Total gasto</p>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginTop: '1px' }}>R$ {totalGasto.toFixed(0)}</p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '3px 10px', textAlign: 'right' }}>
+              <p style={{ fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)' }}>Cashback</p>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginTop: '1px' }}>R$ {Number(cliente.saldo_cashback).toFixed(2)}</p>
+            </div>
+            <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px' }} className="flex">
+              <button onClick={() => setAba('main')}
+                style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: aba === 'main' ? 'default' : 'pointer', transition: 'background 0.15s, color 0.15s',
+                  background: aba === 'main' ? 'rgba(0,239,255,0.15)' : 'transparent',
+                  color:      aba === 'main' ? '#0ef' : 'rgba(255,255,255,0.4)',
+                }}>
+                Dados
+              </button>
+              <button onClick={() => setAba('compras')}
+                style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: aba === 'compras' ? 'default' : 'pointer', transition: 'background 0.15s, color 0.15s', whiteSpace: 'nowrap',
+                  background: aba === 'compras' ? 'rgba(0,239,255,0.15)' : 'transparent',
+                  color:      aba === 'compras' ? '#0ef' : 'rgba(255,255,255,0.4)',
+                }}>
+                Compras ({historico.length})
+              </button>
+            </div>
           </div>
         </div>
 
