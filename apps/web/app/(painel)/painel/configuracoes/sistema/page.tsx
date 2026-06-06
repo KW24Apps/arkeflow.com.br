@@ -53,7 +53,7 @@ export default function ConfigSistemaPage() {
   const [controleEstoque, setControleEstoque] = useState(true)
   const [preview,         setPreview]         = useState<string | null>(null)
 
-  const [descontoMaxPct,         setDescontoMaxPct]         = useState('0')
+  const [descontoMaxPct,         setDescontoMaxPct]         = useState(0)
   const [descontoMaxValorCents,  setDescontoMaxValorCents]  = useState(0)
   const [promocaoAceitaDesconto, setPromocaoAceitaDesconto] = useState(false)
   const [descontoSaved,          setDescontoSaved]          = useState(false)
@@ -63,7 +63,7 @@ export default function ConfigSistemaPage() {
       setCfg(r.data)
       setControleEstoque(r.data.controle_estoque)
       if (r.data.logo_url_loja) setPreview(r.data.logo_url_loja)
-      setDescontoMaxPct(String(Number(r.data.desconto_max_percentual ?? 0)))
+      setDescontoMaxPct(Number(r.data.desconto_max_percentual ?? 0))
       setDescontoMaxValorCents(Math.round(Number(r.data.desconto_max_valor ?? 0) * 100))
       setPromocaoAceitaDesconto(r.data.promocao_aceita_desconto ?? false)
     }).finally(() => setLoading(false))
@@ -128,26 +128,26 @@ export default function ConfigSistemaPage() {
     <>
       <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
 
           {/* ── LEFT: Logo ──────────────────────────────────────────── */}
-          <div style={CARD} className="flex flex-col gap-4">
+          <div style={CARD} className="flex flex-col gap-3">
             <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Logo da Loja</p>
             <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
-              Quando configurada, substitui o logotipo ARKEflow. Formatos: PNG, JPG, SVG, WebP. Redimensionada para 400×200px.
+              Substitui o logotipo ARKEflow. PNG, JPG, SVG ou WebP — redimensionado para 400×200px.
             </p>
 
             {/* Preview centered */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center justify-center overflow-hidden"
-                style={{ width: '100%', height: '80px', background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px' }}
+                style={{ width: '100%', height: '52px', background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px' }}
               >
                 {preview ? (
                   <img
                     src={preview.startsWith('blob:') ? preview : preview + '?t=' + Date.now()}
                     alt="Logo da loja"
-                    style={{ maxHeight: '80px', maxWidth: '100%', objectFit: 'contain', mixBlendMode: 'screen' }}
+                    style={{ maxHeight: '52px', maxWidth: '100%', objectFit: 'contain', mixBlendMode: 'screen' }}
                     onError={() => setPreview(null)}
                   />
                 ) : (
@@ -166,7 +166,7 @@ export default function ConfigSistemaPage() {
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={enviandoLogo}
-                className="w-full min-h-[40px] disabled:opacity-40 transition-opacity"
+                className="w-full min-h-[36px] disabled:opacity-40 transition-opacity"
                 style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', color: '#0ef', borderRadius: '8px', fontSize: '13px', fontWeight: 500 }}
               >
                 {enviandoLogo ? 'Enviando...' : preview ? 'Trocar logo' : 'Enviar logo'}
@@ -193,10 +193,10 @@ export default function ConfigSistemaPage() {
           </div>
 
           {/* ── RIGHT: Estoque ──────────────────────────────────────── */}
-          <div style={CARD} className="flex flex-col gap-4">
+          <div style={CARD} className="flex flex-col gap-3">
             <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Estoque</p>
 
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
                 <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Controle de estoque global</p>
                 <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
@@ -229,7 +229,7 @@ export default function ConfigSistemaPage() {
           </div>
 
           {/* ── Desconto ────────────────────────────────────────────── */}
-          <div style={CARD} className="flex flex-col gap-4 md:col-span-2">
+          <div style={CARD} className="flex flex-col gap-3">
             <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Desconto</p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -239,14 +239,14 @@ export default function ConfigSistemaPage() {
                   <input
                     type="number" min="0" max="100" step="0.1"
                     value={descontoMaxPct}
-                    onChange={e => setDescontoMaxPct(e.target.value)}
+                    onChange={e => setDescontoMaxPct(parseFloat(e.target.value) || 0)}
                     onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
                     onBlur={e => {
                       e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
-                      handleSaveDesconto({ desconto_max_percentual: parseFloat(descontoMaxPct) || 0 })
+                      handleSaveDesconto({ desconto_max_percentual: descontoMaxPct })
                     }}
-                    className="w-full min-h-[44px] px-4 pr-8 outline-none"
-                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px' }}
+                    className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
                   />
                   <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
                 </div>
@@ -257,8 +257,8 @@ export default function ConfigSistemaPage() {
                   value={descontoMaxValorCents}
                   onChange={setDescontoMaxValorCents}
                   onBlur={() => handleSaveDesconto({ desconto_max_valor: descontoMaxValorCents / 100 })}
-                  className="w-full min-h-[44px] px-4 outline-none"
-                  style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px' }}
+                  className="w-full min-h-[38px] px-3 outline-none"
+                  style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
                 />
               </div>
             </div>
