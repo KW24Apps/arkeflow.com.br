@@ -101,8 +101,8 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
 
     const ehDinheiro = formaAtual.tipo === 'dinheiro'
 
-    // Non-cash: amount must not exceed the current remaining balance
-    if (!ehDinheiro && valAtual > restante + 0.01) {
+    // Non-cash: amount must not exceed the effective remaining (after discount)
+    if (!ehDinheiro && valAtual > restanteComDescontoAtual + 0.01) {
       return 'Valor inválido: pagamento excede o saldo restante.'
     }
 
@@ -193,21 +193,21 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
         vendedor_nome:      vendedor_nome ?? null,
       })
 
-      if (troco > 0.01) {
-        // Show troco modal before closing — onSuccess called after cashier confirms
-        setTrocoFinal(troco)
-        setResultadoVenda(r)
-      } else {
-        onSuccess(r)
-      }
+      resetState()
+      onSuccess(r)
     } catch (e: any) {
       setErro(e?.response?.data?.error ?? 'Erro ao registrar venda.')
       setProcessando(false)
     }
   }
 
+  function resetState() {
+    setPagamentos([]); setValorAtual(''); setDescontoPct(0); setParcelas(1)
+    setErro(''); setTrocoFinal(0); setResultadoVenda(null); setProcessando(false)
+  }
+
   function confirmarTroco() {
-    if (resultadoVenda) onSuccess(resultadoVenda)
+    if (resultadoVenda) { resetState(); onSuccess(resultadoVenda) }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -328,7 +328,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
                     erro ? 'border-red-400 focus:border-red-400' : 'border-ocean-depth focus:border-electric-cyan'
                   }`}
                 />
-                {troco > 0.01 && (
+                {formaAtual?.tipo === 'dinheiro' && troco > 0.01 && (
                   <p className="text-mint-green text-sm text-center font-medium">Troco: {fmt(troco)}</p>
                 )}
               </div>
