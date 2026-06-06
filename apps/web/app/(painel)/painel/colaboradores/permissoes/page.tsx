@@ -168,7 +168,7 @@ export default function ModelosPermissaoPage() {
                   {m.nome}
                 </p>
                 <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>
-                  {m.permissoes.length} permissão{m.permissoes.length !== 1 ? 'ões' : ''} ativa{m.permissoes.length !== 1 ? 's' : ''}
+                  {m.permissoes.length} {m.permissoes.length !== 1 ? 'permissões ativas' : 'permissão ativa'}
                 </p>
                 {m.permissoes.length > 0 && (
                   <div className="flex flex-wrap gap-1">

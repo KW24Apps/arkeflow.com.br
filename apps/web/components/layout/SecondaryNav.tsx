@@ -17,8 +17,13 @@ export function SecondaryNav({ items, inline = false }: Props) {
   const pathname = usePathname()
   if (!items.length) return null
 
+  // Exact match wins; startsWith only activates when no other tab has an exact match
+  const hasExactMatch = items.some(item => pathname === item.href)
+
   const links = items.map(item => {
-    const active = pathname === item.href || pathname.startsWith(item.href + '/')
+    const exact    = pathname === item.href
+    const prefix   = pathname.startsWith(item.href + '/')
+    const active   = exact || (!hasExactMatch && prefix)
     return (
       <Link
         key={item.href}
