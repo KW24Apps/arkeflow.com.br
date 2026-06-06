@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { clientesApi, type Cliente } from '@/lib/api/clientes'
 
 interface Props {
@@ -32,16 +32,17 @@ const LBL: React.CSSProperties = {
   marginBottom: '5px',
 }
 
-function GInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
+const GInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  (props, ref) => (
     <input
       {...props}
+      ref={ref}
       style={{ ...INPUT_STYLE, ...props.style }}
       onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)'; props.onFocus?.(e) }}
       onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; props.onBlur?.(e) }}
     />
   )
-}
+)
 
 export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Props) {
   const searchRef = useRef<HTMLInputElement>(null)
