@@ -1,38 +1,41 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { colaboradoresApi, type Colaborador } from '@/lib/api/colaboradores'
 import { useAuthStore } from '@/store/auth.store'
 
 const DIAS_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
+const CARD = {
+  background: 'rgba(8,18,30,0.48)',
+  backdropFilter: 'blur(8px)',
+  border: '0.5px solid rgba(255,255,255,0.09)',
+  borderRadius: '10px',
+}
+
+function lastAccessLabel(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (diff < 2)   return 'agora'
+  if (diff < 60)  return `há ${diff}min`
+  const h = Math.floor(diff / 60)
+  if (h  < 24)  return `há ${h}h`
+  const d = Math.floor(h / 24)
+  if (d  < 7)   return `há ${d}d`
+  return new Date(iso).toLocaleDateString('pt-BR')
+}
+
 export default function ColaboradoresPage() {
-  const usuarioLogado = useAuthStore(s => s.usuario)
+  const router         = useRouter()
+  const usuarioLogado  = useAuthStore(s => s.usuario)
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading,       setLoading]       = useState(true)
 
   useEffect(() => {
     colaboradoresApi.list().then(setColaboradores).finally(() => setLoading(false))
   }, [])
-
-  async function handleDesativar(id: string) {
-    if (!confirm('Desativar este colaborador?')) return
-    await colaboradoresApi.remove(id)
-    setColaboradores(prev => prev.filter(c => c.id !== id))
-  }
-
-  async function handleExcluir(id: string) {
-    if (!confirm('Excluir permanentemente este colaborador? Esta ação não pode ser desfeita.')) return
-    try {
-      await colaboradoresApi.excluir(id)
-      setColaboradores(prev => prev.filter(c => c.id !== id))
-    } catch (err: any) {
-      const msg = err?.response?.data?.error ?? 'Erro ao excluir.'
-      alert(msg)
-    }
-  }
 
   async function handleToggleAtivo(c: Colaborador) {
     const novoStatus = !c.ativo
@@ -50,79 +53,118 @@ export default function ColaboradoresPage() {
   return (
     <>
       <TopBar />
-      <main className="flex-1 p-4 md:p-6 overflow-y-auto pb-6">
-        <div className="max-w-lg flex flex-col gap-2">
+      <main className="flex-1 p-4 md:p-5 overflow-y-auto pb-20">
 
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            colaboradores.map(c => {
-              const isMe   = c.id === usuarioLogado?.id
-              const isDono = c.nivel === 'dono_loja'
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
+            {colaboradores.map(c => {
+              const isMe    = c.id === usuarioLogado?.id
+              const isDono  = c.nivel === 'dono_loja'
               const horario = horarioLabel(c)
 
               return (
-                <div key={c.id} className="bg-deep-ocean border border-ocean-depth rounded-2xl p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-ocean-depth flex items-center justify-center shrink-0">
-                    <span className="text-sea-foam font-semibold text-sm">{c.nome.charAt(0).toUpperCase()}</span>
-                  </div>
+                <div
+                  key={c.id}
+                  onClick={() => router.push(`/painel/colaboradores/${c.id}`)}
+                  className="p-4 flex flex-col gap-3 cursor-pointer active:scale-[0.98] transition-all"
+                  style={{ ...CARD, opacity: c.ativo ? 1 : 0.5 }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+                >
+                  {/* Top row: avatar + info */}
+                  <div className="flex items-start gap-3">
+                    {/* Avatar */}
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                      style={{ background: 'rgba(0,239,255,0.15)' }}
+                    >
+                      <span style={{ color: '#0ef', fontWeight: 600, fontSize: '15px' }}>
+                        {c.nome.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sea-foam font-medium text-sm">{c.nome}</p>
-                      {isDono && (
-                        <span className="bg-electric-cyan/20 text-electric-cyan text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide">Dono</span>
+                    {/* Name + badges + meta */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500, fontSize: '14px' }}>
+                          {c.nome}
+                        </p>
+                        {isDono && (
+                          <span style={{
+                            background: 'rgba(0,239,255,0.15)', color: '#0ef',
+                            fontSize: '9px', padding: '2px 7px', borderRadius: '9999px',
+                            textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600,
+                          }}>
+                            Dono
+                          </span>
+                        )}
+                        {isMe && (
+                          <span style={{
+                            background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)',
+                            fontSize: '9px', padding: '2px 7px', borderRadius: '9999px',
+                            textTransform: 'uppercase',
+                          }}>
+                            Você
+                          </span>
+                        )}
+                      </div>
+
+                      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginTop: '3px' }}>
+                        {c.email}
+                      </p>
+
+                      {c.ultimo_acesso && (
+                        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px', marginTop: '2px' }}>
+                          {lastAccessLabel(c.ultimo_acesso)}
+                        </p>
                       )}
-                      {isMe && (
-                        <span className="bg-ocean-depth text-steel text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide">Você</span>
-                      )}
-                      {!c.ativo && (
-                        <span className="bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide">Bloqueado</span>
+
+                      {horario && (
+                        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px', marginTop: '2px' }}>
+                          {horario}
+                        </p>
                       )}
                     </div>
-                    <p className="text-steel text-xs">{c.email}</p>
-                    {!isDono && <p className="text-steel text-xs mt-0.5">{c.permissoes.length} menu(s)</p>}
-                    {horario && <p className="text-teal-current text-xs mt-0.5">🕐 {horario}</p>}
-                    {c.ultimo_acesso && (
-                      <p className="text-steel text-xs">
-                        Último acesso: {new Date(c.ultimo_acesso).toLocaleString('pt-BR')}
-                      </p>
-                    )}
                   </div>
 
-                  <div className="flex gap-1 shrink-0 items-center">
-                    {/* Toggle liga/desliga — só para vendedores, não para mim mesmo */}
-                    {!isDono && !isMe && (
-                      <button
-                        onClick={() => handleToggleAtivo(c)}
-                        title={c.ativo ? 'Bloquear acesso' : 'Liberar acesso'}
-                        className={`w-10 h-6 rounded-full transition-colors relative ${c.ativo ? 'bg-electric-cyan' : 'bg-ocean-depth'}`}
-                      >
-                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${c.ativo ? 'left-5' : 'left-1'}`} />
-                      </button>
-                    )}
-                    <Link href={`/painel/colaboradores/${c.id}`}
-                      className="min-h-[40px] min-w-[40px] text-steel hover:text-electric-cyan rounded-lg hover:bg-ocean-depth flex items-center justify-center text-sm transition-colors">
-                      ✏️
-                    </Link>
-                    {!isDono && !isMe && (
-                      <button onClick={() => handleExcluir(c.id)}
-                        className="min-h-[40px] min-w-[40px] text-steel hover:text-red-400 rounded-lg hover:bg-ocean-depth flex items-center justify-center text-sm transition-colors"
-                        title="Excluir permanentemente">
-                        🗑️
-                      </button>
-                    )}
-                  </div>
+                  {/* Toggle pill — only for non-dono, non-self */}
+                  {!isDono && !isMe && (
+                    <button
+                      onClick={e => { e.stopPropagation(); handleToggleAtivo(c) }}
+                      className="self-start font-medium uppercase tracking-wide transition-opacity"
+                      style={c.ativo ? {
+                        background: 'rgba(100,220,160,0.15)', color: 'rgba(100,220,160,0.8)',
+                        fontSize: '10px', padding: '3px 10px', borderRadius: '9999px', border: 'none',
+                      } : {
+                        background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)',
+                        fontSize: '10px', padding: '3px 10px', borderRadius: '9999px', border: 'none',
+                      }}
+                    >
+                      {c.ativo ? 'Ativo' : 'Inativo'}
+                    </button>
+                  )}
                 </div>
               )
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
 
-        <Link href="/painel/colaboradores/novo"
-          className="fixed bottom-6 right-6 w-14 h-14 bg-electric-cyan text-midnight rounded-full text-2xl font-bold flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+        {/* FAB — new collaborator */}
+        <Link
+          href="/painel/colaboradores/novo"
+          className="fixed bottom-6 right-6 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          style={{
+            width: '48px', height: '48px',
+            background: 'rgba(0,239,255,0.9)',
+            borderRadius: '50%',
+            color: '#0a1e2a',
+            fontSize: '24px', fontWeight: 700,
+          }}
+        >
           +
         </Link>
       </main>
