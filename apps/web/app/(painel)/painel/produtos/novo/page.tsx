@@ -91,7 +91,7 @@ export default function NovoProdutoPage() {
           composicao_itens: composicaoItens as any,
           preco_base: parseCurrency(preco) as any,
           controle_estoque: controleEstoque,
-        })
+        } as any)
         const p = await produtosApi.get(produtoId)
         setProduto(p); return produtoId
       } else {
