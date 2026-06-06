@@ -284,13 +284,6 @@ export default function CaixaPage() {
       <TopBar />
       <div className="flex flex-col flex-1 overflow-hidden min-h-0">
 
-      {/* Barra de status mínima */}
-      <div className="shrink-0 h-10 bg-deep-ocean border-b border-ocean-depth px-4 flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-mint-green shrink-0" />
-        <span className="text-mint-green text-xs font-semibold uppercase tracking-wide">Caixa Aberto</span>
-        <span className="text-steel text-xs">— {nomeOp}</span>
-      </div>
-
       {/* Split panel */}
       <div className="flex flex-1 overflow-hidden">
 
@@ -450,6 +443,13 @@ export default function CaixaPage() {
             <>
               {/* ── Top: total + cashback (scrollable area) ─────────────── */}
               <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+                {/* Operador */}
+                <p className="text-xs text-steel flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-mint-green shrink-0" />
+                  <span className="text-mint-green font-medium">Caixa Aberto</span>
+                  <span>— {nomeOp}</span>
+                </p>
+
                 {/* Total da venda */}
                 <div>
                   <p className="text-steel text-xs uppercase tracking-wider mb-1">Total da Venda</p>
