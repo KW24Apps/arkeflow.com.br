@@ -12,7 +12,7 @@ module.exports = {
     {
       name: 'arkeflow-web',
       cwd: './apps/web',
-      script: 'node_modules/.bin/next',
+      script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3000',
       env_production: {
         NODE_ENV: 'production',
