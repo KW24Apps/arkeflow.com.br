@@ -136,6 +136,32 @@ export const SECTIONS = [
     ],
   },
 
+  // ── Ajuda ────────────────────────────────────────────────────────────────────
+
+  { type: 'divider', label: 'Ajuda' },
+
+  {
+    label: 'Suporte',
+    icon:  'LifeBuoy',
+    href:  '/painel/suporte',
+    match: ['/painel/suporte'],
+    sub:   [],
+  },
+  {
+    label: 'Tutoriais',
+    icon:  'GraduationCap',
+    href:  '/painel/tutoriais',
+    match: ['/painel/tutoriais'],
+    sub:   [],
+  },
+  {
+    label: 'Novidades',
+    icon:  'Bell',
+    href:  '/painel/novidades',
+    match: ['/painel/novidades'],
+    sub:   [],
+  },
+
   // ── Configurações (rodapé — ícone de engrenagem, não aparece no sidebar principal)
   // Gerenciado separadamente no componente da sidebar
 
