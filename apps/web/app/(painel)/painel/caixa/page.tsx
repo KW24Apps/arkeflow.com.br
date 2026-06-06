@@ -100,6 +100,7 @@ export default function CaixaPage() {
 
   // ── Abertura ─────────────────────────────────────────────────────────────
   const obsAberturaRef = useRef<HTMLInputElement>(null)
+  const obsFechRef     = useRef<HTMLInputElement>(null)
 
   // ── Scanner / busca ───────────────────────────────────────────────────────
   const scanRef      = useRef<HTMLInputElement>(null)
@@ -944,6 +945,7 @@ export default function CaixaPage() {
                       <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Valor contado em caixa</p>
                       <CurrencyInput
                         value={saldoFinal} onChange={setSaldoFinal}
+                        onEnter={() => obsFechRef.current?.focus()}
                         autoFocus placeholder="R$ 0,00"
                         style={{ background: 'rgba(0,239,255,0.05)', border: '1px solid rgba(0,239,255,0.25)', borderRadius: '10px', padding: '12px 16px', fontSize: '20px', fontWeight: 600, color: 'rgba(255,255,255,0.88)', outline: 'none', width: '100%', textAlign: 'center' }}
                       />
@@ -962,7 +964,9 @@ export default function CaixaPage() {
                     {/* Observacao */}
                     <div>
                       <label style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '6px' }}>Observação (opcional)</label>
-                      <input type="text" value={obsFech} onChange={e => setObsFech(e.target.value)}
+                      <input ref={obsFechRef} type="text" value={obsFech}
+                        onChange={e => setObsFech(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && !salvMov && !fechLoad && handleFechar()}
                         placeholder="Ex: fechamento de sábado"
                         style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: 'rgba(255,255,255,0.75)', outline: 'none', width: '100%' }}
                         onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
