@@ -58,6 +58,9 @@ function Lbl({ children }: { children: React.ReactNode }) {
   )
 }
 
+const isUUID  = (v: any): boolean => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
+const isEmail = (v: any): boolean => typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+
 function GField({ label, value, onChange, onBlur, type = 'text', placeholder = '' }: { label: string; value: string; onChange: (v: string) => void; onBlur?: () => void; type?: string; placeholder?: string }) {
   return (
     <div className="flex flex-col">
@@ -195,9 +198,9 @@ export default function ColaboradorDetalhe() {
     try {
       await colaboradoresApi.updateAcesso(id, {
         nome,
-        ...(email ? { email } : {}),
-        username:            username || null,
-        modelo_permissao_id: modeloId || null,
+        ...(isEmail(email) ? { email } : {}),
+        username:            (username && username.length >= 3) ? username : null,
+        modelo_permissao_id: isUUID(modeloId) ? modeloId : null,
         permissoes:          Array.isArray(permissoes) ? permissoes : [],
         dias_semana:         diasSemana,
         hora_inicio:         diasSemana ? horaInicio : null,
@@ -234,9 +237,9 @@ export default function ColaboradorDetalhe() {
     try {
       await colaboradoresApi.updateAcesso(id, {
         nome,
-        ...(email ? { email } : {}),
-        username:            username || null,
-        modelo_permissao_id: modeloId || null,
+        ...(isEmail(email) ? { email } : {}),
+        username:            (username && username.length >= 3) ? username : null,
+        modelo_permissao_id: isUUID(modeloId) ? modeloId : null,
         permissoes:          Array.isArray(permissoes) ? permissoes : [],
         dias_semana:         diasSemana,
         hora_inicio:         diasSemana ? horaInicio : null,
