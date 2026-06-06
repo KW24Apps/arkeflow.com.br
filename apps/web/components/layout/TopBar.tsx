@@ -34,8 +34,11 @@ export function TopBar() {
     || 'Usuário'
 
   return (
-    <header className="h-14 bg-midnight/50 backdrop-blur-sm border-b border-ocean-depth flex items-center shrink-0">
-      {/* Sub-navigation tabs — scrollable, fills remaining space */}
+    <header
+      className="h-12 bg-midnight/50 backdrop-blur-sm flex items-center shrink-0"
+      style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}
+    >
+      {/* Sub-navigation tabs */}
       <div className="flex-1 overflow-x-auto scrollbar-none min-w-0">
         <PainelSecondaryNav inline />
       </div>
@@ -44,38 +47,46 @@ export function TopBar() {
       <div className="relative shrink-0 pr-3 md:pr-4" ref={menuRef}>
         <button
           onClick={() => setOpen(v => !v)}
-          className="flex items-center gap-2 min-h-[40px] px-3 rounded-xl hover:bg-ocean-depth transition-colors"
+          className="flex items-center gap-2 min-h-[36px] px-2.5 rounded-xl hover:bg-white/5 transition-colors"
         >
-          <div className="w-7 h-7 rounded-full bg-ocean-depth flex items-center justify-center shrink-0">
-            <span className="text-sea-foam text-xs font-semibold uppercase">{nomeExibido.charAt(0)}</span>
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 border"
+            style={{ background: 'rgba(0,212,212,0.15)', borderColor: 'rgba(0,212,212,0.3)' }}
+          >
+            <span className="text-electric-cyan text-xs font-semibold uppercase">
+              {nomeExibido.charAt(0)}
+            </span>
           </div>
-          <span className="text-sea-foam text-sm hidden sm:block">{nomeExibido}</span>
-          <span className="text-steel text-xs">▾</span>
+          <span className="text-white/60 text-sm hidden sm:block">{nomeExibido}</span>
+          <span className="text-white/30 text-xs">▾</span>
         </button>
 
         {open && (
-          <div className="absolute right-0 top-full mt-1 w-56 bg-deep-ocean border border-ocean-depth rounded-2xl shadow-xl z-50 overflow-hidden">
-            <div className="px-4 py-3 border-b border-ocean-depth">
+          <div
+            className="absolute right-0 top-full mt-1 w-56 rounded-2xl shadow-xl z-50 overflow-hidden"
+            style={{ background: 'rgba(10,30,42,0.92)', backdropFilter: 'blur(12px)', border: '0.5px solid rgba(255,255,255,0.1)' }}
+          >
+            <div className="px-4 py-3" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
               <p className="text-sea-foam text-sm font-medium">{usuario?.email}</p>
-              <p className="text-steel text-xs capitalize">{usuario?.nivel?.replace('_', ' ')}</p>
+              <p className="text-white/30 text-xs capitalize">{usuario?.nivel?.replace('_', ' ')}</p>
             </div>
 
             <a href="/painel/perfil"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2 min-h-[44px] px-4 text-sm text-steel hover:text-sea-foam hover:bg-ocean-depth transition-colors">
+              className="flex items-center gap-2 min-h-[44px] px-4 text-sm text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors">
               <span>👤</span> Meus Dados
             </a>
 
-            <div className="px-4 py-2 border-b border-ocean-depth">
-              <p className="text-steel text-[10px] uppercase tracking-wider mb-2">Baixar aplicativo</p>
+            <div className="px-4 py-2" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
+              <p className="text-white/30 text-[10px] uppercase tracking-wider mb-2">Baixar aplicativo</p>
               <div className="flex flex-col gap-1">
-                <button disabled className="flex items-center gap-2 min-h-[36px] text-sm text-steel/50 cursor-not-allowed">
+                <button disabled className="flex items-center gap-2 min-h-[36px] text-sm text-white/20 cursor-not-allowed">
                   <span>🪟</span> Windows (em breve)
                 </button>
-                <button disabled className="flex items-center gap-2 min-h-[36px] text-sm text-steel/50 cursor-not-allowed">
+                <button disabled className="flex items-center gap-2 min-h-[36px] text-sm text-white/20 cursor-not-allowed">
                   <span>🍎</span> macOS / iOS (em breve)
                 </button>
-                <button disabled className="flex items-center gap-2 min-h-[36px] text-sm text-steel/50 cursor-not-allowed">
+                <button disabled className="flex items-center gap-2 min-h-[36px] text-sm text-white/20 cursor-not-allowed">
                   <span>🤖</span> Android (em breve)
                 </button>
               </div>
@@ -83,7 +94,7 @@ export function TopBar() {
 
             <button
               onClick={() => { setOpen(false); logout() }}
-              className="w-full flex items-center gap-2 min-h-[44px] px-4 text-sm text-red-400 hover:bg-ocean-depth transition-colors"
+              className="w-full flex items-center gap-2 min-h-[44px] px-4 text-sm text-red-400/80 hover:bg-white/5 transition-colors"
             >
               <span>🚪</span> Sair
             </button>

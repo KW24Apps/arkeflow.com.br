@@ -24,10 +24,10 @@ export function SecondaryNav({ items, inline = false }: Props) {
         key={item.href}
         href={item.href}
         className={`
-          min-h-[44px] px-4 flex items-center text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+          min-h-[40px] px-4 flex items-center text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap
           ${active
             ? 'text-electric-cyan border-electric-cyan'
-            : 'text-steel border-transparent hover:text-sea-foam'
+            : 'text-white/40 border-transparent hover:text-white/70'
           }
         `}
       >
@@ -38,7 +38,7 @@ export function SecondaryNav({ items, inline = false }: Props) {
 
   if (inline) {
     return (
-      <div className="flex items-stretch h-14 pl-20 lg:pl-6 gap-1 pr-2 min-w-max">
+      <div className="flex items-stretch h-12 pl-20 lg:pl-6 gap-1 pr-2 min-w-max">
         {links}
       </div>
     )

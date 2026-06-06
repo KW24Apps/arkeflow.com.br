@@ -8,7 +8,22 @@ import { useLojaStore } from '@/store/loja.store'
 import { api } from '@/lib/api/client'
 import * as LucideIcons from 'lucide-react'
 
-function NavIcon({ name, size = 16 }: { name?: string; size?: number }) {
+// Href-based icon map — covers all known painel nav sections
+const HREF_ICONS: Record<string, string> = {
+  '/painel/dashboard':                      'LayoutDashboard',
+  '/painel/caixa':                          'ShoppingCart',
+  '/painel/promocoes':                      'Tag',
+  '/painel/estoque':                        'Package',
+  '/painel/financeiro':                     'Wallet',
+  '/painel/relatorios':                     'BarChart2',
+  '/painel/produtos':                       'Box',
+  '/painel/clientes':                       'Users',
+  '/painel/colaboradores':                  'UserCog',
+  '/painel/configuracoes/formas-pagamento': 'CreditCard',
+  '/painel/configuracoes/dados':            'Settings',
+}
+
+function NavIcon({ name, size = 15 }: { name?: string; size?: number }) {
   if (!name) return null
   const Icon = (LucideIcons as any)[name]
   if (!Icon) return null
@@ -26,7 +41,7 @@ interface SidebarProps {
   subtitle?: string
 }
 
-export function Sidebar({ items, subtitle }: SidebarProps) {
+export function Sidebar({ items }: SidebarProps) {
   const pathname  = usePathname()
   const router    = useRouter()
   const clearAuth = useAuthStore(s => s.clearAuth)
@@ -42,94 +57,120 @@ export function Sidebar({ items, subtitle }: SidebarProps) {
 
   return (
     <>
-      {/* Botão hamburguer — visível apenas em telas menores */}
+      {/* Hamburger — mobile only */}
       <button
         onClick={() => setOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 w-12 h-12 bg-deep-ocean border border-ocean-depth rounded-xl flex items-center justify-center"
+        className="lg:hidden fixed top-3 left-3 z-50 w-10 h-10 bg-midnight/60 backdrop-blur-sm border border-white/10 rounded-xl flex items-center justify-center"
         aria-label="Menu"
       >
         <span className="flex flex-col gap-1.5">
-          <span className="w-5 h-0.5 bg-sea-foam rounded" />
-          <span className="w-5 h-0.5 bg-sea-foam rounded" />
-          <span className="w-3 h-0.5 bg-sea-foam rounded" />
+          <span className="w-4 h-px bg-white/50 rounded" />
+          <span className="w-4 h-px bg-white/50 rounded" />
+          <span className="w-2.5 h-px bg-white/50 rounded" />
         </span>
       </button>
 
-      {/* Overlay ao abrir no mobile */}
+      {/* Mobile overlay */}
       {open && (
-        <div
-          className="lg:hidden fixed inset-0 bg-midnight/80 z-40"
-          onClick={() => setOpen(false)}
-        />
+        <div className="lg:hidden fixed inset-0 bg-midnight/80 z-40" onClick={() => setOpen(false)} />
       )}
 
       {/* Sidebar */}
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        w-64 min-h-screen bg-midnight/60 backdrop-blur-sm border-r border-ocean-depth
-        flex flex-col transition-transform duration-300
-        ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      <aside
+        className={`
+          fixed lg:static inset-y-0 left-0 z-50 w-60 h-screen
+          bg-midnight/60 backdrop-blur-sm
+          flex flex-col transition-transform duration-300
+          ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+        style={{ borderRight: '0.5px solid rgba(255,255,255,0.07)' }}
+      >
 
-        {/* Topo: logo do cliente OU ARKEflow */}
-        <div className="px-4 py-4 border-b border-ocean-depth flex items-center min-h-[64px]">
-          {logoUrl ? (
-            <img
-              src={logoUrl + '?t=' + Math.floor(Date.now() / 60000)}
-              alt="Logo"
-              className="max-h-10 max-w-[160px] object-contain"
-            />
-          ) : (
-            <span className="text-2xl font-black tracking-tight">
-              <span className="text-sea-foam">ARKE</span>
-              <span className="text-electric-cyan font-normal">flow</span>
-            </span>
-          )}
+        {/* Client logo slot */}
+        <div className="px-4 pt-4 pb-2 shrink-0">
+          <div
+            className="flex items-center justify-center rounded-lg overflow-hidden"
+            style={{
+              height: '44px',
+              background: 'rgba(255,255,255,0.05)',
+              border: '0.5px dashed rgba(255,255,255,0.15)',
+              borderRadius: '8px',
+            }}
+          >
+            {logoUrl ? (
+              <img
+                src={logoUrl + '?t=' + Math.floor(Date.now() / 60000)}
+                alt="Logo"
+                className="max-h-7 max-w-[140px] object-contain"
+              />
+            ) : (
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>
+                logo do cliente
+              </span>
+            )}
+          </div>
         </div>
 
-        <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto">
+        {/* Nav items */}
+        <nav className="flex-1 px-3 py-2 flex flex-col gap-0.5 overflow-y-auto">
           {items.map((item, i) => {
             if (item.type === 'divider') {
               return (
-                <div key={`div-${i}`} className="pt-3 pb-1 px-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-steel/60">{item.label}</p>
+                <div key={`div-${i}`} className="pt-4 pb-1.5 px-1 flex items-center gap-2">
+                  <span
+                    className="uppercase tracking-widest font-semibold shrink-0"
+                    style={{ fontSize: '8px', color: 'rgba(255,255,255,0.2)' }}
+                  >
+                    {item.label}
+                  </span>
+                  <div
+                    className="flex-1"
+                    style={{ height: '0.5px', background: 'rgba(255,255,255,0.1)' }}
+                  />
                 </div>
               )
             }
-            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+
+            const active = !!(item.href && (pathname === item.href || pathname.startsWith(item.href + '/')))
+            const iconName = (item as any).icon ?? (item.href ? HREF_ICONS[item.href] : undefined)
+
             return (
               <Link
                 key={item.href}
                 href={item.href!}
                 onClick={() => setOpen(false)}
                 className={`
-                  min-h-[48px] px-4 flex items-center gap-2.5 rounded-xl text-sm font-medium transition-all
+                  min-h-[40px] px-3 flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-all
                   ${active
-                    ? 'bg-electric-cyan text-midnight'
-                    : 'text-steel hover:text-sea-foam hover:bg-ocean-depth active:bg-ocean-depth'
+                    ? 'bg-cyan-500/10 text-electric-cyan'
+                    : 'text-white/50 hover:text-white/80 hover:bg-white/5'
                   }
                 `}
               >
-                {(item as any).icon && (
-                  <span className="shrink-0 opacity-70">
-                    <NavIcon name={(item as any).icon} />
-                  </span>
-                )}
+                <span className={`shrink-0 ${active ? 'opacity-100' : 'opacity-60'}`}>
+                  <NavIcon name={iconName} />
+                </span>
                 {item.label}
               </Link>
             )
           })}
         </nav>
 
-        {/* Rodapé: ARKEflow sempre discreto na base */}
-        <div className="px-5 py-3 border-t border-ocean-depth">
-          <span className="text-xs font-black tracking-tight opacity-40">
-            <span className="text-sea-foam">ARKE</span>
-            <span className="text-electric-cyan font-normal">flow</span>
+        {/* Footer */}
+        <div
+          className="px-4 pb-4 pt-3 shrink-0 flex flex-col items-center gap-0.5"
+          style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)' }}
+        >
+          <span style={{ fontSize: '12px' }} className="font-black tracking-tight leading-none">
+            <span className="text-sea-foam font-bold">ARKE</span>
+            <span className="text-electric-cyan font-light">flow</span>
           </span>
-          {subtitle && (
-            <p className="text-steel text-[9px] uppercase tracking-[0.15em] opacity-30">{subtitle}</p>
-          )}
+          <span
+            className="uppercase tracking-widest mt-0.5"
+            style={{ fontSize: '8px', color: 'rgba(255,255,255,0.2)' }}
+          >
+            Gestão
+          </span>
         </div>
 
       </aside>
