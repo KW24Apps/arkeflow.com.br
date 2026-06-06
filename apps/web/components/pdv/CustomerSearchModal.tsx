@@ -12,6 +12,37 @@ interface Props {
 
 type View = 'search' | 'novo'
 
+const INPUT_STYLE: React.CSSProperties = {
+  background: 'rgba(8,18,30,0.5)',
+  border: '0.5px solid rgba(255,255,255,0.12)',
+  borderRadius: '8px',
+  padding: '9px 12px',
+  fontSize: '13px',
+  color: 'rgba(255,255,255,0.75)',
+  outline: 'none',
+  width: '100%',
+}
+
+const LBL: React.CSSProperties = {
+  display: 'block',
+  fontSize: '9px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
+  color: 'rgba(255,255,255,0.35)',
+  marginBottom: '5px',
+}
+
+function GInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      style={{ ...INPUT_STYLE, ...props.style }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)'; props.onFocus?.(e) }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; props.onBlur?.(e) }}
+    />
+  )
+}
+
 export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Props) {
   const searchRef = useRef<HTMLInputElement>(null)
   const nomeRef   = useRef<HTMLInputElement>(null)
@@ -21,18 +52,18 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
   const [clientes,  setClientes]  = useState<Cliente[]>([])
   const [buscando,  setBuscando]  = useState(false)
 
-  const [novoNome,  setNovoNome]  = useState('')
-  const [novoTel,   setNovoTel]   = useState('')
-  const [novoCPF,   setNovoCPF]   = useState('')
-  const [novoEmail, setNovoEmail] = useState('')
-  const [salvando,  setSalvando]  = useState(false)
-  const [erroNovo,  setErroNovo]  = useState('')
+  const [novoNome,   setNovoNome]   = useState('')
+  const [novoTels,   setNovoTels]   = useState<string[]>([''])
+  const [novoCPF,    setNovoCPF]    = useState('')
+  const [novoEmails, setNovoEmails] = useState<string[]>([''])
+  const [salvando,   setSalvando]   = useState(false)
+  const [erroNovo,   setErroNovo]   = useState('')
 
   // ── Reset on open ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return
     setView('search'); setQ(''); setClientes([])
-    setNovoNome(''); setNovoTel(''); setNovoCPF(''); setNovoEmail(''); setErroNovo('')
+    setNovoNome(''); setNovoTels(['']); setNovoCPF(''); setNovoEmails(['']); setErroNovo('')
     setTimeout(() => searchRef.current?.focus(), 80)
   }, [open])
 
@@ -75,9 +106,9 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
     try {
       const c = await clientesApi.create({
         nome:     novoNome.trim(),
-        telefone: novoTel.trim()   || null,
-        cpf:      novoCPF.trim()   || null,
-        email:    novoEmail.trim() || null,
+        telefone: novoTels.find(t => t.trim())   || null,
+        cpf:      novoCPF.trim()                 || null,
+        email:    novoEmails.find(e => e.trim()) || null,
       })
       onSelect(c)
     } catch (e: any) {
@@ -118,21 +149,20 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
   if (view === 'search') return (
     <div className="fixed inset-0 bg-midnight/85 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-md flex flex-col shadow-2xl"
-        style={{ maxHeight: '82vh' }}
+        className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg flex flex-col shadow-2xl"
+        style={{ maxHeight: '88vh' }}
         onClick={e => e.stopPropagation()}
       >
         {header}
 
         {/* Search input */}
         <div className="shrink-0 p-4 border-b border-ocean-depth">
-          <input
+          <GInput
             ref={searchRef}
             type="text"
             value={q}
             onChange={e => setQ(e.target.value)}
-            placeholder="Nome, CPF ou e-mail..."
-            className="w-full min-h-[52px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam placeholder-steel/60 outline-none focus:border-electric-cyan"
+            placeholder="Nome, CPF ou telefone..."
           />
         </div>
 
@@ -209,8 +239,8 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
   return (
     <div className="fixed inset-0 bg-midnight/85 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-md flex flex-col shadow-2xl"
-        style={{ maxHeight: '82vh' }}
+        className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg flex flex-col shadow-2xl"
+        style={{ maxHeight: '88vh' }}
         onClick={e => e.stopPropagation()}
       >
         {header}
@@ -218,55 +248,95 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
         <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
 
           {/* Name — required */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sea-foam text-sm font-medium">
-              Nome <span className="text-red-400">*</span>
-            </label>
-            <input
+          <div>
+            <label style={LBL}>Nome <span style={{ color: 'rgba(248,113,113,0.9)' }}>*</span></label>
+            <GInput
               ref={nomeRef}
               type="text"
               value={novoNome}
               onChange={e => setNovoNome(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSalvar()}
               placeholder="Nome completo do cliente"
-              className="w-full min-h-[52px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan"
             />
           </div>
 
           {/* CPF */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sea-foam text-sm font-medium">CPF</label>
-            <input
+          <div>
+            <label style={LBL}>CPF</label>
+            <GInput
               type="text"
               value={novoCPF}
               onChange={e => setNovoCPF(e.target.value)}
               placeholder="000.000.000-00"
-              className="w-full min-h-[52px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan"
             />
           </div>
 
-          {/* Phone */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sea-foam text-sm font-medium">Telefone / WhatsApp</label>
-            <input
-              type="tel"
-              value={novoTel}
-              onChange={e => setNovoTel(e.target.value)}
-              placeholder="(00) 00000-0000"
-              className="w-full min-h-[52px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan"
-            />
+          {/* Phones — dynamic list */}
+          <div>
+            <label style={LBL}>Telefone / WhatsApp</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {novoTels.map((tel, i) => (
+                <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <GInput
+                    type="tel"
+                    value={tel}
+                    onChange={e => setNovoTels(prev => prev.map((x, xi) => xi === i ? e.target.value : x))}
+                    placeholder="(00) 00000-0000"
+                    style={{ flex: 1 }}
+                  />
+                  {novoTels.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setNovoTels(prev => prev.filter((_, xi) => xi !== i))}
+                      style={{ color: 'rgba(255,255,255,0.3)', fontSize: '18px', width: '28px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >×</button>
+                  )}
+                </div>
+              ))}
+              {novoTels.length < 3 && (
+                <button
+                  type="button"
+                  onClick={() => setNovoTels(prev => [...prev, ''])}
+                  style={{ fontSize: '12px', color: 'rgba(0,239,255,0.7)', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  + Adicionar telefone
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Email */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sea-foam text-sm font-medium">E-mail</label>
-            <input
-              type="email"
-              value={novoEmail}
-              onChange={e => setNovoEmail(e.target.value)}
-              placeholder="cliente@email.com"
-              className="w-full min-h-[52px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan"
-            />
+          {/* Emails — dynamic list */}
+          <div>
+            <label style={LBL}>E-mail</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {novoEmails.map((email, i) => (
+                <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <GInput
+                    type="email"
+                    value={email}
+                    onChange={e => setNovoEmails(prev => prev.map((x, xi) => xi === i ? e.target.value : x))}
+                    placeholder="cliente@email.com"
+                    style={{ flex: 1 }}
+                  />
+                  {novoEmails.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setNovoEmails(prev => prev.filter((_, xi) => xi !== i))}
+                      style={{ color: 'rgba(255,255,255,0.3)', fontSize: '18px', width: '28px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >×</button>
+                  )}
+                </div>
+              ))}
+              {novoEmails.length < 3 && (
+                <button
+                  type="button"
+                  onClick={() => setNovoEmails(prev => [...prev, ''])}
+                  style={{ fontSize: '12px', color: 'rgba(0,239,255,0.7)', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  + Adicionar e-mail
+                </button>
+              )}
+            </div>
           </div>
 
           {erroNovo && (

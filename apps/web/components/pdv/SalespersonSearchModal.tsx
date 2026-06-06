@@ -60,8 +60,8 @@ export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
       onClick={onClose}
     >
       <div
-        className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-md flex flex-col shadow-2xl"
-        style={{ maxHeight: '78vh' }}
+        className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg flex flex-col shadow-2xl"
+        style={{ maxHeight: '88vh' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
