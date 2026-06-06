@@ -1,5 +1,3 @@
-import { BottomNav } from '@/components/pdv/BottomNav'
-
 export default function PDVLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
@@ -11,12 +9,9 @@ export default function PDVLayout({ children }: { children: React.ReactNode }) {
         </span>
       </header>
 
-      {/* Conteúdo — espaço para o header e a barra inferior */}
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="flex-1 overflow-y-auto">
         {children}
       </main>
-
-      <BottomNav />
     </div>
   )
 }

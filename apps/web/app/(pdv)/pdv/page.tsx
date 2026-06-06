@@ -11,6 +11,7 @@ import { usePDVStore } from '@/store/pdv.store'
 import { useCaixaStore } from '@/store/caixa.store'
 import { useAuthStore } from '@/store/auth.store'
 import { api } from '@/lib/api/client'
+import { clientesApi, type Cliente } from '@/lib/api/clientes'
 import { SacolasModal } from '@/components/pdv/SacolasModal'
 import { SalespersonSearchModal } from '@/components/pdv/SalespersonSearchModal'
 
@@ -97,6 +98,10 @@ export default function PDVPage() {
   const [scanAtivo, setScanAtivo]   = useState(false)
   const [sacolasOpen, setSacolasOpen]   = useState(false)
   const [vendedorOpen, setVendedorOpen] = useState(false)
+  const [clienteOpen,       setClienteOpen]       = useState(false)
+  const [clienteQ,          setClienteQ]          = useState('')
+  const [clienteResultados, setClienteResultados] = useState<Cliente[]>([])
+  const [clienteLoading,    setClienteLoading]    = useState(false)
 
   const total    = itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
   const totalQtd = itens.reduce((s, i) => s + i.quantidade, 0)
@@ -115,6 +120,31 @@ export default function PDVPage() {
     carregarCaixa()
     return () => stopCamera()
   }, [])
+
+  // ── Cliente modal ──────────────────────────────────────────────────────────
+
+  function closeClienteModal() {
+    setClienteOpen(false)
+    setClienteQ('')
+    setClienteResultados([])
+  }
+
+  useEffect(() => {
+    if (!clienteOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeClienteModal() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [clienteOpen])
+
+  useEffect(() => {
+    if (!clienteQ.trim()) { setClienteResultados([]); return }
+    const t = setTimeout(async () => {
+      setClienteLoading(true)
+      try { setClienteResultados(await clientesApi.list(clienteQ)) }
+      finally { setClienteLoading(false) }
+    }, 300)
+    return () => clearTimeout(t)
+  }, [clienteQ])
 
   // ── Search ─────────────────────────────────────────────────────────────────
 
@@ -498,7 +528,7 @@ export default function PDVPage() {
               {/* Cliente */}
               <div
                 role="button"
-                onClick={() => router.push('/pdv/cliente')}
+                onClick={() => setClienteOpen(true)}
                 style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
               >
                 <User size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
@@ -573,6 +603,79 @@ export default function PDVPage() {
           <button onClick={stopCamera} style={{ position: 'absolute', top: '20px', right: '20px', width: '44px', height: '44px', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
             <X size={20} />
           </button>
+        </div>
+      )}
+
+      {/* ══ Cliente modal ══ */}
+      {clienteOpen && (
+        <div
+          className="fixed inset-0 bg-midnight/85 z-[400] flex items-center justify-center p-4"
+          onClick={closeClienteModal}
+        >
+          <div
+            className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-md flex flex-col shadow-2xl"
+            style={{ maxHeight: '78vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="shrink-0 px-5 py-4 border-b border-ocean-depth flex items-center justify-between">
+              <h3 className="text-sea-foam font-semibold">Vincular Cliente</h3>
+              <button
+                onClick={closeClienteModal}
+                className="w-10 h-10 flex items-center justify-center text-steel hover:text-sea-foam text-xl rounded-xl hover:bg-ocean-depth transition-colors"
+              >×</button>
+            </div>
+
+            {/* Search */}
+            <div className="shrink-0 p-4 border-b border-ocean-depth">
+              <input
+                type="text"
+                value={clienteQ}
+                onChange={e => setClienteQ(e.target.value)}
+                placeholder="Buscar por nome, telefone ou CPF..."
+                autoFocus
+                className="w-full min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam placeholder-steel/60 outline-none focus:border-electric-cyan"
+              />
+            </div>
+
+            {/* Results */}
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+              {clienteLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : clienteResultados.length === 0 && clienteQ.trim() ? (
+                <p className="text-center text-steel text-sm py-8">Nenhum cliente encontrado para "{clienteQ}"</p>
+              ) : (
+                clienteResultados.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => { setCliente(c.id, c.nome); closeClienteModal(); focusInput() }}
+                    className="flex items-center gap-3 p-4 bg-midnight border border-ocean-depth rounded-2xl text-left hover:border-electric-cyan active:bg-ocean-depth transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-ocean-depth flex items-center justify-center shrink-0">
+                      <span className="text-sea-foam font-semibold text-sm">{c.nome.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sea-foam font-medium text-sm truncate">{c.nome}</p>
+                      <p className="text-steel text-xs">{c.telefone || c.cpf || ''}</p>
+                    </div>
+                    {Number(c.saldo_cashback) > 0 && (
+                      <p className="text-mint-green text-xs shrink-0">R$ {Number(c.saldo_cashback).toFixed(2)} CB</p>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 px-5 py-3 border-t border-ocean-depth">
+              <button
+                onClick={closeClienteModal}
+                className="w-full min-h-[48px] border border-ocean-depth text-steel rounded-xl text-sm hover:text-sea-foam transition-colors"
+              >Fechar</button>
+            </div>
+          </div>
         </div>
       )}
 
