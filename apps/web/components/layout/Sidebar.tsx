@@ -23,6 +23,9 @@ const HREF_ICONS: Record<string, string> = {
   '/painel/configuracoes/formas-pagamento': 'CreditCard',
   '/painel/configuracoes/dados':            'Settings',
   '/painel/prova-em-casa':                 'Home',
+  '/painel/suporte':                        'LifeBuoy',
+  '/painel/tutoriais':                      'GraduationCap',
+  '/painel/novidades':                      'Bell',
 }
 
 function NavIcon({ name, size = 15 }: { name?: string; size?: number }) {
