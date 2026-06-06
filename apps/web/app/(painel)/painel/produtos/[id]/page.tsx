@@ -85,7 +85,7 @@ export default function ProdutoPage() {
   // ─── salvar produto ─────────────────────────────────────────────────────────
   async function handleSalvarProduto() {
     if (!nome || !preco) return
-    const totalComp = composicaoItens.reduce((s, i) => s + i.percentual, 0)
+    const totalComp = (composicaoItens ?? []).reduce((s, i) => s + i.percentual, 0)
     if (composicaoItens.length > 0 && totalComp !== 100) {
       alert(`A composição precisa totalizar 100% (atual: ${totalComp}%).`)
       return
@@ -173,7 +173,7 @@ export default function ProdutoPage() {
   async function handleDeleteVersao(versaoId: string) {
     if (!confirm('Remover esta variação?')) return
     await produtosApi.deleteVersao(id, versaoId)
-    setProduto(prev => prev ? { ...prev, versoes: prev.versoes!.filter(v => v.id !== versaoId) } : prev)
+    setProduto(prev => prev ? { ...prev, versoes: (prev.versoes ?? []).filter(v => v.id !== versaoId) } : prev)
   }
 
   const medidasDisponiveis = medidas.filter(m => !form.medidas.some(fm => fm.nome === m.nome))
