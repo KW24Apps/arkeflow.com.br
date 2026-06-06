@@ -19,6 +19,7 @@ const HREF_ICONS: Record<string, string> = {
   '/painel/produtos':                       'Box',
   '/painel/clientes':                       'Users',
   '/painel/colaboradores':                  'UserCog',
+  '/painel/fornecedores':                   'Truck',
   '/painel/configuracoes/formas-pagamento': 'CreditCard',
   '/painel/configuracoes/dados':            'Settings',
 }
