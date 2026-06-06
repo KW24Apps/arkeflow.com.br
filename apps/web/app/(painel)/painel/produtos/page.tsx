@@ -1,11 +1,20 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Shirt } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { produtosApi, type Produto } from '@/lib/api/produtos'
 
+const ROW = {
+  background: 'rgba(8,18,30,0.35)',
+  border: '0.5px solid rgba(255,255,255,0.07)',
+  borderRadius: '8px',
+}
+
 export default function ProdutosPage() {
+  const router = useRouter()
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [q,        setQ]        = useState('')
   const [loading,  setLoading]  = useState(true)
@@ -29,80 +38,128 @@ export default function ProdutosPage() {
   return (
     <>
       <TopBar />
-      <main className="flex-1 p-4 md:p-6 overflow-y-auto pb-6">
+      <main className="flex-1 p-4 md:p-5 overflow-y-auto pb-20">
 
-        <div className="flex gap-3 mb-5">
+        {/* Search */}
+        <div className="flex gap-2 mb-4">
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && load(q)}
             placeholder="Buscar produto..."
-            className="flex-1 min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam placeholder-steel outline-none focus:border-electric-cyan"
+            className="flex-1 outline-none"
+            style={{
+              background: 'rgba(8,18,30,0.5)',
+              border: '0.5px solid rgba(255,255,255,0.12)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              fontSize: '13px',
+              color: 'rgba(255,255,255,0.6)',
+            }}
+            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
           />
-          <button onClick={() => load(q)}
-            className="min-h-[48px] px-5 bg-electric-cyan text-midnight rounded-xl text-sm font-semibold">
+          <button
+            onClick={() => load(q)}
+            style={{
+              background: 'rgba(0,239,255,0.2)',
+              border: '0.5px solid rgba(0,239,255,0.4)',
+              color: '#0ef',
+              borderRadius: '8px',
+              padding: '10px 18px',
+              fontSize: '13px',
+              fontWeight: 500,
+            }}
+          >
             Buscar
           </button>
         </div>
 
+        {/* Content */}
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
         ) : produtos.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-3">
-            <span className="text-4xl">📦</span>
-            <p className="text-sea-foam font-medium">Nenhum produto cadastrado</p>
-            <p className="text-steel text-sm">Toque no botão + para adicionar</p>
+            <p style={{ fontSize: '36px', opacity: 0.3 }}>📦</p>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Nenhum produto cadastrado</p>
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>Toque no + para adicionar</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             {produtos.map(p => (
-              <Link
+              <div
                 key={p.id}
-                href={`/painel/produtos/${p.id}`}
-                className={`border rounded-2xl p-4 flex items-center gap-3 transition-colors ${
-                  p.ativo
-                    ? 'bg-deep-ocean border-ocean-depth active:bg-ocean-depth'
-                    : 'bg-midnight border-ocean-depth/50 opacity-60'
-                }`}
+                onClick={() => router.push(`/painel/produtos/${p.id}`)}
+                className="flex items-center gap-3 cursor-pointer transition-all active:scale-[0.995]"
+                style={{ ...ROW, padding: '10px 12px', opacity: p.ativo ? 1 : 0.45 }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)')}
               >
-                <div className="w-10 h-10 rounded-xl bg-ocean-depth flex items-center justify-center shrink-0">
-                  <span className="text-lg">👕</span>
+                {/* Icon */}
+                <div
+                  className="flex items-center justify-center shrink-0"
+                  style={{ width: '36px', height: '36px', background: 'rgba(0,239,255,0.1)', borderRadius: '8px' }}
+                >
+                  <Shirt size={18} strokeWidth={1.5} style={{ color: 'rgba(0,239,255,0.6)' }} />
                 </div>
 
+                {/* Name + subtitle */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sea-foam font-medium text-sm truncate">{p.nome}</p>
-                  <p className="text-steel text-xs mt-0.5">
+                  <p className="truncate" style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
+                    {p.nome}
+                  </p>
+                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
                     {p.categoria || 'Sem categoria'} · R$ {Number(p.preco_base).toFixed(2)}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-electric-cyan text-sm font-semibold">{p.total_versoes} var.</p>
-                    <p className={`text-xs mt-0.5 ${p.estoque_total <= 0 && p.controle_estoque ? 'text-red-400' : 'text-steel'}`}>
-                      {p.controle_estoque ? `${p.estoque_total} un.` : 'Sem controle'}
-                    </p>
-                  </div>
-
-                  {/* Toggle ativo/inativo */}
-                  <button
-                    onClick={e => handleToggleAtivo(p, e)}
-                    title={p.ativo ? 'Desativar produto' : 'Ativar produto'}
-                    className={`w-10 h-6 rounded-full transition-colors relative shrink-0 ${p.ativo ? 'bg-electric-cyan' : 'bg-ocean-depth'}`}
-                  >
-                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${p.ativo ? 'left-5' : 'left-1'}`} />
-                  </button>
+                {/* Variants + stock */}
+                <div className="text-right shrink-0">
+                  <p style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(0,239,255,0.7)' }}>
+                    {p.total_versoes} var.
+                  </p>
+                  <p style={{
+                    fontSize: '10px', marginTop: '2px',
+                    color: p.controle_estoque && p.estoque_total <= 0
+                      ? 'rgba(248,113,113,0.7)' : 'rgba(255,255,255,0.35)',
+                  }}>
+                    {p.controle_estoque ? `${p.estoque_total} un.` : 'Sem controle'}
+                  </p>
                 </div>
-              </Link>
+
+                {/* Active toggle */}
+                <button
+                  onClick={e => handleToggleAtivo(p, e)}
+                  title={p.ativo ? 'Desativar produto' : 'Ativar produto'}
+                  className="shrink-0 relative transition-colors"
+                  style={{
+                    width: '36px', height: '20px', borderRadius: '9999px', border: 'none',
+                    background: p.ativo ? 'rgba(0,212,212,0.6)' : 'rgba(255,255,255,0.1)',
+                  }}
+                >
+                  <span
+                    className="absolute top-[3px] w-[14px] h-[14px] bg-white rounded-full transition-all"
+                    style={{ left: p.ativo ? '19px' : '3px' }}
+                  />
+                </button>
+              </div>
             ))}
           </div>
         )}
 
+        {/* FAB */}
         <Link
           href="/painel/produtos/novo"
-          className="fixed bottom-6 right-6 w-14 h-14 bg-electric-cyan text-midnight rounded-full text-2xl font-bold flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          className="fixed bottom-6 right-6 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          style={{
+            width: '48px', height: '48px',
+            background: 'rgba(0,239,255,0.9)',
+            borderRadius: '50%',
+            color: '#0a1e2a',
+            fontSize: '24px', fontWeight: 700,
+          }}
         >
           +
         </Link>
