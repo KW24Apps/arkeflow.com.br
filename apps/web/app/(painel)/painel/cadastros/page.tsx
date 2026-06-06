@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Ruler, Palette, Tag, Layers, Maximize2, ChevronDown, ChevronRight, X } from 'lucide-react'
+import { Ruler, Palette, Tag, Layers, Maximize2, ChevronDown, ChevronRight } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { catalogosApi, type ItemCatalogo, type TipoCatalogo } from '@/lib/api/catalogos'
 
@@ -14,14 +14,15 @@ const CARD = {
   borderRadius: '10px',
 }
 
-const CHIP_BASE = {
-  background: 'rgba(8,18,30,0.45)',
-  border: '0.5px solid rgba(255,255,255,0.12)',
-  borderRadius: '20px',
-  display: 'inline-flex' as const,
+const ITEM_BOX = {
+  background: 'rgba(8,18,30,0.35)',
+  border: '0.5px solid rgba(255,255,255,0.06)',
+  borderRadius: '6px',
+  padding: '6px 8px',
+  display: 'flex' as const,
   alignItems: 'center' as const,
-  gap: '5px',
-  padding: '4px 10px',
+  justifyContent: 'space-between' as const,
+  gap: '4px',
 }
 
 const SECTIONS = [
@@ -46,6 +47,93 @@ interface SecState {
 function makeInitialData(): Record<string, SecState> {
   return Object.fromEntries(
     SECTIONS.map(s => [s.tipo, { items: [], loaded: false, loading: false, novoNome: '', novoHex: '#888888', saving: false }])
+  )
+}
+
+// ── Remove button ─────────────────────────────────────────────────────────────
+
+function RemoveBtn({ onClick, size = 11 }: { onClick: () => void; size?: number }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ color: 'rgba(255,255,255,0.18)', fontSize: `${size}px`, background: 'none', border: 'none', cursor: 'pointer', padding: '1px', lineHeight: 1, flexShrink: 0 }}
+      onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.85)')}
+      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.18)')}
+    >
+      ×
+    </button>
+  )
+}
+
+// ── Per-section item renderers ─────────────────────────────────────────────────
+
+function RenderTamanhos({ items, onRemove }: { items: ItemCatalogo[]; onRemove: (id: string) => void }) {
+  const letters = items.filter(i => !/^\d/.test(i.nome))
+  const numbers = [...items.filter(i => /^\d/.test(i.nome))].sort((a, b) => parseFloat(a.nome) - parseFloat(b.nome))
+
+  const col = (list: ItemCatalogo[]) => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+      {list.map(item => (
+        <div key={item.id} style={ITEM_BOX}>
+          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nome}</span>
+          <RemoveBtn onClick={() => onRemove(item.id)} />
+        </div>
+      ))}
+    </div>
+  )
+
+  const showLeft  = letters.length > 0
+  const showRight = numbers.length > 0
+  if (!showLeft && !showRight) return null
+
+  if (!showLeft || !showRight) {
+    return col(showLeft ? letters : numbers)
+  }
+
+  return (
+    <div className="flex gap-3">
+      <div style={{ flex: 1 }}>
+        <p style={{ fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.2)', marginBottom: '6px' }}>Letras</p>
+        {col(letters)}
+      </div>
+      <div style={{ width: '0.5px', background: 'rgba(255,255,255,0.06)', alignSelf: 'stretch' }} />
+      <div style={{ flex: 1 }}>
+        <p style={{ fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.2)', marginBottom: '6px' }}>Números</p>
+        {col(numbers)}
+      </div>
+    </div>
+  )
+}
+
+function RenderCores({ items, onRemove }: { items: ItemCatalogo[]; onRemove: (id: string) => void }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px' }}>
+      {items.map(item => (
+        <div key={item.id} style={{ background: 'rgba(8,18,30,0.35)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px', textAlign: 'center', position: 'relative' }}>
+          <button
+            onClick={() => onRemove(item.id)}
+            style={{ position: 'absolute', top: '3px', right: '4px', fontSize: '9px', color: 'rgba(255,255,255,0.2)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, padding: '1px' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.85)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.2)')}
+          >×</button>
+          <div style={{ width: '16px', height: '16px', borderRadius: '3px', background: item.hex_cor || 'rgba(255,255,255,0.2)', margin: '2px auto 5px', border: '0.5px solid rgba(255,255,255,0.15)' }} />
+          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nome}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RenderDefault({ items, onRemove }: { items: ItemCatalogo[]; onRemove: (id: string) => void }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '4px' }}>
+      {items.map(item => (
+        <div key={item.id} style={ITEM_BOX}>
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'center' }}>{item.nome}</span>
+          <RemoveBtn onClick={() => onRemove(item.id)} />
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -118,49 +206,38 @@ export default function CadastrosPage() {
           return (
             <div key={tipo} style={CARD}>
 
-              {/* ── Section header ──────────────────────────────────────── */}
-              <button
-                onClick={() => toggleSection(tipo)}
-                className="w-full flex items-center gap-3 p-4"
-              >
-                <div
-                  className="flex items-center justify-center shrink-0"
-                  style={{ width: '32px', height: '32px', background: 'rgba(0,239,255,0.1)', borderRadius: '8px' }}
-                >
+              {/* ── Header ──────────────────────────────────────────────── */}
+              <button onClick={() => toggleSection(tipo)} className="w-full flex items-center gap-3 p-4">
+                <div className="flex items-center justify-center shrink-0"
+                  style={{ width: '32px', height: '32px', background: 'rgba(0,239,255,0.1)', borderRadius: '8px' }}>
                   <Icon size={15} strokeWidth={1.5} style={{ color: 'rgba(0,239,255,0.7)' }} />
                 </div>
-
                 <span style={{ flex: 1, textAlign: 'left', fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>
                   {label}
                 </span>
-
                 {sec.loaded && (
                   <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)', borderRadius: '9999px', padding: '2px 8px' }}>
                     {sec.items.length}
                   </span>
                 )}
-
                 {isOpen
                   ? <ChevronDown  size={14} strokeWidth={1.5} style={{ color: 'rgba(255,255,255,0.35)', flexShrink: 0 }} />
                   : <ChevronRight size={14} strokeWidth={1.5} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
                 }
               </button>
 
-              {/* ── Section body ────────────────────────────────────────── */}
+              {/* ── Body ────────────────────────────────────────────────── */}
               {isOpen && (
-                <div
-                  className="px-4 pb-4 flex flex-col gap-4"
-                  style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)' }}
-                >
-                  {/* Add row */}
-                  <div className="flex gap-2 pt-4 items-center">
+                <div className="px-4 pb-4 flex flex-col gap-4"
+                  style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)' }}>
+
+                  {/* Compact add row */}
+                  <div className="flex gap-2 pt-4 items-center flex-wrap">
                     {comCor && (
-                      <input
-                        type="color"
-                        value={sec.novoHex}
+                      <input type="color" value={sec.novoHex}
                         onChange={e => patch(tipo, { novoHex: e.target.value })}
                         className="cursor-pointer shrink-0"
-                        style={{ width: '38px', height: '38px', borderRadius: '8px', border: '0.5px solid rgba(255,255,255,0.12)', background: 'transparent', padding: '2px' }}
+                        style={{ width: '34px', height: '34px', borderRadius: '8px', border: '0.5px solid rgba(255,255,255,0.12)', background: 'transparent', padding: '2px' }}
                       />
                     )}
                     <input
@@ -168,14 +245,18 @@ export default function CadastrosPage() {
                       onChange={e => patch(tipo, { novoNome: e.target.value })}
                       onKeyDown={e => e.key === 'Enter' && handleAdd(tipo)}
                       placeholder={`Novo ${singular}...`}
-                      className="flex-1 outline-none"
+                      className="outline-none"
                       style={{
                         background: 'rgba(8,18,30,0.5)',
                         border: '0.5px solid rgba(255,255,255,0.12)',
                         borderRadius: '20px',
-                        padding: '9px 14px',
-                        fontSize: '13px',
+                        padding: '7px 14px',
+                        fontSize: '12px',
                         color: 'rgba(255,255,255,0.7)',
+                        width: 'auto',
+                        flex: '0 1 200px',
+                        minWidth: '110px',
+                        maxWidth: '200px',
                       }}
                       onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
                       onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
@@ -185,12 +266,12 @@ export default function CadastrosPage() {
                       disabled={sec.saving || !sec.novoNome.trim()}
                       className="shrink-0 disabled:opacity-40 transition-opacity"
                       style={{
-                        background: 'rgba(0,239,255,0.2)',
-                        border: '0.5px solid rgba(0,239,255,0.4)',
+                        background: 'rgba(0,239,255,0.18)',
+                        border: '0.5px solid rgba(0,239,255,0.35)',
                         color: '#0ef',
                         borderRadius: '20px',
-                        padding: '9px 16px',
-                        fontSize: '13px',
+                        padding: '7px 14px',
+                        fontSize: '12px',
                         fontWeight: 500,
                       }}
                     >
@@ -207,28 +288,12 @@ export default function CadastrosPage() {
                     <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '4px 0 8px' }}>
                       Nenhum item cadastrado
                     </p>
+                  ) : tipo === 'tamanhos' ? (
+                    <RenderTamanhos items={sec.items} onRemove={id => handleRemove(tipo, id)} />
+                  ) : tipo === 'cores' ? (
+                    <RenderCores items={sec.items} onRemove={id => handleRemove(tipo, id)} />
                   ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {sec.items.map(item => (
-                        <div key={item.id} style={CHIP_BASE}>
-                          {comCor && item.hex_cor && (
-                            <span
-                              style={{ width: '10px', height: '10px', borderRadius: '50%', background: item.hex_cor, border: '0.5px solid rgba(255,255,255,0.2)', flexShrink: 0 }}
-                            />
-                          )}
-                          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>{item.nome}</span>
-                          <button
-                            onClick={() => handleRemove(tipo, item.id)}
-                            className="flex items-center justify-center transition-colors"
-                            style={{ color: 'rgba(255,255,255,0.3)', padding: '1px' }}
-                            onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.8)')}
-                            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
-                          >
-                            <X size={11} strokeWidth={2} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    <RenderDefault items={sec.items} onRemove={id => handleRemove(tipo, id)} />
                   )}
                 </div>
               )}
