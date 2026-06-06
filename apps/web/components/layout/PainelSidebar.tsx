@@ -30,7 +30,7 @@ export function PainelSidebar() {
       if (!slug) return true
       return temPermissao(permissoes, slug)
     })
-    .map(s => 'type' in s ? { type: s.type, label: s.label } : { label: s.label, href: s.href })
+    .map(s => 'type' in s ? { type: s.type, label: s.label } : { label: s.label, href: s.href, external: (s as any).external })
 
   return <Sidebar items={items as any} subtitle="Gestão" />
 }

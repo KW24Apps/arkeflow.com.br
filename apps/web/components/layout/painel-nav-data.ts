@@ -15,10 +15,11 @@ export const SECTIONS = [
     sub:   [],
   },
   {
-    label: 'Caixa',
-    icon:  'ShoppingCart',
-    href:  '/pdv',
-    match: ['/painel/caixa'],
+    label:    'Caixa',
+    icon:     'ShoppingCart',
+    href:     '/pdv',
+    external: true,
+    match:    ['/painel/caixa'],
     sub: [
       { label: 'PDV',       href: '/painel/caixa',        permSlug: 'caixa' },
       { label: 'Histórico', href: '/painel/caixa/vendas', permSlug: 'caixa' },
