@@ -3,7 +3,6 @@ import path from 'path'
 import { Pool } from 'pg'
 import { env } from '../config/env'
 
-// Aplica arquivos .sql em ordem numérica, registrando os já executados
 async function runMigrations(pool: Pool, dir: string) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS _migrations (
@@ -35,9 +34,30 @@ if (!['platform', 'tenant'].includes(target)) {
   process.exit(1)
 }
 
-const pool = new Pool({ connectionString: env.DATABASE_URL })
 const dir = path.resolve(__dirname, '../../migrations', target)
 
-runMigrations(pool, dir)
-  .then(() => { console.log('\nMigrations concluídas.'); pool.end() })
+async function main() {
+  if (target === 'platform') {
+    const pool = new Pool({ connectionString: env.DATABASE_URL })
+    await runMigrations(pool, dir)
+    await pool.end()
+  } else {
+    // Tenant migrations: run on each loja's dedicated database
+    const platformPool = new Pool({ connectionString: env.DATABASE_URL })
+    const { rows: lojas } = await platformPool.query('SELECT banco_id FROM lojas ORDER BY banco_id')
+    await platformPool.end()
+
+    for (const loja of lojas) {
+      const url = new URL(env.DATABASE_URL)
+      url.pathname = `/${loja.banco_id}`
+      const pool = new Pool({ connectionString: url.toString() })
+      console.log(`\n[${loja.banco_id}]`)
+      await runMigrations(pool, dir)
+      await pool.end()
+    }
+  }
+}
+
+main()
+  .then(() => { console.log('\nMigrations concluídas.') })
   .catch(err => { console.error(err); process.exit(1) })

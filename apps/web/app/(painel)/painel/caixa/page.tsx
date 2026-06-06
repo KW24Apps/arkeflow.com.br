@@ -280,7 +280,9 @@ export default function CaixaPage() {
 
   // ── PDV ATIVO ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col flex-1 overflow-hidden min-h-0">
+    <>
+      <TopBar />
+      <div className="flex flex-col flex-1 overflow-hidden min-h-0">
 
       {/* Barra de status mínima */}
       <div className="shrink-0 h-10 bg-deep-ocean border-b border-ocean-depth px-4 flex items-center gap-2">
@@ -687,5 +689,6 @@ export default function CaixaPage() {
       )}
 
     </div>
+    </>
   )
 }
