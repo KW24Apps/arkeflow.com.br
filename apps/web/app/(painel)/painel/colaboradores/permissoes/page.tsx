@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
@@ -9,6 +9,27 @@ interface Modelo {
   id: string
   nome: string
   permissoes: string[]
+}
+
+const CARD = {
+  background: 'rgba(8,18,30,0.48)',
+  backdropFilter: 'blur(8px)',
+  border: '0.5px solid rgba(255,255,255,0.09)',
+  borderRadius: '10px',
+}
+
+const INPUT_STYLE = {
+  background: 'rgba(8,18,30,0.5)',
+  border: '0.5px solid rgba(255,255,255,0.12)',
+  color: 'rgba(255,255,255,0.8)',
+  borderRadius: '8px',
+}
+
+function focusIn(e: React.FocusEvent<HTMLInputElement>) {
+  e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)'
+}
+function focusOut(e: React.FocusEvent<HTMLInputElement>) {
+  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
 }
 
 export default function ModelosPermissaoPage() {
@@ -53,80 +74,142 @@ export default function ModelosPermissaoPage() {
     if (!confirm('Remover este modelo? Os colaboradores vinculados perderão as permissões.')) return
     await api.delete(`/modelos-permissao/${id}`)
     setModelos(m => m.filter(x => x.id !== id))
+    setFormAberto(false)
   }
 
   return (
     <>
       <TopBar />
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10">
-        <div className="max-w-lg flex flex-col gap-4">
+      <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-20 flex flex-col gap-4">
 
-          <p className="text-steel text-sm">
-            Crie modelos de acesso (ex: "Caixa", "Estoque") e vincule aos colaboradores.
-            Um colaborador pode usar um modelo ou ter permissões individuais.
-          </p>
+        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
+          Crie modelos de acesso (ex: "Caixa", "Estoque") e vincule aos colaboradores.
+          Um colaborador pode usar um modelo ou ter permissões individuais.
+        </p>
 
-          {/* Formulário */}
-          {formAberto && (
-            <div className="bg-deep-ocean border border-electric-cyan/30 rounded-2xl p-5 flex flex-col gap-4">
-              <p className="text-sea-foam font-semibold text-sm">{editandoId ? 'Editar modelo' : 'Novo modelo'}</p>
+        {/* ── Edit panel — above the grid ──────────────────────────────────── */}
+        {formAberto && (
+          <div style={CARD} className="p-5 flex flex-col gap-4">
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
+              {editandoId ? 'Editar modelo' : 'Novo modelo'}
+            </p>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-steel uppercase tracking-wider">Nome do modelo</label>
-                <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Caixa, Estoque, Gerente..."
-                  className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
-              </div>
+            <div className="flex flex-col gap-1.5">
+              <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Nome do modelo
+              </label>
+              <input
+                value={nome} onChange={e => setNome(e.target.value)}
+                placeholder="Ex: Caixa, Estoque, Gerente..."
+                onFocus={focusIn} onBlur={focusOut}
+                className="min-h-[48px] px-4 outline-none w-full"
+                style={INPUT_STYLE}
+              />
+            </div>
 
-              <SeletorPermissoes value={permissoes} onChange={setPermissoes} />
+            <SeletorPermissoes value={permissoes} onChange={setPermissoes} />
 
+            <div className="flex items-center justify-between gap-3">
+              {editandoId ? (
+                <button
+                  onClick={() => handleRemover(editandoId)}
+                  className="min-h-[40px] px-2 transition-colors"
+                  style={{ fontSize: '12px', color: 'rgba(248,113,113,0.5)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.85)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.5)')}
+                >
+                  Remover
+                </button>
+              ) : <span />}
               <div className="flex gap-3">
-                <button onClick={() => setFormAberto(false)}
-                  className="flex-1 min-h-[48px] border border-ocean-depth text-steel rounded-xl text-sm">
+                <button
+                  onClick={() => setFormAberto(false)}
+                  className="min-h-[40px] px-5 rounded-lg text-sm transition-colors"
+                  style={{ border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+                >
                   Cancelar
                 </button>
-                <button onClick={handleSalvar} disabled={salvando || !nome}
-                  className="flex-1 min-h-[48px] bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40">
+                <button
+                  onClick={handleSalvar}
+                  disabled={salvando || !nome}
+                  className="min-h-[40px] px-5 text-sm font-semibold rounded-lg disabled:opacity-40"
+                  style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', color: '#0ef', borderRadius: '8px' }}
+                >
                   {salvando ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Lista */}
-          {loading ? (
-            <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {modelos.map(m => (
-                <div key={m.id} className="bg-deep-ocean border border-ocean-depth rounded-2xl px-5 py-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sea-foam font-medium text-sm">{m.nome}</p>
-                    <p className="text-steel text-xs mt-0.5">{m.permissoes.length} menu(s) liberado(s)</p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {m.permissoes.map(p => (
-                        <span key={p} className="bg-ocean-depth text-teal-current text-[10px] px-2 py-0.5 rounded-full">{p}</span>
-                      ))}
-                    </div>
+        {/* ── Card grid ────────────────────────────────────────────────────── */}
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : modelos.length === 0 ? (
+          <p className="text-center py-12" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}>
+            Nenhum modelo cadastrado
+          </p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+            {modelos.map(m => (
+              <div
+                key={m.id}
+                onClick={() => abrirEdicao(m)}
+                className="p-4 flex flex-col gap-2.5 cursor-pointer active:scale-[0.98] transition-all"
+                style={CARD}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+              >
+                <p style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500, fontSize: '14px' }}>
+                  {m.nome}
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>
+                  {m.permissoes.length} permissão{m.permissoes.length !== 1 ? 'ões' : ''} ativa{m.permissoes.length !== 1 ? 's' : ''}
+                </p>
+                {m.permissoes.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {m.permissoes.slice(0, 4).map(p => (
+                      <span
+                        key={p}
+                        className="truncate max-w-[120px]"
+                        style={{
+                          background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)',
+                          fontSize: '9px', padding: '2px 7px', borderRadius: '9999px',
+                        }}
+                      >
+                        {p}
+                      </span>
+                    ))}
+                    {m.permissoes.length > 4 && (
+                      <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', padding: '2px 4px' }}>
+                        +{m.permissoes.length - 4}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex gap-1 ml-3 shrink-0">
-                    <button onClick={() => abrirEdicao(m)}
-                      className="min-h-[40px] min-w-[40px] text-steel hover:text-electric-cyan rounded-lg hover:bg-ocean-depth transition-colors flex items-center justify-center">✏️</button>
-                    <button onClick={() => handleRemover(m.id)}
-                      className="min-h-[40px] min-w-[40px] text-steel hover:text-red-400 rounded-lg hover:bg-ocean-depth transition-colors flex items-center justify-center">🗑️</button>
-                  </div>
-                </div>
-              ))}
-              {modelos.length === 0 && <p className="text-center text-steel text-sm py-6">Nenhum modelo cadastrado</p>}
-            </div>
-          )}
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
-          {!formAberto && (
-            <button onClick={abrirNovo}
-              className="min-h-[52px] bg-electric-cyan text-midnight rounded-2xl text-sm font-semibold">
-              + Novo Modelo de Permissão
-            </button>
-          )}
-        </div>
+        {/* FAB — new model */}
+        <button
+          onClick={abrirNovo}
+          className="fixed bottom-6 right-6 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          style={{
+            width: '48px', height: '48px',
+            background: 'rgba(0,239,255,0.9)',
+            borderRadius: '50%',
+            color: '#0a1e2a',
+            fontSize: '24px', fontWeight: 700,
+          }}
+        >
+          +
+        </button>
       </main>
     </>
   )
