@@ -9,20 +9,23 @@ import { platformPool } from '../../config/database'
 import { getTenantPoolFromRequest } from '../../core/tenant/resolver'
 import type { JwtPayload } from '@arkeflow/shared'
 
-const UPLOAD_DIR = '/var/www/arkeflow.com.br/uploads/logos'
+const UPLOAD_DIR      = '/var/www/arkeflow.com.br/uploads/logos'
+const CERT_UPLOAD_DIR = '/var/www/arkeflow.com.br/uploads/certificados'
 
 const dono = [authMiddleware, authorize('dono_loja')]
 const auth = [authMiddleware, authorize('dono_loja', 'vendedor')]
 
 const enderecoSchema = z.object({
-  cep:         z.string().optional().nullable(),
-  logradouro:  z.string().optional().nullable(),
-  numero:      z.string().optional().nullable(),
-  complemento: z.string().optional().nullable(),
-  bairro:      z.string().optional().nullable(),
-  cidade:      z.string().optional().nullable(),
-  estado:      z.string().max(2).optional().nullable(),
-  link_loja:   z.string().optional().nullable(),
+  cep:                       z.string().optional().nullable(),
+  logradouro:                z.string().optional().nullable(),
+  numero:                    z.string().optional().nullable(),
+  complemento:               z.string().optional().nullable(),
+  bairro:                    z.string().optional().nullable(),
+  cidade:                    z.string().optional().nullable(),
+  estado:                    z.string().max(2).optional().nullable(),
+  link_loja:                 z.string().optional().nullable(),
+  regime_tributario:         z.string().max(30).optional().nullable(),
+  certificado_digital_senha: z.string().optional().nullable(),
 })
 
 const contatoSchema = z.object({
@@ -40,7 +43,8 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     const { rows: [loja] } = await platformPool.query(
       `SELECT id, nome, cnpj, telefone, email, status,
               logo_url, link_loja,
-              cep, logradouro, numero, complemento, bairro, cidade, estado
+              cep, logradouro, numero, complemento, bairro, cidade, estado,
+              regime_tributario, certificado_digital_path, certificado_digital_senha
        FROM lojas WHERE id = $1`,
       [user.loja_id]
     )
@@ -98,6 +102,25 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
       `DELETE FROM lojas_contatos WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
     )
     return reply.status(204).send()
+  })
+
+  // Upload do certificado digital (.pfx / .p12)
+  app.post('/certificado', { preHandler: dono }, async (req, reply) => {
+    const user = req.user as JwtPayload
+    const data = await req.file()
+    if (!data) return reply.status(400).send({ error: 'Nenhum arquivo enviado' })
+
+    mkdirSync(CERT_UPLOAD_DIR, { recursive: true })
+    const ext      = data.filename.split('.').pop() ?? 'pfx'
+    const filename = `${user.loja_id}.${ext}`
+    const caminho  = join(CERT_UPLOAD_DIR, filename)
+
+    await pipeline(data.file, createWriteStream(caminho))
+    await platformPool.query(
+      `UPDATE lojas SET certificado_digital_path = $1 WHERE id = $2`,
+      [data.filename, user.loja_id]
+    )
+    return reply.send({ certificado_digital_path: data.filename })
   })
 
   // Upload de logo (arquivo redimensionado pelo browser)

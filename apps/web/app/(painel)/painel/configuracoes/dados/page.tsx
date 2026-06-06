@@ -10,6 +10,7 @@ interface DadosLoja {
   email: string | null; status: string; logo_url: string | null; link_loja: string | null
   cep: string | null; logradouro: string | null; numero: string | null
   complemento: string | null; bairro: string | null; cidade: string | null; estado: string | null
+  regime_tributario: string | null; certificado_digital_path: string | null; certificado_digital_senha: string | null
   contatos: Contato[]
 }
 
@@ -59,11 +60,28 @@ function GInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   )
 }
 
+function GSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      style={{ ...INPUT, ...props.style }}
+      className="outline-none"
+      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)'; props.onFocus?.(e) }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; props.onBlur?.(e) }}
+    />
+  )
+}
+
 export default function DadosEmpresaPage() {
   const [dados,    setDados]    = useState<DadosLoja | null>(null)
   const [loading,  setLoading]  = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [msg,      setMsg]      = useState('')
+
+  const [regimeTributario, setRegimeTributario] = useState('')
+  const [certSenha,        setCertSenha]        = useState('')
+  const [certFile,         setCertFile]         = useState<File | null>(null)
+  const [certNome,         setCertNome]         = useState('')
 
   const [buscandoCep, setBuscandoCep] = useState(false)
   const [cep,         setCep]         = useState('')
@@ -83,6 +101,9 @@ export default function DadosEmpresaPage() {
       setCep(d.cep ?? ''); setLogradouro(d.logradouro ?? ''); setNumero(d.numero ?? '')
       setComplemento(d.complemento ?? ''); setBairro(d.bairro ?? '')
       setCidade(d.cidade ?? ''); setEstado(d.estado ?? ''); setLinkLoja(d.link_loja ?? '')
+      setRegimeTributario(d.regime_tributario ?? '')
+      setCertSenha(d.certificado_digital_senha ?? '')
+      setCertNome(d.certificado_digital_path ?? '')
       setContatos(d.contatos)
     }).finally(() => setLoading(false))
   }, [])
@@ -107,7 +128,18 @@ export default function DadosEmpresaPage() {
   async function handleSalvar() {
     setSalvando(true); setMsg('')
     try {
-      await api.put('/dados-loja', { cep, logradouro, numero, complemento, bairro, cidade, estado, link_loja: linkLoja || null })
+      if (certFile) {
+        const form = new FormData()
+        form.append('file', certFile)
+        await api.post('/dados-loja/certificado', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+        setCertFile(null)
+      }
+      await api.put('/dados-loja', {
+        cep, logradouro, numero, complemento, bairro, cidade, estado,
+        link_loja: linkLoja || null,
+        regime_tributario: regimeTributario || null,
+        certificado_digital_senha: certSenha || null,
+      })
       setMsg('Dados salvos com sucesso.')
     } catch { setMsg('Erro ao salvar.') }
     finally { setSalvando(false) }
@@ -149,6 +181,38 @@ export default function DadosEmpresaPage() {
                   <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)' }}>{dados?.cnpj ?? '—'}</p>
                 </div>
               </div>
+
+              <div className="flex flex-col">
+                <Lbl>Regime Tributário</Lbl>
+                <GSelect value={regimeTributario} onChange={e => setRegimeTributario(e.target.value)}>
+                  <option value="">Selecione...</option>
+                  <option value="MEI">MEI</option>
+                  <option value="Simples Nacional">Simples Nacional</option>
+                  <option value="Lucro Presumido">Lucro Presumido</option>
+                  <option value="Lucro Real">Lucro Real</option>
+                </GSelect>
+              </div>
+
+              <div className="flex flex-col">
+                <Lbl>Certificado Digital (.pfx / .p12)</Lbl>
+                <label style={{ ...INPUT, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <span style={{ background: 'rgba(0,239,255,0.15)', border: '0.5px solid rgba(0,239,255,0.3)', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', color: '#0ef', flexShrink: 0 }}>Escolher</span>
+                  <span style={{ fontSize: '12px', color: certNome ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {certNome || 'Nenhum arquivo selecionado'}
+                  </span>
+                  <input type="file" accept=".pfx,.p12" className="hidden" onChange={e => {
+                    const f = e.target.files?.[0] ?? null
+                    setCertFile(f)
+                    setCertNome(f?.name ?? certNome)
+                  }} />
+                </label>
+              </div>
+
+              <div className="flex flex-col">
+                <Lbl>Senha do Certificado</Lbl>
+                <GInput type="password" value={certSenha} onChange={e => setCertSenha(e.target.value)} placeholder="••••••••" autoComplete="new-password" />
+              </div>
+
               <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
                 CNPJ e plano só podem ser alterados pelo suporte ARKEflow.
               </p>
@@ -232,7 +296,7 @@ export default function DadosEmpresaPage() {
                 className="w-full min-h-[44px] disabled:opacity-40 transition-opacity"
                 style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}
               >
-                {salvando ? 'Salvando...' : 'Salvar Endereço'}
+                {salvando ? 'Salvando...' : 'Salvar Dados'}
               </button>
             </div>
 
