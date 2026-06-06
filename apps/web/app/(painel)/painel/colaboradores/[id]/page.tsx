@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
-import { Input } from '@/components/ui/Input'
 import { colaboradoresApi, type Colaborador, type LogAcesso, type ColaboradorPerfil } from '@/lib/api/colaboradores'
 import { SeletorHorario } from '@/components/painel/SeletorHorario'
 import { api } from '@/lib/api/client'
@@ -21,21 +20,110 @@ const TIPOS_CONTRATO = [
   { value: 'outro',    label: 'Outro' },
 ]
 
+// ── Glass constants ────────────────────────────────────────────────────────────
+
+const CARD = {
+  background: 'rgba(8,18,30,0.48)',
+  backdropFilter: 'blur(8px)',
+  border: '0.5px solid rgba(255,255,255,0.09)',
+  borderRadius: '10px',
+  padding: '16px',
+}
+
+const ROW = {
+  background: 'rgba(8,18,30,0.35)',
+  border: '0.5px solid rgba(255,255,255,0.07)',
+  borderRadius: '8px',
+  padding: '10px 12px',
+}
+
+const INPUT = {
+  background: 'rgba(8,18,30,0.5)',
+  border: '0.5px solid rgba(255,255,255,0.12)',
+  borderRadius: '8px',
+  padding: '9px 12px',
+  fontSize: '13px',
+  color: 'rgba(255,255,255,0.75)',
+  width: '100%',
+  outline: 'none',
+}
+
+function Lbl({ children }: { children: React.ReactNode }) {
+  return (
+    <label style={{ display: 'block', fontSize: '9px', textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: '4px' }}>
+      {children}
+    </label>
+  )
+}
+
+function GField({ label, value, onChange, type = 'text', placeholder = '' }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
+  return (
+    <div className="flex flex-col">
+      <Lbl>{label}</Lbl>
+      <input
+        type={type} value={value} placeholder={placeholder}
+        onChange={e => onChange(e.target.value)}
+        style={INPUT}
+        className="outline-none"
+        onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+        onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+      />
+    </div>
+  )
+}
+
+function GSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col">
+      <Lbl>{label}</Lbl>
+      <select
+        value={value} onChange={e => onChange(e.target.value)}
+        style={INPUT}
+        className="outline-none"
+        onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+        onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+      >
+        {children}
+      </select>
+    </div>
+  )
+}
+
+function SaveBtn({ onClick, disabled, label }: { onClick: () => void; disabled: boolean; label: string }) {
+  return (
+    <button
+      onClick={onClick} disabled={disabled}
+      className="w-full min-h-[44px] disabled:opacity-40 transition-opacity"
+      style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}
+    >
+      {label}
+    </button>
+  )
+}
+
+function Msg({ text }: { text: string }) {
+  if (!text) return null
+  const ok = text.toLowerCase().includes('sucesso') || text.toLowerCase().includes('atualiz')
+  return <p style={{ fontSize: '12px', textAlign: 'center', color: ok ? 'rgba(100,220,160,0.85)' : 'rgba(248,113,113,0.85)' }}>{text}</p>
+}
+
+// ─── component ────────────────────────────────────────────────────────────────
+
 export default function ColaboradorDetalhe() {
   const { id }   = useParams<{ id: string }>()
   const router   = useRouter()
   const fileRef  = useRef<HTMLInputElement>(null)
 
-  const [aba, setAba]       = useState<Aba>('acesso')
-  const [colab, setColab]   = useState<Colaborador | null>(null)
-  const [logs,  setLogs]    = useState<LogAcesso[]>([])
-  const [docs,  setDocs]    = useState<DocItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [aba,      setAba]      = useState<Aba>('acesso')
+  const [colab,    setColab]    = useState<Colaborador | null>(null)
+  const [logs,     setLogs]     = useState<LogAcesso[]>([])
+  const [docs,     setDocs]     = useState<DocItem[]>([])
+  const [loading,  setLoading]  = useState(true)
   const [salvando, setSalvando] = useState(false)
-  const [msg, setMsg]       = useState('')
+  const [msg,      setMsg]      = useState('')
 
-  const [modelos,   setModelos]   = useState<any[]>([])
-  const [modeloId,  setModeloId]  = useState<string>('')
+  const [modelos,  setModelos]  = useState<any[]>([])
+  const [modeloId, setModeloId] = useState<string>('')
 
   // Acesso
   const [nome,       setNome]       = useState('')
@@ -68,15 +156,14 @@ export default function ColaboradorDetalhe() {
   const [estado,      setEstado]      = useState('')
 
   // Bancário
-  const [banco,      setBanco]      = useState('')
-  const [agencia,    setAgencia]    = useState('')
-  const [conta,      setConta]      = useState('')
-  const [contaDigito,setContaDigito]= useState('')
-  const [tipoConta,  setTipoConta]  = useState('')
-  const [pix,        setPix]        = useState('')
+  const [banco,       setBanco]       = useState('')
+  const [agencia,     setAgencia]     = useState('')
+  const [conta,       setConta]       = useState('')
+  const [contaDigito, setContaDigito] = useState('')
+  const [tipoConta,   setTipoConta]   = useState('')
+  const [pix,         setPix]         = useState('')
 
   useEffect(() => {
-    // Carrega modelos de permissão disponíveis
     api.get<any[]>('/modelos-permissao').then(r => setModelos(r.data)).catch(() => {})
 
     Promise.all([
@@ -99,18 +186,25 @@ export default function ColaboradorDetalhe() {
     }).finally(() => setLoading(false))
   }, [id])
 
+  async function handleToggleAtivo() {
+    if (!colab) return
+    const novo = !colab.ativo
+    await colaboradoresApi.updateAcesso(id, { ativo: novo })
+    setColab(c => c ? { ...c, ativo: novo } : c)
+  }
+
   async function salvarAcesso() {
     setSalvando(true); setMsg('')
     try {
       await colaboradoresApi.updateAcesso(id, {
         nome,
         ...(email ? { email } : {}),
-        username:             username || null,
-        modelo_permissao_id:  modeloId || null,
-        permissoes:           Array.isArray(permissoes) ? permissoes : [],
-        dias_semana:          diasSemana,
-        hora_inicio:          diasSemana ? horaInicio : null,
-        hora_fim:             diasSemana ? horaFim    : null,
+        username:            username || null,
+        modelo_permissao_id: modeloId || null,
+        permissoes:          Array.isArray(permissoes) ? permissoes : [],
+        dias_semana:         diasSemana,
+        hora_inicio:         diasSemana ? horaInicio : null,
+        hora_fim:            diasSemana ? horaFim    : null,
       } as any)
       setMsg('Salvo com sucesso.')
     } catch (err: any) { setMsg(err?.response?.data?.error ?? 'Erro.') }
@@ -165,14 +259,13 @@ export default function ColaboradorDetalhe() {
     catch (err: any) { setMsgSenha(err?.response?.data?.error ?? 'Erro.') }
   }
 
-  async function handleDesativar() {
-    if (!confirm('Desativar este colaborador?')) return
-    await colaboradoresApi.remove(id)
-    router.push('/painel/colaboradores')
-  }
-
-  if (loading) return <><TopBar /><div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div></>
-  if (!colab) return <><TopBar /><p className="text-center text-steel py-16">Não encontrado.</p></>
+  // ── loading / null states ──────────────────────────────────────────────────
+  if (loading) return (
+    <><TopBar /><div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div></>
+  )
+  if (!colab) return (
+    <><TopBar /><p className="text-center py-16" style={{ color: 'rgba(255,255,255,0.4)' }}>Não encontrado.</p></>
+  )
 
   const isDono = colab.nivel === 'dono_loja'
   const ABAS: { key: Aba; label: string }[] = [
@@ -184,314 +277,348 @@ export default function ColaboradorDetalhe() {
     { key: 'logs',       label: `Logs (${logs.length})` },
   ]
 
-  const Field = ({ label, value, onChange, type = 'text', placeholder = '' }: any) => (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs text-steel uppercase tracking-wider">{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam placeholder-steel outline-none focus:border-electric-cyan" />
-    </div>
-  )
-
   return (
     <>
       <TopBar />
-      <main className="flex-1 overflow-y-auto pb-10">
+      <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-10 flex flex-col gap-3">
 
-        {/* Abas */}
-        <div className="bg-deep-ocean border-b border-ocean-depth flex overflow-x-auto scrollbar-none px-2">
+        {/* ── Header card ─────────────────────────────────────────────────── */}
+        <div style={CARD}>
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            <div
+              className="flex items-center justify-center shrink-0"
+              style={{ width: '52px', height: '52px', background: 'rgba(0,239,255,0.15)', border: '1px solid rgba(0,239,255,0.25)', borderRadius: '50%' }}
+            >
+              <span style={{ color: '#0ef', fontWeight: 700, fontSize: '20px' }}>
+                {colab.nome.charAt(0).toUpperCase()}
+              </span>
+            </div>
+
+            {/* Name + email + badges */}
+            <div className="flex-1 min-w-0">
+              <p style={{ fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{colab.nome}</p>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>{colab.email}</p>
+              <div className="flex gap-1.5 mt-2 flex-wrap">
+                <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'rgba(0,239,255,0.12)', color: '#0ef', borderRadius: '9999px', padding: '2px 8px' }}>
+                  {isDono ? 'Dono' : 'Vendedor'}
+                </span>
+                <span style={colab.ativo
+                  ? { fontSize: '9px', textTransform: 'uppercase', background: 'rgba(100,220,160,0.1)', color: 'rgba(100,220,160,0.8)', borderRadius: '9999px', padding: '2px 8px' }
+                  : { fontSize: '9px', textTransform: 'uppercase', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)', borderRadius: '9999px', padding: '2px 8px' }
+                }>
+                  {colab.ativo ? 'Ativo' : 'Inativo'}
+                </span>
+              </div>
+            </div>
+
+            {/* Active toggle */}
+            {!isDono && (
+              <button
+                onClick={handleToggleAtivo}
+                className="shrink-0 relative transition-colors"
+                style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: colab.ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+              >
+                <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                  style={{ left: colab.ativo ? '21px' : '3px' }} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Pill tab bar ─────────────────────────────────────────────────── */}
+        <div
+          style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px' }}
+          className="flex overflow-x-auto scrollbar-none"
+        >
           {ABAS.map(a => (
-            <button key={a.key} onClick={() => { setAba(a.key); setMsg('') }}
-              className={`min-h-[44px] px-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                aba === a.key ? 'text-electric-cyan border-electric-cyan' : 'text-steel border-transparent hover:text-sea-foam'
-              }`}>
+            <button
+              key={a.key}
+              onClick={() => { setAba(a.key); setMsg('') }}
+              style={{
+                flex: 1, minWidth: 'max-content', padding: '7px 10px', borderRadius: '6px',
+                fontSize: '12px', fontWeight: 500, border: 'none', whiteSpace: 'nowrap',
+                background: aba === a.key ? 'rgba(0,239,255,0.15)' : 'transparent',
+                color:      aba === a.key ? '#0ef' : 'rgba(255,255,255,0.4)',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
               {a.label}
             </button>
           ))}
         </div>
 
-        <div className="p-4 md:p-6">
-          <div className="max-w-lg flex flex-col gap-4">
-
-            {/* ── Acesso ── */}
-            {aba === 'acesso' && (
-              <>
-                {/* Toggle de acesso NO TOPO */}
-                {!isDono && (
-                  <div className={`flex items-center justify-between p-4 rounded-2xl border ${
-                    colab.ativo ? 'bg-deep-ocean border-ocean-depth' : 'bg-red-500/10 border-red-500/30'
-                  }`}>
-                    <div>
-                      <p className={`text-sm font-semibold ${colab.ativo ? 'text-sea-foam' : 'text-red-400'}`}>
-                        {colab.ativo ? '🟢 Acesso ativo' : '🔴 Acesso bloqueado'}
-                      </p>
-                      <p className="text-steel text-xs mt-0.5">
-                        {colab.ativo ? 'Colaborador pode entrar no sistema' : 'Login bloqueado'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const novo = !colab.ativo
-                        await colaboradoresApi.updateAcesso(id, { ativo: novo })
-                        setColab(c => c ? { ...c, ativo: novo } : c)
-                      }}
-                      className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${colab.ativo ? 'bg-electric-cyan' : 'bg-ocean-depth'}`}
-                    >
-                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${colab.ativo ? 'left-7' : 'left-1'}`} />
-                    </button>
-                  </div>
-                )}
-
-                <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Dados de acesso</h3>
-                    {isDono && <span className="bg-electric-cyan/20 text-electric-cyan text-[10px] px-2 py-0.5 rounded-full font-medium uppercase">Dono</span>}
-                  </div>
-                  <Input label="Nome" value={nome} onChange={e => setNome(e.target.value)} />
-                  <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)}
-                    placeholder="email@exemplo.com" />
-                  <Input label="Usuário (opcional)" value={username} onChange={e => setUsername(e.target.value.toLowerCase())}
-                    placeholder="ex: joao.silva" />
-                </section>
-
-                {!isDono && (
-                  <>
-                    {/* Modelo de permissão — dropdown simples */}
-                    <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-3">
-                      <div>
-                        <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Modelo de permissão</h3>
-                        <p className="text-steel text-xs mt-0.5">Define quais menus este colaborador pode acessar</p>
-                      </div>
-                      {modelos.filter((m: any) => !m.sistema).length === 0 ? (
-                        <p className="text-yellow-400 text-xs">
-                          Nenhum modelo criado.{' '}
-                          <a href="/painel/colaboradores/permissoes" className="underline">Criar modelo</a>
-                        </p>
-                      ) : (
-                        <select
-                          value={modeloId}
-                          onChange={e => setModeloId(e.target.value)}
-                          className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan"
-                        >
-                          <option value="">Sem modelo — sem acesso ao painel</option>
-                          {modelos.filter((m: any) => !m.sistema).map((m: any) => (
-                            <option key={m.id} value={m.id}>{m.nome}</option>
-                          ))}
-                        </select>
-                      )}
-                    </section>
-
-                    <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5">
-                      <SeletorHorario dias={diasSemana} horaInicio={horaInicio} horaFim={horaFim}
-                        onChange={(d, i, f) => { setDiasSemana(d); setHoraInicio(i); setHoraFim(f) }} />
-                    </section>
-                  </>
-                )}
-
-                {msg && <p className={`text-sm text-center ${msg.includes('sucesso') ? 'text-mint-green' : 'text-red-400'}`}>{msg}</p>}
-                <button onClick={salvarAcesso} disabled={salvando}
-                  className="min-h-[52px] bg-electric-cyan text-midnight rounded-2xl text-sm font-semibold disabled:opacity-40">
-                  {salvando ? 'Salvando...' : 'Salvar Acesso'}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* ACESSO                                                            */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {aba === 'acesso' && (
+          <>
+            {/* Access toggle row */}
+            {!isDono && (
+              <div style={ROW} className="flex items-center justify-between">
+                <div>
+                  <p style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>
+                    {colab.ativo ? 'Acesso ativo' : 'Acesso bloqueado'}
+                  </p>
+                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>
+                    {colab.ativo ? 'Colaborador pode entrar no sistema' : 'Login bloqueado'}
+                  </p>
+                </div>
+                <button onClick={handleToggleAtivo} className="shrink-0 relative transition-colors"
+                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: colab.ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}>
+                  <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                    style={{ left: colab.ativo ? '21px' : '3px' }} />
                 </button>
+              </div>
+            )}
 
-                <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-3">
-                  <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Redefinir Senha</h3>
-                  <Input label="Nova senha" type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
-                  {msgSenha && <p className={`text-xs ${msgSenha.includes('atualizada') ? 'text-mint-green' : 'text-red-400'}`}>{msgSenha}</p>}
-                  <button onClick={handleRedefinirSenha} disabled={!novaSenha}
-                    className="min-h-[48px] border border-ocean-depth text-sea-foam rounded-xl text-sm hover:border-teal-current transition-colors disabled:opacity-40">
-                    Redefinir Senha
-                  </button>
-                </section>
+            {/* Main access form */}
+            <div style={CARD} className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Dados de acesso</p>
+                {isDono && <span style={{ fontSize: '9px', textTransform: 'uppercase', background: 'rgba(0,239,255,0.12)', color: '#0ef', borderRadius: '9999px', padding: '2px 8px' }}>Dono</span>}
+              </div>
+              <GField label="Nome"            value={nome}     onChange={setNome} />
+              <GField label="Email"           value={email}    onChange={setEmail}    type="email" placeholder="email@exemplo.com" />
+              <GField label="Usuário (opcional)" value={username} onChange={v => setUsername(v.toLowerCase())} placeholder="ex: joao.silva" />
+            </div>
 
-                {!isDono && (
-                  <button
-                    onClick={async () => {
-                      if (!confirm('Excluir permanentemente este colaborador?')) return
-                      try {
-                        await colaboradoresApi.excluir(id)
-                        router.push('/painel/colaboradores')
-                      } catch (err: any) {
-                        alert(err?.response?.data?.error ?? 'Erro ao excluir.')
-                      }
-                    }}
-                    className={`min-h-[48px] rounded-2xl text-sm border transition-colors border-red-500/30 text-red-400 hover:bg-red-500/10`
-                  /* placeholder para manter a estrutura do bloco */.trim()}
-                  >
-                    🗑️ Excluir colaborador</button>
-                )}
+            {!isDono && (
+              <>
+                {/* Modelo de permissão */}
+                <div style={CARD} className="flex flex-col gap-3">
+                  <div>
+                    <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Modelo de permissão</p>
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '3px' }}>Define quais menus este colaborador pode acessar</p>
+                  </div>
+                  {modelos.filter((m: any) => !m.sistema).length === 0 ? (
+                    <p style={{ fontSize: '12px', color: 'rgba(250,204,21,0.8)' }}>
+                      Nenhum modelo criado.{' '}
+                      <a href="/painel/colaboradores/permissoes" style={{ textDecoration: 'underline' }}>Criar modelo</a>
+                    </p>
+                  ) : (
+                    <GSelect label="Modelo" value={modeloId} onChange={setModeloId}>
+                      <option value="">Sem modelo — sem acesso ao painel</option>
+                      {modelos.filter((m: any) => !m.sistema).map((m: any) => (
+                        <option key={m.id} value={m.id}>{m.nome}</option>
+                      ))}
+                    </GSelect>
+                  )}
+                </div>
 
+                {/* Restrição de horário */}
+                <div style={CARD}>
+                  <SeletorHorario dias={diasSemana} horaInicio={horaInicio} horaFim={horaFim}
+                    onChange={(d, i, f) => { setDiasSemana(d); setHoraInicio(i); setHoraFim(f) }} />
+                </div>
               </>
             )}
 
-            {/* ── Pessoal ── */}
-            {aba === 'pessoal' && (
-              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
-                <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Dados Pessoais &amp; Emprego</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="CPF" value={cpf} onChange={setCpf} placeholder="000.000.000-00" />
-                  <Field label="RG"  value={rg}  onChange={setRg} />
-                </div>
-                <Field label="Data de nascimento" value={dataNascimento} onChange={setDataNascimento} type="date" />
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Telefone" value={telefone} onChange={setTelefone} placeholder="(00) 00000-0000" />
-                  <Field label="Cargo"    value={cargo}    onChange={setCargo}    placeholder="Ex: Vendedor" />
-                </div>
-                <div className="border-t border-ocean-depth pt-4">
-                  <p className="text-steel text-xs uppercase tracking-wider mb-3">Dados de Emprego</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Data de admissão" value={dataAdmissao} onChange={setDataAdmissao} type="date" />
-                    <Field label="Salário (R$)" value={salario} onChange={setSalario} placeholder="0,00" />
-                  </div>
-                  <div className="flex flex-col gap-1.5 mt-3">
-                    <label className="text-xs text-steel uppercase tracking-wider">Tipo de contrato</label>
-                    <select value={tipoContrato} onChange={e => setTipoContrato(e.target.value)}
-                      className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none">
-                      <option value="">Selecione...</option>
-                      {TIPOS_CONTRATO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-                {msg && <p className={`text-sm text-center ${msg.includes('sucesso') ? 'text-mint-green' : 'text-red-400'}`}>{msg}</p>}
-                <button onClick={salvarPerfil} disabled={salvando}
-                  className="min-h-[52px] bg-electric-cyan text-midnight rounded-2xl text-sm font-semibold disabled:opacity-40">
-                  {salvando ? 'Salvando...' : 'Salvar'}
-                </button>
-              </section>
+            <Msg text={msg} />
+            <SaveBtn onClick={salvarAcesso} disabled={salvando} label={salvando ? 'Salvando...' : 'Salvar Acesso'} />
+
+            {/* Password reset */}
+            <div style={CARD} className="flex flex-col gap-3">
+              <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Redefinir Senha</p>
+              <GField label="Nova senha" value={novaSenha} onChange={setNovaSenha} type="password" placeholder="Mínimo 6 caracteres" />
+              <Msg text={msgSenha} />
+              <button
+                onClick={handleRedefinirSenha} disabled={!novaSenha}
+                className="w-full min-h-[40px] disabled:opacity-40"
+                style={{ background: 'rgba(240,100,100,0.15)', border: '0.5px solid rgba(240,100,100,0.3)', borderRadius: '8px', color: 'rgba(240,100,100,0.8)', fontSize: '13px', fontWeight: 500 }}
+              >
+                Redefinir Senha
+              </button>
+            </div>
+
+            {/* Danger zone */}
+            {!isDono && (
+              <button
+                onClick={async () => {
+                  if (!confirm('Excluir permanentemente este colaborador?')) return
+                  try { await colaboradoresApi.excluir(id); router.push('/painel/colaboradores') }
+                  catch (err: any) { alert(err?.response?.data?.error ?? 'Erro ao excluir.') }
+                }}
+                className="w-full min-h-[40px]"
+                style={{ background: 'rgba(240,100,100,0.08)', border: '0.5px solid rgba(240,100,100,0.2)', borderRadius: '8px', color: 'rgba(240,100,100,0.6)', fontSize: '13px' }}
+              >
+                🗑️ Excluir colaborador
+              </button>
             )}
+          </>
+        )}
 
-            {/* ── Endereço ── */}
-            {aba === 'endereco' && (
-              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
-                <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Endereço</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2"><Field label="CEP" value={cep} onChange={setCep} placeholder="00000-000" /></div>
-                  <Field label="Estado" value={estado} onChange={setEstado} placeholder="SP" />
-                </div>
-                <Field label="Logradouro" value={logradouro} onChange={setLogradouro} placeholder="Rua, Av., etc." />
-                <div className="grid grid-cols-3 gap-3">
-                  <Field label="Número" value={numero} onChange={setNumero} />
-                  <div className="col-span-2"><Field label="Complemento" value={complemento} onChange={setComplemento} placeholder="Apto, Bloco..." /></div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Bairro" value={bairro} onChange={setBairro} />
-                  <Field label="Cidade" value={cidade} onChange={setCidade} />
-                </div>
-                {msg && <p className={`text-sm text-center ${msg.includes('sucesso') ? 'text-mint-green' : 'text-red-400'}`}>{msg}</p>}
-                <button onClick={salvarPerfil} disabled={salvando}
-                  className="min-h-[52px] bg-electric-cyan text-midnight rounded-2xl text-sm font-semibold disabled:opacity-40">
-                  {salvando ? 'Salvando...' : 'Salvar'}
-                </button>
-              </section>
-            )}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* PESSOAL                                                           */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {aba === 'pessoal' && (
+          <div style={CARD} className="flex flex-col gap-3">
+            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Dados Pessoais &amp; Emprego</p>
 
-            {/* ── Bancário ── */}
-            {aba === 'bancario' && (
-              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
-                <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Dados Bancários</h3>
-                <Field label="Banco" value={banco} onChange={setBanco} placeholder="Ex: Banco do Brasil, Nubank..." />
-                <div className="grid grid-cols-3 gap-3">
-                  <Field label="Agência" value={agencia} onChange={setAgencia} />
-                  <div className="col-span-2">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2"><Field label="Conta" value={conta} onChange={setConta} /></div>
-                      <Field label="Dígito" value={contaDigito} onChange={setContaDigito} />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-steel uppercase tracking-wider">Tipo de conta</label>
-                  <select value={tipoConta} onChange={e => setTipoConta(e.target.value)}
-                    className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none">
-                    <option value="">Selecione...</option>
-                    <option value="corrente">Corrente</option>
-                    <option value="poupanca">Poupança</option>
-                  </select>
-                </div>
-                <Field label="Chave Pix" value={pix} onChange={setPix} placeholder="CPF, email, telefone ou aleatória" />
-                {msg && <p className={`text-sm text-center ${msg.includes('sucesso') ? 'text-mint-green' : 'text-red-400'}`}>{msg}</p>}
-                <button onClick={salvarPerfil} disabled={salvando}
-                  className="min-h-[52px] bg-electric-cyan text-midnight rounded-2xl text-sm font-semibold disabled:opacity-40">
-                  {salvando ? 'Salvando...' : 'Salvar'}
-                </button>
-              </section>
-            )}
+            <div className="grid grid-cols-2 gap-3">
+              <GField label="CPF" value={cpf} onChange={setCpf} placeholder="000.000.000-00" />
+              <GField label="RG"  value={rg}  onChange={setRg} />
+            </div>
+            <GField label="Data de nascimento" value={dataNascimento} onChange={setDataNascimento} type="date" />
+            <div className="grid grid-cols-2 gap-3">
+              <GField label="Telefone" value={telefone} onChange={setTelefone} placeholder="(00) 00000-0000" />
+              <GField label="Cargo"    value={cargo}    onChange={setCargo}    placeholder="Ex: Vendedor" />
+            </div>
 
-            {/* ── Documentos ── */}
-            {aba === 'documentos' && (
-              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Documentos</h3>
-                  <button onClick={() => fileRef.current?.click()}
-                    className="min-h-[40px] px-4 bg-electric-cyan text-midnight rounded-xl text-xs font-semibold">
-                    + Anexar
-                  </button>
-                  <input ref={fileRef} type="file" className="hidden" onChange={handleUpload}
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-                </div>
+            <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)', paddingTop: '12px' }} className="flex flex-col gap-3">
+              <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Dados de Emprego</p>
+              <div className="grid grid-cols-2 gap-3">
+                <GField label="Data de admissão" value={dataAdmissao} onChange={setDataAdmissao} type="date" />
+                <GField label="Salário (R$)"     value={salario}     onChange={setSalario}     placeholder="0,00" />
+              </div>
+              <GSelect label="Tipo de contrato" value={tipoContrato} onChange={setTipoContrato}>
+                <option value="">Selecione...</option>
+                {TIPOS_CONTRATO.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </GSelect>
+            </div>
 
-                {docs.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-steel text-sm">Nenhum documento anexado</p>
-                    <p className="text-steel text-xs mt-1">PDF, imagens e documentos Word aceitos</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {docs.map(d => {
-                      const isPdf = d.tipo_mime?.includes('pdf')
-                      const isImg = d.tipo_mime?.includes('image')
-                      const icon  = isPdf ? '📄' : isImg ? '🖼️' : '📎'
-                      return (
-                        <div key={d.id} className="bg-midnight rounded-2xl p-4 flex flex-col gap-2">
-                          <div className="text-3xl text-center py-2">{icon}</div>
-                          <p className="text-sea-foam text-xs font-medium text-center truncate">{d.nome}</p>
-                          <p className="text-steel text-[10px] text-center">
-                            {new Date(d.criado_em).toLocaleDateString('pt-BR')}
-                          </p>
-                          <div className="flex gap-2 mt-1">
-                            <a href={`${process.env.NEXT_PUBLIC_API_URL}/colaboradores/documentos/${d.id}/download`}
-                              target="_blank" rel="noopener noreferrer"
-                              className="flex-1 min-h-[36px] bg-ocean-depth text-sea-foam rounded-lg text-xs flex items-center justify-center hover:bg-teal-current transition-colors">
-                              Baixar
-                            </a>
-                            <button onClick={() => handleRemoverDoc(d.id)}
-                              className="min-h-[36px] px-3 text-steel hover:text-red-400 rounded-lg hover:bg-ocean-depth transition-colors text-xs">
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </section>
-            )}
-
-            {/* ── Logs ── */}
-            {aba === 'logs' && (
-              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5">
-                <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider mb-3">Histórico de acessos</h3>
-                {logs.length === 0 ? (
-                  <p className="text-steel text-sm text-center py-6">Nenhum acesso registrado</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {logs.map((l, i) => (
-                      <div key={i} className="flex items-center justify-between bg-midnight rounded-xl px-4 py-3">
-                        <div>
-                          <p className={`text-sm font-medium ${l.tipo === 'login' ? 'text-mint-green' : 'text-steel'}`}>
-                            {l.tipo === 'login' ? '▶ Login' : '◀ Logout'}
-                          </p>
-                          {l.ip && <p className="text-steel text-xs">IP: {l.ip}</p>}
-                        </div>
-                        <p className="text-steel text-xs">{new Date(l.criado_em).toLocaleString('pt-BR')}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
-
+            <Msg text={msg} />
+            <SaveBtn onClick={salvarPerfil} disabled={salvando} label={salvando ? 'Salvando...' : 'Salvar'} />
           </div>
-        </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* ENDEREÇO                                                          */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {aba === 'endereco' && (
+          <div style={CARD} className="flex flex-col gap-3">
+            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Endereço</p>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2"><GField label="CEP" value={cep} onChange={setCep} placeholder="00000-000" /></div>
+              <GField label="Estado" value={estado} onChange={setEstado} placeholder="SP" />
+            </div>
+            <GField label="Logradouro" value={logradouro} onChange={setLogradouro} placeholder="Rua, Av., etc." />
+            <div className="grid grid-cols-3 gap-3">
+              <GField label="Número" value={numero} onChange={setNumero} />
+              <div className="col-span-2"><GField label="Complemento" value={complemento} onChange={setComplemento} placeholder="Apto, Bloco..." /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <GField label="Bairro" value={bairro} onChange={setBairro} />
+              <GField label="Cidade" value={cidade} onChange={setCidade} />
+            </div>
+
+            <Msg text={msg} />
+            <SaveBtn onClick={salvarPerfil} disabled={salvando} label={salvando ? 'Salvando...' : 'Salvar'} />
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* BANCÁRIO                                                          */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {aba === 'bancario' && (
+          <div style={CARD} className="flex flex-col gap-3">
+            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Dados Bancários</p>
+
+            <GField label="Banco" value={banco} onChange={setBanco} placeholder="Ex: Banco do Brasil, Nubank..." />
+            <div className="grid grid-cols-3 gap-3">
+              <GField label="Agência" value={agencia} onChange={setAgencia} />
+              <div className="col-span-2 grid grid-cols-3 gap-2">
+                <div className="col-span-2"><GField label="Conta"  value={conta}       onChange={setConta} /></div>
+                <GField label="Dígito" value={contaDigito} onChange={setContaDigito} />
+              </div>
+            </div>
+            <GSelect label="Tipo de conta" value={tipoConta} onChange={setTipoConta}>
+              <option value="">Selecione...</option>
+              <option value="corrente">Corrente</option>
+              <option value="poupanca">Poupança</option>
+            </GSelect>
+            <GField label="Chave Pix" value={pix} onChange={setPix} placeholder="CPF, email, telefone ou aleatória" />
+
+            <Msg text={msg} />
+            <SaveBtn onClick={salvarPerfil} disabled={salvando} label={salvando ? 'Salvando...' : 'Salvar'} />
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* DOCUMENTOS                                                        */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {aba === 'documentos' && (
+          <div style={CARD} className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Documentos</p>
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="min-h-[34px] px-4"
+                style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', borderRadius: '8px', color: '#0ef', fontSize: '12px', fontWeight: 500 }}
+              >
+                + Anexar
+              </button>
+              <input ref={fileRef} type="file" className="hidden" onChange={handleUpload}
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+            </div>
+
+            {docs.length === 0 ? (
+              <div className="flex flex-col items-center py-10" style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)' }}>Nenhum documento anexado</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', marginTop: '4px' }}>PDF, imagens e documentos Word aceitos</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {docs.map(d => {
+                  const isPdf = d.tipo_mime?.includes('pdf')
+                  const isImg = d.tipo_mime?.includes('image')
+                  const icon  = isPdf ? '📄' : isImg ? '🖼️' : '📎'
+                  return (
+                    <div key={d.id} style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '12px' }} className="flex flex-col gap-2">
+                      <div className="text-3xl text-center py-1">{icon}</div>
+                      <p style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(255,255,255,0.7)', textAlign: 'center' }} className="truncate">{d.nome}</p>
+                      <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
+                        {new Date(d.criado_em).toLocaleDateString('pt-BR')}
+                      </p>
+                      <div className="flex gap-2 mt-1">
+                        <a href={`${process.env.NEXT_PUBLIC_API_URL}/colaboradores/documentos/${d.id}/download`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex-1 min-h-[32px] flex items-center justify-center"
+                          style={{ background: 'rgba(0,239,255,0.1)', border: '0.5px solid rgba(0,239,255,0.2)', borderRadius: '6px', fontSize: '11px', color: '#0ef' }}>
+                          Baixar
+                        </a>
+                        <button onClick={() => handleRemoverDoc(d.id)}
+                          className="min-h-[32px] px-3"
+                          style={{ background: 'rgba(240,100,100,0.08)', border: '0.5px solid rgba(240,100,100,0.15)', borderRadius: '6px', fontSize: '11px', color: 'rgba(240,100,100,0.6)' }}>
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* LOGS                                                              */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {aba === 'logs' && (
+          <div style={CARD} className="flex flex-col gap-3">
+            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Histórico de acessos</p>
+
+            {logs.length === 0 ? (
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '24px 0' }}>Nenhum acesso registrado</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {logs.map((l, i) => (
+                  <div key={i} style={{ ...ROW, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ fontSize: '12px', fontWeight: 500, color: l.tipo === 'login' ? 'rgba(100,220,160,0.85)' : 'rgba(255,255,255,0.4)' }}>
+                        {l.tipo === 'login' ? '▶ Login' : '◀ Logout'}
+                      </p>
+                      {l.ip && <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>IP: {l.ip}</p>}
+                    </div>
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>{new Date(l.criado_em).toLocaleString('pt-BR')}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
     </>
   )
