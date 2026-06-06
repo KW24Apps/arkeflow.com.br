@@ -9,11 +9,10 @@ import { useAuthStore } from '@/store/auth.store'
 
 const DIAS_ABREV = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-const CARD = {
-  background: 'rgba(8,18,30,0.48)',
-  backdropFilter: 'blur(8px)',
-  border: '0.5px solid rgba(255,255,255,0.09)',
-  borderRadius: '10px',
+const ROW = {
+  background: 'rgba(8,18,30,0.35)',
+  border: '0.5px solid rgba(255,255,255,0.07)',
+  borderRadius: '8px',
 }
 
 function lastAccessLabel(iso: string) {
@@ -60,91 +59,69 @@ export default function ColaboradoresPage() {
             <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
+          <div className="flex flex-col gap-1.5">
             {colaboradores.map(c => {
-              const isMe    = c.id === usuarioLogado?.id
-              const isDono  = c.nivel === 'dono_loja'
-              const horario = horarioLabel(c)
+              const isMe   = c.id === usuarioLogado?.id
+              const isDono = c.nivel === 'dono_loja'
 
               return (
                 <div
                   key={c.id}
                   onClick={() => router.push(`/painel/colaboradores/${c.id}`)}
-                  className="p-4 flex flex-col gap-3 cursor-pointer active:scale-[0.98] transition-all"
-                  style={{ ...CARD, opacity: c.ativo ? 1 : 0.5 }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+                  className="flex items-center gap-3 cursor-pointer transition-all active:scale-[0.995]"
+                  style={{ ...ROW, padding: '10px 12px', opacity: c.ativo ? 1 : 0.45 }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)')}
                 >
-                  {/* Top row: avatar + info */}
-                  <div className="flex items-start gap-3">
-                    {/* Avatar */}
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                      style={{ background: 'rgba(0,239,255,0.15)' }}
-                    >
-                      <span style={{ color: '#0ef', fontWeight: 600, fontSize: '15px' }}>
-                        {c.nome.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-
-                    {/* Name + badges + meta */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500, fontSize: '14px' }}>
-                          {c.nome}
-                        </p>
-                        {isDono && (
-                          <span style={{
-                            background: 'rgba(0,239,255,0.15)', color: '#0ef',
-                            fontSize: '9px', padding: '2px 7px', borderRadius: '9999px',
-                            textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600,
-                          }}>
-                            Dono
-                          </span>
-                        )}
-                        {isMe && (
-                          <span style={{
-                            background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)',
-                            fontSize: '9px', padding: '2px 7px', borderRadius: '9999px',
-                            textTransform: 'uppercase',
-                          }}>
-                            Você
-                          </span>
-                        )}
-                      </div>
-
-                      <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginTop: '3px' }}>
-                        {c.email}
-                      </p>
-
-                      {c.ultimo_acesso && (
-                        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px', marginTop: '2px' }}>
-                          {lastAccessLabel(c.ultimo_acesso)}
-                        </p>
-                      )}
-
-                      {horario && (
-                        <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px', marginTop: '2px' }}>
-                          {horario}
-                        </p>
-                      )}
-                    </div>
+                  {/* Avatar */}
+                  <div className="flex items-center justify-center shrink-0"
+                    style={{ width: '36px', height: '36px', background: 'rgba(0,239,255,0.15)', borderRadius: '8px' }}>
+                    <span style={{ color: '#0ef', fontWeight: 600, fontSize: '14px' }}>
+                      {c.nome.charAt(0).toUpperCase()}
+                    </span>
                   </div>
 
-                  {/* Toggle pill — only for non-dono, non-self */}
+                  {/* Name + badges + email */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="truncate" style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.82)' }}>
+                        {c.nome}
+                      </p>
+                      {isDono && (
+                        <span style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'rgba(0,239,255,0.12)', color: '#0ef', borderRadius: '9999px', padding: '1px 7px', fontWeight: 600, flexShrink: 0 }}>
+                          Dono
+                        </span>
+                      )}
+                      {isMe && (
+                        <span style={{ fontSize: '9px', textTransform: 'uppercase', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)', borderRadius: '9999px', padding: '1px 7px', flexShrink: 0 }}>
+                          Você
+                        </span>
+                      )}
+                      {!isDono && (
+                        <span style={{ fontSize: '9px', textTransform: 'uppercase', background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.25)', borderRadius: '9999px', padding: '1px 7px', flexShrink: 0 }}>
+                          Vendedor
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', marginTop: '1px' }}>{c.email}</p>
+                  </div>
+
+                  {/* Last access */}
+                  {c.ultimo_acesso && (
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
+                      {lastAccessLabel(c.ultimo_acesso)}
+                    </p>
+                  )}
+
+                  {/* Active toggle — only for non-dono, non-self */}
                   {!isDono && !isMe && (
                     <button
                       onClick={e => { e.stopPropagation(); handleToggleAtivo(c) }}
-                      className="self-start font-medium uppercase tracking-wide transition-opacity"
-                      style={c.ativo ? {
-                        background: 'rgba(100,220,160,0.15)', color: 'rgba(100,220,160,0.8)',
-                        fontSize: '10px', padding: '3px 10px', borderRadius: '9999px', border: 'none',
-                      } : {
-                        background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)',
-                        fontSize: '10px', padding: '3px 10px', borderRadius: '9999px', border: 'none',
-                      }}
+                      className="shrink-0 relative transition-colors"
+                      style={{ width: '36px', height: '20px', borderRadius: '9999px', border: 'none', background: c.ativo ? 'rgba(0,212,212,0.6)' : 'rgba(255,255,255,0.1)' }}
                     >
-                      {c.ativo ? 'Ativo' : 'Inativo'}
+                      <span className="absolute top-[3px] w-[14px] h-[14px] bg-white rounded-full transition-all"
+                        style={{ left: c.ativo ? '19px' : '3px' }} />
                     </button>
                   )}
                 </div>
