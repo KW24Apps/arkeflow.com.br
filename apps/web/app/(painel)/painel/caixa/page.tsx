@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, X } from 'lucide-react'
+import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, X, Search } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
 import { usePDVStore } from '@/store/pdv.store'
@@ -306,10 +306,11 @@ export default function CaixaPage() {
       <div className="flex flex-col flex-1 overflow-hidden min-h-0">
 
       {/* Split panel */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,20,35,0.45)', backdropFilter: 'blur(2px)', pointerEvents: 'none', zIndex: 0 }} />
 
         {/* ── ESQUERDA: Itens ────────────────────────────────────────────── */}
-        <div className="flex flex-col flex-1 min-w-0 border-r border-ocean-depth overflow-hidden">
+        <div className="relative z-[1] flex flex-col flex-1 min-w-0 border-r border-ocean-depth overflow-hidden">
 
           {/* Lista */}
           <div className="flex-1 overflow-y-auto">
@@ -372,6 +373,7 @@ export default function CaixaPage() {
             {scanErro && <p className="text-red-400 text-xs mb-2 text-center">{scanErro}</p>}
             <div className="flex gap-2">
               <div className="flex-1 relative">
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.25)', pointerEvents: 'none' }} />
                 <input
                   ref={scanRef}
                   value={scan}
@@ -384,7 +386,7 @@ export default function CaixaPage() {
                   }}
                   placeholder='Código de barras, nome... ou "3-código" para qty 3'
                   autoComplete="off"
-                  className="w-full min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl pl-4 pr-4 text-sm text-sea-foam placeholder-steel/50 outline-none focus:border-electric-cyan"
+                  className="w-full min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl pl-[34px] pr-4 text-sm text-sea-foam placeholder-steel/50 outline-none focus:border-electric-cyan"
                 />
               </div>
               <button
@@ -419,7 +421,7 @@ export default function CaixaPage() {
 
         {/* ── DIREITA: Glass Sidebar ──────────────────────────────────────── */}
         <div
-          className="hidden md:flex flex-col shrink-0 overflow-y-auto"
+          className="relative z-[1] hidden md:flex flex-col shrink-0 overflow-y-auto"
           style={{ width: '240px', gap: '8px', padding: '10px', borderLeft: '0.5px solid rgba(255,255,255,0.06)' }}
           data-no-refocus
         >
