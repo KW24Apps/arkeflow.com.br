@@ -16,7 +16,7 @@ export async function produtosRoutes(app: FastifyInstance) {
       `SELECT v.*, p.nome AS produto_nome, p.preco_base, p.controle_estoque, p.id AS produto_id
        FROM versoes v
        JOIN produtos p ON p.id = v.produto_id
-       WHERE v.codigo_barras = $1 AND v.ativo = true AND p.ativo = true`,
+       WHERE v.codigo_barras = $1 AND v.ativo = true AND v.arquivado = false AND p.ativo = true AND p.arquivado = false`,
       [codigo]
     )
     if (!versao) return reply.status(404).send({ error: 'Código de barras não encontrado' })

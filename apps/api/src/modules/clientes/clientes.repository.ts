@@ -2,7 +2,7 @@ import type { Pool } from 'pg'
 
 export async function findAll(pool: Pool, q?: string) {
   const params: any[] = []
-  let where = 'WHERE ativo = true'
+  let where = 'WHERE ativo = true AND arquivado = false'
   if (q) {
     params.push(`%${q}%`)
     where += ` AND (nome ILIKE $1 OR telefone ILIKE $1 OR cpf ILIKE $1)`
@@ -20,7 +20,7 @@ export async function findById(pool: Pool, id: string) {
     `SELECT c.*, rc.nome AS regra_cashback_nome, rc.percentual AS regra_cashback_percentual
      FROM clientes c
      LEFT JOIN regras_cashback rc ON rc.id = c.regra_cashback_id
-     WHERE c.id = $1 AND c.ativo = true`,
+     WHERE c.id = $1 AND c.ativo = true AND c.arquivado = false`,
     [id]
   )
   return c ?? null
@@ -52,14 +52,14 @@ export async function update(pool: Pool, id: string, data: Record<string, any>) 
   const values = Object.values(processed)
   const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
   const { rows: [c] } = await pool.query(
-    `UPDATE clientes SET ${set} WHERE id = $1 AND ativo = true RETURNING *`,
+    `UPDATE clientes SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`,
     [id, ...values]
   )
   return c
 }
 
 export async function softDelete(pool: Pool, id: string) {
-  await pool.query(`UPDATE clientes SET ativo = false WHERE id = $1`, [id])
+  await pool.query(`UPDATE clientes SET arquivado = true WHERE id = $1`, [id])
 }
 
 export async function findHistorico(pool: Pool, cliente_id: string) {

@@ -2,7 +2,7 @@ import type { Pool } from 'pg'
 
 export async function findAll(pool: Pool, q?: string, incluirInativos = false) {
   const params: any[] = []
-  let where = incluirInativos ? 'WHERE 1=1' : 'WHERE p.ativo = true'
+  let where = incluirInativos ? 'WHERE p.arquivado = false' : 'WHERE p.ativo = true AND p.arquivado = false'
   if (q) {
     params.push(`%${q}%`)
     where += ` AND (p.nome ILIKE $${params.length} OR p.codigo ILIKE $${params.length})`
@@ -24,7 +24,7 @@ export async function findAll(pool: Pool, q?: string, incluirInativos = false) {
 
 export async function findById(pool: Pool, id: string) {
   const { rows: [produto] } = await pool.query(
-    `SELECT * FROM produtos WHERE id = $1 AND ativo = true`, [id]
+    `SELECT * FROM produtos WHERE id = $1 AND ativo = true AND arquivado = false`, [id]
   )
   if (!produto) return null
 
@@ -32,7 +32,7 @@ export async function findById(pool: Pool, id: string) {
     `SELECT * FROM atributos_produto WHERE produto_id = $1 ORDER BY nome`, [id]
   )
   const { rows: versoes } = await pool.query(
-    `SELECT * FROM versoes WHERE produto_id = $1 AND ativo = true ORDER BY atributos_json::text`, [id]
+    `SELECT * FROM versoes WHERE produto_id = $1 AND ativo = true AND arquivado = false ORDER BY atributos_json::text`, [id]
   )
   return { ...produto, atributos, versoes }
 }
@@ -57,13 +57,13 @@ export async function update(pool: Pool, id: string, data: Record<string, any>) 
   const values = Object.values(data)
   const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
   const { rows: [p] } = await pool.query(
-    `UPDATE produtos SET ${set} WHERE id = $1 AND ativo = true RETURNING *`, [id, ...values]
+    `UPDATE produtos SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`, [id, ...values]
   )
   return p
 }
 
 export async function softDelete(pool: Pool, id: string) {
-  await pool.query(`UPDATE produtos SET ativo = false WHERE id = $1`, [id])
+  await pool.query(`UPDATE produtos SET arquivado = true WHERE id = $1`, [id])
 }
 
 // Atributos
@@ -110,5 +110,5 @@ export async function updateVersao(pool: Pool, id: string, data: Record<string, 
 }
 
 export async function deleteVersao(pool: Pool, id: string) {
-  await pool.query(`UPDATE versoes SET ativo = false WHERE id = $1`, [id])
+  await pool.query(`UPDATE versoes SET arquivado = true WHERE id = $1`, [id])
 }
