@@ -361,12 +361,17 @@ export default function CaixaPage() {
                 </thead>
                 <tbody>
                   {itensComDesconto.map(item => {
-                    const label = Object.values(item.atributos).join(' / ') || 'Versão única'
                     return (
                       <tr key={item.versao_id} className="border-b border-ocean-depth/50 hover:bg-deep-ocean/50">
                         <td className="px-4 py-3">
                           <p className="text-sea-foam font-medium truncate max-w-[200px]">{item.nome}</p>
-                          <p className="text-steel text-xs">{label}</p>
+                          <p className="text-steel text-xs">
+                            {Object.keys(item.atributos).length === 0 ? 'Versão única' : Object.entries(item.atributos).map(([key, val]) => (
+                              <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                                {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                              </span>
+                            ))}
+                          </p>
                           {item.desconto_item > 0 && (
                             <p className="text-mint-green text-xs">−{fmt(item.desconto_item)} promo</p>
                           )}

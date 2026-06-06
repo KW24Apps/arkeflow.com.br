@@ -158,13 +158,20 @@ function VendaRow({
                 <div>
                   <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 6px' }}>Itens</p>
                   {(detail.itens ?? []).map((item: any, i: number) => {
-                    const attrs     = Object.values(item.atributos_json ?? {}).join(' / ')
                     const lineTotal = Number(item.preco_unitario) * item.quantidade - Number(item.desconto_item)
                     return (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>{item.produto_nome}</span>
-                          {attrs && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginLeft: '6px' }}>{attrs}</span>}
+                          {Object.keys(item.atributos_json ?? {}).length > 0 && (
+                            <span style={{ marginLeft: '6px' }}>
+                              {Object.entries(item.atributos_json ?? {}).map(([key, val]: [string, any]) => (
+                                <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                                  {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                                </span>
+                              ))}
+                            </span>
+                          )}
                         </div>
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginLeft: '12px', whiteSpace: 'nowrap' }}>
                           {item.quantidade}× {fmt(lineTotal)}

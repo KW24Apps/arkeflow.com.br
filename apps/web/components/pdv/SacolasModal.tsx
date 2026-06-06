@@ -173,11 +173,15 @@ export function SacolasModal({ open, onClose, onCarregada }: Props) {
                 {/* Items preview */}
                 <div className="flex flex-wrap gap-1.5">
                   {sacola.itens.slice(0, 4).map((item, idx) => {
-                    const attrs = Object.values(item.atributos ?? {}).join('/')
                     return (
                       <span key={idx} className="text-xs text-steel bg-ocean-depth px-2 py-1 rounded-lg truncate max-w-[140px]">
                         {item.quantidade > 1 && <span className="text-sea-foam font-medium">{item.quantidade}× </span>}
-                        {item.nome}{attrs ? ` ${attrs}` : ''}
+                        {item.nome}
+                        {Object.entries(item.atributos ?? {}).map(([key, val]) => (
+                          <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                            {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                          </span>
+                        ))}
                       </span>
                     )
                   })}

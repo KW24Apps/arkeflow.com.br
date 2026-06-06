@@ -29,12 +29,17 @@ export default function EstoqueAlertasPage() {
         ) : (
           <div className="flex flex-col gap-2">
             {items.map(item => {
-              const label = Object.entries(item.atributos_json).map(([, v]) => v).join(' / ') || 'Versão única'
               return (
                 <div key={item.versao_id} className="bg-deep-ocean border border-yellow-500/40 rounded-2xl p-4 flex items-center justify-between">
                   <div>
                     <p className="text-sea-foam text-sm font-medium">{item.produto_nome}</p>
-                    <p className="text-steel text-xs">{label}</p>
+                    <p className="text-steel text-xs">
+                      {Object.keys(item.atributos_json).length === 0 ? 'Versão única' : Object.entries(item.atributos_json).map(([key, val]) => (
+                        <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                          {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                        </span>
+                      ))}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-yellow-400 font-bold text-lg">{item.estoque_atual}</p>

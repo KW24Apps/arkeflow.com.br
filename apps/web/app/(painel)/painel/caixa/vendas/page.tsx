@@ -138,12 +138,19 @@ function VendaRow({ venda }: { venda: VendaTurno }) {
                 <p className="text-steel text-[10px] uppercase tracking-wider mb-2">Itens</p>
                 <div className="flex flex-col gap-1.5">
                   {detalhe.itens?.map((item, i) => {
-                    const attrs = Object.values(item.atributos_json ?? {}).join(' / ')
                     return (
                       <div key={i} className="flex items-center justify-between text-sm">
                         <div className="flex-1 min-w-0">
                           <span className="text-sea-foam truncate">{item.produto_nome}</span>
-                          {attrs && <span className="text-steel ml-2 text-xs">{attrs}</span>}
+                          {Object.keys(item.atributos_json ?? {}).length > 0 && (
+                            <span className="ml-2">
+                              {Object.entries(item.atributos_json ?? {}).map(([key, val]) => (
+                                <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                                  {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                                </span>
+                              ))}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-4 shrink-0 ml-3">
                           <span className="text-steel text-xs">{item.quantidade}×</span>

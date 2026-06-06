@@ -239,12 +239,17 @@ export default function PDVPage() {
         ) : (
           <div className="flex flex-col gap-2">
             {itens.map(item => {
-              const label = Object.values(item.atributos).join(' / ') || 'Versão única'
               return (
                 <div key={item.versao_id} className="bg-deep-ocean border border-ocean-depth rounded-2xl p-3 flex gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sea-foam text-sm font-medium truncate">{item.nome}</p>
-                    <p className="text-steel text-xs">{label}</p>
+                    <p className="text-steel text-xs">
+                      {Object.keys(item.atributos).length === 0 ? 'Versão única' : Object.entries(item.atributos).map(([key, val]) => (
+                        <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                          {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                        </span>
+                      ))}
+                    </p>
                     <p className="text-electric-cyan text-sm font-semibold mt-0.5">
                       R$ {(item.preco_unitario * item.quantidade).toFixed(2)}
                     </p>

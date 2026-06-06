@@ -58,8 +58,11 @@ export default function EstoqueAjustesPage() {
                 <div>
                   <p className="text-sea-foam font-semibold">{selecionado.produto_nome}</p>
                   <p className="text-steel text-xs">
-                    {Object.entries(selecionado.atributos_json).map(([, v]) => v).join(' / ') || 'Versão única'}
-                    · Atual: <span className="text-sea-foam">{selecionado.estoque_atual} un.</span>
+                    {Object.keys(selecionado.atributos_json).length === 0 ? 'Versão única' : Object.entries(selecionado.atributos_json).map(([key, val]) => (
+                      <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                        {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                      </span>
+                    ))}{' '}· Atual: <span className="text-sea-foam">{selecionado.estoque_atual} un.</span>
                   </p>
                 </div>
                 <button onClick={() => { setSelecionado(null); setMsg('') }} className="text-steel hover:text-red-400">×</button>
@@ -108,7 +111,6 @@ export default function EstoqueAjustesPage() {
           ) : (
             <div className="flex flex-col gap-2">
               {filtered.map(item => {
-                const label = Object.entries(item.atributos_json).map(([, v]) => v).join(' / ') || 'Versão única'
                 const sel = selecionado?.versao_id === item.versao_id
                 return (
                   <button key={item.versao_id} onClick={() => { setSelecionado(item); setMsg('') }}
@@ -117,7 +119,13 @@ export default function EstoqueAjustesPage() {
                     }`}>
                     <div>
                       <p className="text-sea-foam text-sm font-medium">{item.produto_nome}</p>
-                      <p className="text-steel text-xs">{label}</p>
+                      <p className="text-steel text-xs">
+                        {Object.keys(item.atributos_json).length === 0 ? 'Versão única' : Object.entries(item.atributos_json).map(([key, val]) => (
+                          <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                            {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                          </span>
+                        ))}
+                      </p>
                     </div>
                     <p className={`font-bold text-lg ${item.alerta ? 'text-yellow-400' : 'text-sea-foam'}`}>
                       {item.estoque_atual}

@@ -133,10 +133,20 @@ export default function PDVCheckout() {
           </p>
           <div className="flex flex-col gap-1">
             {itensComDesconto.map(item => {
-              const label = Object.values(item.atributos).join(' / ') || 'Versão única'
               return (
                 <div key={item.versao_id} className="flex items-center justify-between text-xs">
-                  <span className="text-steel truncate flex-1">{item.nome} — {label} × {item.quantidade}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-steel">{item.nome} × {item.quantidade}</span>
+                    {Object.keys(item.atributos).length > 0 && (
+                      <div>
+                        {Object.entries(item.atributos).map(([key, val]) => (
+                          <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                            {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="text-right ml-2 shrink-0">
                     {item.desconto_item > 0 && (
                       <span className="text-mint-green mr-2">-R${item.desconto_item.toFixed(2)}</span>

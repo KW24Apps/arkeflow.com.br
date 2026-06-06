@@ -267,7 +267,6 @@ export function AdvancedSearchModal({ open, onClose, onAddItem }: Props) {
                     {!isLoading && versoesFilt.length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-2">
                         {versoesFilt.map(v => {
-                          const label  = Object.values(v.atributos_json ?? {}).join(' / ') || 'Versão única'
                           const preco  = parseFloat(v.preco_especifico ?? produto.preco_base)
                           const semEst = produto.controle_estoque && v.estoque_atual <= 0
 
@@ -286,7 +285,13 @@ export function AdvancedSearchModal({ open, onClose, onAddItem }: Props) {
                               {v.atributos_json?.['Cor'] && (
                                 <span className="font-medium">{v.atributos_json['Cor']}</span>
                               )}
-                              <span>{label}</span>
+                              <span>
+                                {Object.keys(v.atributos_json ?? {}).length === 0 ? 'Versão única' : Object.entries(v.atributos_json ?? {}).map(([key, val]) => (
+                                  <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                                    {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                                  </span>
+                                ))}
+                              </span>
                               {v.preco_especifico && (
                                 <span className="text-electric-cyan font-semibold">R$ {preco.toFixed(2)}</span>
                               )}
