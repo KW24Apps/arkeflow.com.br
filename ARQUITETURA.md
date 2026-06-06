@@ -1,6 +1,6 @@
 # ARKEflow — Snapshot Arquitetural
 
-> Gerado em 2026-06-05. Referência para desenvolvimento, bug fixes e deploys.
+> Gerado em 2026-06-06. Referência para desenvolvimento, bug fixes e deploys.
 
 ---
 
@@ -38,19 +38,20 @@ arkeflow.com.br/
 │   │   │   │   ├── tenant/         # Resolver multi-tenant
 │   │   │   │   ├── middlewares/    # auth.ts + authorize.ts
 │   │   │   │   └── guards/         # vinculo.ts
-│   │   │   ├── modules/            # 12 módulos de domínio
+│   │   │   ├── modules/            # 13 módulos de domínio
 │   │   │   │   ├── auth/
-│   │   │   │   ├── produtos/
+│   │   │   │   ├── produtos/       # inclui campos fiscais (ncm, cfop, csosn, cst...)
 │   │   │   │   ├── catalogos/
 │   │   │   │   ├── clientes/       # inclui cashback.routes.ts
 │   │   │   │   ├── estoque/
 │   │   │   │   ├── financeiro/     # inclui formas-pagamento.routes.ts
 │   │   │   │   ├── colaboradores/  # inclui documentos + modelos-permissao
-│   │   │   │   ├── configuracoes/  # inclui dados-loja.routes.ts
+│   │   │   │   ├── configuracoes/  # inclui dados-loja.routes.ts (campos fiscais da loja)
 │   │   │   │   ├── promocoes/
 │   │   │   │   ├── vendas/
 │   │   │   │   ├── caixa/
-│   │   │   │   └── sacolas/
+│   │   │   │   ├── sacolas/
+│   │   │   │   └── fornecedores/
 │   │   │   ├── platform/
 │   │   │   │   └── lojas/provisioner.ts  # Provisionamento multi-tenant
 │   │   │   └── scripts/
@@ -59,8 +60,8 @@ arkeflow.com.br/
 │   │   │       ├── create-admin.ts
 │   │   │       └── cleanup-logs.ts
 │   │   ├── migrations/
-│   │   │   ├── platform/           # 13 arquivos SQL
-│   │   │   └── tenant/             # 24 arquivos SQL
+│   │   │   ├── platform/           # 14 arquivos SQL (até 014_lojas_fiscal)
+│   │   │   └── tenant/             # 30 arquivos SQL (até 030_produtos_fiscal)
 │   │   └── seeds/
 │   │       └── platform/planos.sql
 │   │
@@ -70,15 +71,16 @@ arkeflow.com.br/
 │       │   ├── (admin)/admin/      # Painel admin plataforma
 │       │   ├── (painel)/painel/    # Painel do dono da loja
 │       │   │   ├── dashboard/
-│       │   │   ├── produtos/       # + novo/ + [id]/
+│       │   │   ├── produtos/       # + novo/ + [id]/ (card Fiscal por regime)
 │       │   │   ├── cadastros/      # tamanhos, cores, tipos, composições...
 │       │   │   ├── clientes/       # + novo/ + [id]/ + cashback/
 │       │   │   ├── estoque/        # + alertas/ + ajustes/
 │       │   │   ├── financeiro/     # + contas-receber/
-│       │   │   ├── configuracoes/  # geral, dados, sistema, formas-pagamento
+│       │   │   ├── configuracoes/  # geral, dados (campos fiscais), sistema, formas-pagamento
 │       │   │   ├── colaboradores/  # + novo/ + [id]/ + permissoes/
 │       │   │   ├── caixa/          # + vendas/
 │       │   │   ├── promocoes/      # + nova/
+│       │   │   ├── fornecedores/   # + novo/ + [id]/
 │       │   │   ├── perfil/
 │       │   │   └── relatorios/     # produtos, financeiro, clientes
 │       │   └── (pdv)/pdv/          # PDV mobile-first
@@ -89,10 +91,10 @@ arkeflow.com.br/
 │       │       ├── venda/[id]/
 │       │       └── historico/
 │       ├── components/
-│       │   ├── ui/                 # Button, Input
+│       │   ├── ui/                 # Button, Input, ConfirmModal...
 │       │   ├── layout/             # Sidebar, TopBar, PainelNav, SecondaryNav...
 │       │   ├── pdv/                # BottomNav, modais de checkout/busca...
-│       │   └── painel/             # CatalogoCRUD, ComposicaoForm, SeletorPermissoes...
+│       │   └── painel/             # CatalogoCRUD, ComposicaoForm, ContatosForm, SeletorPermissoes...
 │       ├── lib/
 │       │   ├── api/                # client.ts (axios) + wrappers por módulo
 │       │   └── auth/session.ts
@@ -120,38 +122,39 @@ arkeflow_platform (banco único)
   └── lojas, planos, assinaturas, usuarios, permissoes, colaboradores_perfil...
 
 loja_XXXXX (banco isolado por loja)
-  └── produtos, clientes, vendas, estoque, financeiro, caixa, sacolas...
+  └── produtos, clientes, vendas, estoque, financeiro, caixa, sacolas, fornecedores...
 ```
 
 - O tenant é resolvido em toda requisição via `apps/api/src/core/tenant/resolver.ts`
 - Provisionamento automático de banco ao cadastrar nova loja: `platform/lojas/provisioner.ts`
 - `usuario_id` em `vendas` não tem FK real — o usuário mora no banco da plataforma
 
-**Padrão de módulo no backend:** cada módulo segue `.routes → .controller → .service → .repository` com validação Zod no `.schema`.
+**Padrão de módulo no backend:** cada módulo segue `.routes → .controller → .service → .repository` com validação Zod no `.schema`. Módulos simples (sem lógica de negócio complexa) omitem service/controller e encapsulam tudo em `.routes`.
 
 ---
 
 ## 4. Rotas da API (prefixos registrados em `app.ts`)
 
-| Prefixo | Módulo |
-|---------|--------|
-| `/auth` | Login / logout |
-| `/produtos` | CRUD de produtos |
-| `/catalogos` | Catálogos (tamanhos, cores, tipos...) |
-| `/clientes` | Clientes |
-| `/cashback-regras` | Regras de cashback |
-| `/estoque` | Estoque e ajustes |
-| `/financeiro` | Contas a receber / fluxo |
-| `/formas-pagamento` | Formas de pagamento |
-| `/colaboradores` | Colaboradores + documentos |
-| `/modelos-permissao` | Modelos de permissão |
-| `/configuracoes-loja` | Configurações gerais |
-| `/dados-loja` | Dados cadastrais da loja |
-| `/promocoes` | Promoções |
-| `/vendas` | Vendas / crediário |
-| `/caixa` | Turnos de caixa |
-| `/sacolas` | Sacolas (carrinho PDV) |
-| `/health` | Health check |
+| Prefixo | Módulo | Banco |
+|---------|--------|-------|
+| `/auth` | Login / logout | platform |
+| `/produtos` | CRUD de produtos (+ campos fiscais) | tenant |
+| `/catalogos` | Catálogos (tamanhos, cores, tipos, composições, medidas) | tenant |
+| `/clientes` | Clientes | tenant |
+| `/cashback-regras` | Regras de cashback | tenant |
+| `/estoque` | Estoque e ajustes | tenant |
+| `/financeiro` | Contas a receber / fluxo de caixa | tenant |
+| `/formas-pagamento` | Formas de pagamento | tenant |
+| `/colaboradores` | Colaboradores + documentos | platform |
+| `/modelos-permissao` | Modelos de permissão | platform |
+| `/configuracoes-loja` | Configurações gerais da loja | tenant |
+| `/dados-loja` | Dados cadastrais + fiscais da loja (regime, certificado) | platform |
+| `/promocoes` | Promoções | tenant |
+| `/vendas` | Vendas / crediário | tenant |
+| `/caixa` | Turnos de caixa | tenant |
+| `/sacolas` | Sacolas (carrinho PDV) | tenant |
+| `/fornecedores` | Fornecedores | tenant |
+| `/health` | Health check | — |
 
 ---
 
@@ -224,11 +227,12 @@ pnpm dev                          # turbo sobe api :3001 + web :3000 em paralelo
 # 2. Commitar e enviar
 git add <arquivos>
 git commit -m "feat: descrição"
-git push origin main              # origin = github.com/KW24Apps/arkeflow.com.br.git
+git push origin master
 
-# ── SERVIDOR (ssh kw24@192.168.3.70 -p 4030) ──────────────────────────────────
-# 3. Puxar código atualizado
-git pull origin main
+# ── SERVIDOR (ssh -i ~/.ssh/kw24_deploy -p 4030 kw24@192.168.3.70) ────────────
+# 3. Preparar NVM e puxar código
+export NVM_DIR="/home/kw24/.nvm" && source $NVM_DIR/nvm.sh
+git pull origin master
 
 # 4a. Só API mudou
 cd apps/api && pnpm build         # tsc → dist/
@@ -238,18 +242,17 @@ pm2 restart arkeflow-api
 cd apps/web && pnpm build         # next build → .next/standalone/
 pm2 restart arkeflow-web
 
-# 4c. Rebuild completo (turbo cuida das dependências)
-pnpm build                        # da raiz do repo
+# 4c. Rebuild completo
+cd apps/api && pnpm build && cd ../web && pnpm build
 pm2 restart all
 
 # 5. Se houver novas migrations
 cd apps/api
-pnpm migrate:platform
-pnpm migrate:tenant               # rodar para cada banco tenant existente se necessário
+pnpm migrate:platform             # migrations/platform/ contra arkeflow_platform
+pnpm migrate:tenant               # migrations/tenant/ contra cada banco loja_*
 
 # 6. Verificar
-pm2 logs --lines 30
-curl http://localhost:3001/health
+pm2 logs --lines 20 --nostream
 ```
 
 ### Quando rebuild cada app
@@ -258,7 +261,7 @@ curl http://localhost:3001/health
 |----------------|----------------|
 | Lógica de API apenas | `api build` → restart arkeflow-api |
 | UI / páginas frontend | `web build` → restart arkeflow-web |
-| Nova migration | build → migrate → restart |
+| Nova migration | migrate → build → restart |
 | Variável `NEXT_PUBLIC_*` | atualizar `.env.local` no servidor → rebuild web |
 | `packages/shared` mudou | rebuild ambos os apps → restart ambos |
 | `ecosystem.config.js` mudou | `pm2 reload ecosystem.config.js --env production` |
@@ -266,11 +269,11 @@ curl http://localhost:3001/health
 ### Acesso SSH
 
 ```
-Host:   192.168.3.70
-Porta:  4030
+Host:    192.168.3.70
+Porta:   4030
 Usuário: kw24
-Senha:   kw242026
-Caminho no servidor: /var/www/arkeflow.com.br
+Chave:   ~/.ssh/kw24_deploy
+Caminho: /var/www/arkeflow.com.br
 ```
 
 ---
@@ -294,9 +297,11 @@ Caminho no servidor: /var/www/arkeflow.com.br
 
 4. **CORS configurado como `origin: true`** (`apps/api/src/app.ts:29`) — aceita qualquer origem. Deve ser restrito ao domínio de produção antes do lançamento público.
 
-5. **Sem CI/CD automatizado** — não há `.github/` pipeline. Deploy 100% manual via SSH. Considerar GitHub Actions futuramente para automatizar build + pull no servidor via push na main.
+5. **Sem CI/CD automatizado** — não há `.github/` pipeline. Deploy 100% manual via SSH. Considerar GitHub Actions futuramente para automatizar build + pull no servidor via push na master.
 
-6. **Banco de test `loja_teste`** existe no servidor com dados de desenvolvimento — não usar em produção real.
+6. **Banco de teste `loja_teste`** existe no servidor com dados de desenvolvimento — não usar em produção real.
+
+7. **Campos fiscais da loja** (`regime_tributario`, `certificado_digital_path`, `certificado_digital_senha`) estão em `lojas` no banco platform. O campo `regime_tributario` é lido pela página de produto para renderizar condicionalmente o card Fiscal.
 
 ---
 
@@ -304,7 +309,7 @@ Caminho no servidor: /var/www/arkeflow.com.br
 
 | Fase | Escopo | Status |
 |------|--------|--------|
-| 1 — MVP | Produtos, estoque, clientes, PDV, crediário, NF via API, fluxo de caixa | Em construção |
+| 1 — MVP | Produtos, estoque, clientes, PDV, crediário, fluxo de caixa, NF-e | Em construção |
 | 2 — Fidelização | Cashback, promoções | Aguardando fase 1 |
 | 3 — Escala | Parceiros, cobrança automática, white-label | Aguardando fase 2 |
 
