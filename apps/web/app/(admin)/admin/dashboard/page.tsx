@@ -1,10 +1,10 @@
-import { TopBar } from '@/components/layout/TopBar'
+﻿import { TopBar } from '@/components/layout/TopBar'
 import { KPICard } from '@/components/layout/KPICard'
 
 export default function AdminDashboard() {
   return (
     <>
-      <TopBar title="Dashboard" />
+      <TopBar />
       <main className="flex-1 p-6 overflow-y-auto">
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

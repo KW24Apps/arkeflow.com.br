@@ -1,9 +1,9 @@
-import { TopBar } from '@/components/layout/TopBar'
+﻿import { TopBar } from '@/components/layout/TopBar'
 
 export default function RelatoriosClientesPage() {
   return (
     <>
-      <TopBar title="Relatórios — Clientes" />
+      <TopBar />
       <main className="flex-1 p-4 md:p-6">
         <div className="flex flex-col items-center justify-center py-16 gap-4">
           <span className="text-5xl opacity-30">👥</span>

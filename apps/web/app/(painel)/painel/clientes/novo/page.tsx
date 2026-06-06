@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -46,7 +46,7 @@ export default function NovoClientePage() {
 
   return (
     <>
-      <TopBar title="Novo Cliente" />
+      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10">
         <form onSubmit={handleSalvar} className="max-w-lg flex flex-col gap-5">
           <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">

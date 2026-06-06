@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -207,7 +207,7 @@ export default function VendasTurnoPage() {
 
   return (
     <>
-      <TopBar title="Histórico do Turno" />
+      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10">
 
         {/* Breadcrumb */}

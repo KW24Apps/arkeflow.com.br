@@ -4,19 +4,15 @@ import { useState, useRef, useEffect } from 'react'
 import { useAuthStore } from '@/store/auth.store'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api/client'
+import { PainelSecondaryNav } from './PainelNav'
 
-interface TopBarProps {
-  title: string
-}
-
-export function TopBar({ title }: TopBarProps) {
+export function TopBar() {
   const usuario = useAuthStore(s => s.usuario)
   const clearAuth = useAuthStore(s => s.clearAuth)
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Fecha ao clicar fora
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false)
@@ -32,18 +28,20 @@ export function TopBar({ title }: TopBarProps) {
     router.push('/login')
   }
 
-  // Prioridade: nome > username > prefixo do email
   const nomeExibido = (usuario as any)?.nome
     || (usuario as any)?.username
     || usuario?.email?.split('@')[0]
     || 'Usuário'
 
   return (
-    <header className="h-14 bg-deep-ocean border-b border-ocean-depth px-4 md:px-6 pl-20 lg:pl-6 flex items-center justify-between shrink-0">
-      <h2 className="text-sea-foam font-semibold text-base truncate">{title}</h2>
+    <header className="h-14 bg-deep-ocean border-b border-ocean-depth flex items-center shrink-0">
+      {/* Sub-navigation tabs — scrollable, fills remaining space */}
+      <div className="flex-1 overflow-x-auto scrollbar-none min-w-0">
+        <PainelSecondaryNav inline />
+      </div>
 
-      {/* Menu do usuário */}
-      <div className="relative" ref={menuRef}>
+      {/* User menu */}
+      <div className="relative shrink-0 pr-3 md:pr-4" ref={menuRef}>
         <button
           onClick={() => setOpen(v => !v)}
           className="flex items-center gap-2 min-h-[40px] px-3 rounded-xl hover:bg-ocean-depth transition-colors"
@@ -62,14 +60,12 @@ export function TopBar({ title }: TopBarProps) {
               <p className="text-steel text-xs capitalize">{usuario?.nivel?.replace('_', ' ')}</p>
             </div>
 
-            {/* Meus Dados — editar perfil próprio */}
             <a href="/painel/perfil"
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 min-h-[44px] px-4 text-sm text-steel hover:text-sea-foam hover:bg-ocean-depth transition-colors">
               <span>👤</span> Meus Dados
             </a>
 
-            {/* Downloads do app */}
             <div className="px-4 py-2 border-b border-ocean-depth">
               <p className="text-steel text-[10px] uppercase tracking-wider mb-2">Baixar aplicativo</p>
               <div className="flex flex-col gap-1">

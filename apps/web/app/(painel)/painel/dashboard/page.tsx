@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -80,7 +80,7 @@ export default function PainelDashboard() {
 
   return (
     <>
-      <TopBar title="Dashboard" />
+      <TopBar />
       <main className="flex-1 p-4 md:p-6 overflow-y-auto">
 
         {/* ── Linha 1: KPIs em 1/3 ── */}

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -75,7 +75,7 @@ export default function MeusDadosPage() {
 
   return (
     <>
-      <TopBar title="Meus Dados" />
+      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10">
         <form onSubmit={handleSalvar} className="max-w-lg flex flex-col gap-5">
 

@@ -171,8 +171,8 @@ export default function ColaboradorDetalhe() {
     router.push('/painel/colaboradores')
   }
 
-  if (loading) return <><TopBar title="Colaborador" /><div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div></>
-  if (!colab) return <><TopBar title="Colaborador" /><p className="text-center text-steel py-16">Não encontrado.</p></>
+  if (loading) return <><TopBar /><div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div></>
+  if (!colab) return <><TopBar /><p className="text-center text-steel py-16">Não encontrado.</p></>
 
   const isDono = colab.nivel === 'dono_loja'
   const ABAS: { key: Aba; label: string }[] = [
@@ -194,7 +194,7 @@ export default function ColaboradorDetalhe() {
 
   return (
     <>
-      <TopBar title={colab.nome} />
+      <TopBar />
       <main className="flex-1 overflow-y-auto pb-10">
 
         {/* Abas */}

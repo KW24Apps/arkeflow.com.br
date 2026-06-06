@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -49,7 +49,7 @@ export default function ColaboradoresPage() {
 
   return (
     <>
-      <TopBar title="Colaboradores" />
+      <TopBar />
       <main className="flex-1 p-4 md:p-6 overflow-y-auto pb-6">
         <div className="max-w-lg flex flex-col gap-2">
 

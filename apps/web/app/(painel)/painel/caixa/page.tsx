@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
@@ -227,7 +227,7 @@ export default function CaixaPage() {
   // ── LOADING ───────────────────────────────────────────────────────────────
   if (cxLoad && status === 'desconhecido') return (
     <>
-      <TopBar title="Caixa" />
+      <TopBar />
       <main className="flex-1 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
       </main>
@@ -237,7 +237,7 @@ export default function CaixaPage() {
   // ── CAIXA FECHADO ─────────────────────────────────────────────────────────
   if (status !== 'aberto') return (
     <>
-      <TopBar title="Caixa" />
+      <TopBar />
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-sm bg-deep-ocean border border-ocean-depth rounded-2xl p-8 flex flex-col gap-5">
           <div className="text-center">

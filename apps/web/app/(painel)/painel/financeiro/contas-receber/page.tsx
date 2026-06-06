@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
@@ -31,7 +31,7 @@ export default function ContasReceberPage() {
 
   return (
     <>
-      <TopBar title="Contas a Receber" />
+      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-6">
         <div className="max-w-lg flex flex-col gap-4">
 

@@ -91,17 +91,17 @@ export default function ClienteDetalhe() {
   }
 
   if (loading) return (
-    <><TopBar title="Cliente" />
+    <><TopBar />
       <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div>
     </>
   )
-  if (!cliente) return <><TopBar title="Cliente" /><p className="text-center text-steel py-16">Não encontrado.</p></>
+  if (!cliente) return <><TopBar /><p className="text-center text-steel py-16">Não encontrado.</p></>
 
   const totalGasto = historico.reduce((s, v) => s + Number(v.total), 0)
 
   return (
     <>
-      <TopBar title={cliente.nome} />
+      <TopBar />
       <main className="flex-1 overflow-y-auto pb-10">
 
         {/* Abas */}

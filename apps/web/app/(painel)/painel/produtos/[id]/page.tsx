@@ -181,7 +181,7 @@ export default function ProdutoPage() {
   // ─── render ─────────────────────────────────────────────────────────────────
   if (loading) return (
     <>
-      <TopBar title="Produto" />
+      <TopBar />
       <div className="flex justify-center py-16">
         <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
       </div>
@@ -190,7 +190,7 @@ export default function ProdutoPage() {
 
   return (
     <>
-      <TopBar title={nome || 'Produto'} />
+      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10">
         <div className="max-w-lg flex flex-col gap-4">
 

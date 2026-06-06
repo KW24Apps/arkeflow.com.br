@@ -1,9 +1,9 @@
-import { TopBar } from '@/components/layout/TopBar'
+﻿import { TopBar } from '@/components/layout/TopBar'
 
 export default function ConfiguracoesGeralPage() {
   return (
     <>
-      <TopBar title="Configurações Gerais" />
+      <TopBar />
       <main className="flex-1 p-4 md:p-6">
         <div className="max-w-lg flex flex-col gap-4">
 

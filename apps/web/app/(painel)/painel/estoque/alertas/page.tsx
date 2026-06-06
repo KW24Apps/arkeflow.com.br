@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
@@ -14,7 +14,7 @@ export default function EstoqueAlertasPage() {
 
   return (
     <>
-      <TopBar title="Alertas de Estoque" />
+      <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-6">
         {loading ? (
           <div className="flex justify-center py-16">
