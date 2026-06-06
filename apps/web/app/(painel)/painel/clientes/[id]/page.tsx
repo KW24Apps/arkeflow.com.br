@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { clientesApi, type Cliente, type VendaHistorico } from '@/lib/api/clientes'
 import { cashbackApi, type RegraCashback } from '@/lib/api/cashback'
 import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
@@ -118,6 +119,7 @@ export default function ClienteDetalhe() {
   const [regras,    setRegras]    = useState<RegraCashback[]>([])
   const [loading,   setLoading]   = useState(true)
   const [salvando,  setSalvando]  = useState(false)
+  const [modal, setModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: '', message: '', onConfirm: () => {} })
 
   // Core fields
   const [tipoPessoa,      setTipoPessoa]      = useState<'fisica' | 'juridica'>('fisica')
@@ -227,7 +229,6 @@ export default function ClienteDetalhe() {
   }
 
   async function handleDelete() {
-    if (!confirm('Remover este cliente?')) return
     await clientesApi.remove(id)
     router.push('/painel/clientes')
   }
@@ -587,7 +588,7 @@ export default function ClienteDetalhe() {
             style={{ background: 'rgba(8,18,30,0.65)', backdropFilter: 'blur(8px)', borderTop: '0.5px solid rgba(255,255,255,0.07)' }}
           >
             <button
-              onClick={handleDelete}
+              onClick={() => setModal({ open: true, title: 'Remover cliente', message: 'Esta ação não pode ser desfeita.', onConfirm: handleDelete })}
               className="flex-1 min-h-[44px]"
               style={{ background: 'rgba(240,100,100,0.08)', border: '0.5px solid rgba(240,100,100,0.25)', borderRadius: '8px', color: 'rgba(240,100,100,0.7)', fontSize: '13px' }}
             >
@@ -605,6 +606,15 @@ export default function ClienteDetalhe() {
         )}
 
       </main>
+      <ConfirmModal
+        isOpen={modal.open}
+        title={modal.title}
+        message={modal.message}
+        confirmLabel="Remover"
+        confirmStyle="danger"
+        onConfirm={() => { setModal(m => ({ ...m, open: false })); modal.onConfirm() }}
+        onCancel={() => setModal(m => ({ ...m, open: false }))}
+      />
     </>
   )
 }

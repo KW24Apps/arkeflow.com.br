@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { SeletorPermissoes } from '@/components/painel/SeletorPermissoes'
 import { api } from '@/lib/api/client'
 
@@ -38,6 +39,7 @@ export default function ModelosPermissaoPage() {
   const [formAberto, setFormAberto] = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [salvando,   setSalvando]   = useState(false)
+  const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
   const [nome,       setNome]       = useState('')
   const [permissoes, setPermissoes] = useState<string[]>([])
 
@@ -71,10 +73,14 @@ export default function ModelosPermissaoPage() {
   }
 
   async function handleRemover(id: string) {
-    if (!confirm('Remover este modelo? Os colaboradores vinculados perderão as permissões.')) return
-    await api.delete(`/modelos-permissao/${id}`)
-    setModelos(m => m.filter(x => x.id !== id))
-    setFormAberto(false)
+    setModal({
+      open: true,
+      onConfirm: async () => {
+        await api.delete(`/modelos-permissao/${id}`)
+        setModelos(m => m.filter(x => x.id !== id))
+        setFormAberto(false)
+      },
+    })
   }
 
   return (
@@ -211,6 +217,15 @@ export default function ModelosPermissaoPage() {
           +
         </button>
       </main>
+      <ConfirmModal
+        isOpen={modal.open}
+        title="Remover modelo de permissão"
+        message="Os colaboradores vinculados perderão as permissões deste modelo."
+        confirmLabel="Remover"
+        confirmStyle="danger"
+        onConfirm={() => { setModal(m => ({ ...m, open: false })); modal.onConfirm() }}
+        onCancel={() => setModal(m => ({ ...m, open: false }))}
+      />
     </>
   )
 }

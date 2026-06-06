@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Ruler, Palette, Tag, Layers, Maximize2, ChevronDown, ChevronRight } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { catalogosApi, type ItemCatalogo, type TipoCatalogo } from '@/lib/api/catalogos'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -142,6 +143,7 @@ function RenderDefault({ items, onRemove }: { items: ItemCatalogo[]; onRemove: (
 export default function CadastrosPage() {
   const [data,        setData]        = useState<Record<string, SecState>>(makeInitialData)
   const [openSection, setOpenSection] = useState<string | null>(null)
+  const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
   function patch(tipo: string, partial: Partial<SecState>) {
     setData(prev => ({ ...prev, [tipo]: { ...prev[tipo], ...partial } }))
@@ -186,12 +188,16 @@ export default function CadastrosPage() {
   }
 
   async function handleRemove(tipo: string, id: string) {
-    if (!confirm('Remover este item?')) return
-    await catalogosApi.remove(tipo as TipoCatalogo, id)
-    setData(prev => ({
-      ...prev,
-      [tipo]: { ...prev[tipo], items: prev[tipo].items.filter(i => i.id !== id) },
-    }))
+    setModal({
+      open: true,
+      onConfirm: async () => {
+        await catalogosApi.remove(tipo as TipoCatalogo, id)
+        setData(prev => ({
+          ...prev,
+          [tipo]: { ...prev[tipo], items: prev[tipo].items.filter(i => i.id !== id) },
+        }))
+      },
+    })
   }
 
   return (
@@ -302,6 +308,15 @@ export default function CadastrosPage() {
         })}
 
       </main>
+      <ConfirmModal
+        isOpen={modal.open}
+        title="Remover item"
+        message="Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        confirmStyle="danger"
+        onConfirm={() => { setModal(m => ({ ...m, open: false })); modal.onConfirm() }}
+        onCancel={() => setModal(m => ({ ...m, open: false }))}
+      />
     </>
   )
 }

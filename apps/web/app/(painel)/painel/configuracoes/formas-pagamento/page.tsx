@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Banknote, QrCode, CreditCard, Receipt, Wallet } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 
 const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario', 'outro']
@@ -52,6 +53,7 @@ export default function FormasPagamentoPage() {
   const [descontoPercentual, setDescontoPercentual] = useState('0')
   const [descontoMaximo,     setDescontoMaximo]     = useState('0')
   const [editandoPadrao,     setEditandoPadrao]     = useState(false)
+  const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
   async function load() {
     setLoading(true)
@@ -91,14 +93,18 @@ export default function FormasPagamentoPage() {
   }
 
   async function handleRemover(id: string) {
-    if (!confirm('Remover esta forma de pagamento?')) return
-    try {
-      await financeiroApi.removerFormaPagamento(id)
-      setFormas(f => f.filter(x => x.id !== id))
-      setFormOpen(false)
-    } catch (err: any) {
-      alert(err?.response?.data?.error ?? 'Erro ao remover.')
-    }
+    setModal({
+      open: true,
+      onConfirm: async () => {
+        try {
+          await financeiroApi.removerFormaPagamento(id)
+          setFormas(f => f.filter(x => x.id !== id))
+          setFormOpen(false)
+        } catch (err: any) {
+          alert(err?.response?.data?.error ?? 'Erro ao remover.')
+        }
+      },
+    })
   }
 
   return (
@@ -268,6 +274,15 @@ export default function FormasPagamentoPage() {
           +
         </button>
       </main>
+      <ConfirmModal
+        isOpen={modal.open}
+        title="Remover forma de pagamento"
+        message="Esta ação não pode ser desfeita."
+        confirmLabel="Remover"
+        confirmStyle="danger"
+        onConfirm={() => { setModal(m => ({ ...m, open: false })); modal.onConfirm() }}
+        onCancel={() => setModal(m => ({ ...m, open: false }))}
+      />
     </>
   )
 }

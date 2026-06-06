@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { colaboradoresApi, type Colaborador, type LogAcesso, type ColaboradorPerfil } from '@/lib/api/colaboradores'
 import { SeletorHorario } from '@/components/painel/SeletorHorario'
 import { api } from '@/lib/api/client'
@@ -108,6 +109,7 @@ export default function ColaboradorDetalhe() {
   const fileRef  = useRef<HTMLInputElement>(null)
 
   const [view,     setView]     = useState<View>('main')
+  const [modal, setModal] = useState<{ open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void }>({ open: false, title: '', message: '', confirmLabel: 'Confirmar', onConfirm: () => {} })
   const [colab,    setColab]    = useState<Colaborador | null>(null)
   const [logs,     setLogs]     = useState<LogAcesso[]>([])
   const [docs,     setDocs]     = useState<DocItem[]>([])
@@ -289,9 +291,23 @@ export default function ColaboradorDetalhe() {
   }
 
   async function handleRemoverDoc(docId: string) {
-    if (!confirm('Remover este documento?')) return
-    await api.delete(`/colaboradores/documentos/${docId}`)
-    setDocs(prev => prev.filter(d => d.id !== docId))
+    setModal({
+      open: true, title: 'Remover documento', message: 'O arquivo será excluído permanentemente.', confirmLabel: 'Remover',
+      onConfirm: async () => {
+        await api.delete(`/colaboradores/documentos/${docId}`)
+        setDocs(prev => prev.filter(d => d.id !== docId))
+      },
+    })
+  }
+
+  function handleExcluirColaborador() {
+    setModal({
+      open: true, title: 'Excluir colaborador', message: 'Esta ação é permanente e não pode ser desfeita.', confirmLabel: 'Excluir',
+      onConfirm: async () => {
+        try { await colaboradoresApi.excluir(id); router.push('/painel/colaboradores') }
+        catch (err: any) { alert((err as any)?.response?.data?.error ?? 'Erro ao excluir.') }
+      },
+    })
   }
 
   async function handleRedefinirSenha() {
@@ -653,11 +669,7 @@ export default function ColaboradorDetalhe() {
             <div className="flex gap-3">
               {!isDono && (
                 <button
-                  onClick={async () => {
-                    if (!confirm('Excluir permanentemente este colaborador?')) return
-                    try { await colaboradoresApi.excluir(id); router.push('/painel/colaboradores') }
-                    catch (err: any) { alert((err as any)?.response?.data?.error ?? 'Erro ao excluir.') }
-                  }}
+                  onClick={handleExcluirColaborador}
                   className="flex-1 min-h-[44px]"
                   style={{ background: 'rgba(240,100,100,0.08)', border: '0.5px solid rgba(240,100,100,0.25)', borderRadius: '8px', color: 'rgba(240,100,100,0.7)', fontSize: '13px' }}
                 >
@@ -677,6 +689,15 @@ export default function ColaboradorDetalhe() {
         )}
 
       </main>
+      <ConfirmModal
+        isOpen={modal.open}
+        title={modal.title}
+        message={modal.message}
+        confirmLabel={modal.confirmLabel}
+        confirmStyle="danger"
+        onConfirm={() => { setModal(m => ({ ...m, open: false })); modal.onConfirm() }}
+        onCancel={() => setModal(m => ({ ...m, open: false }))}
+      />
     </>
   )
 }

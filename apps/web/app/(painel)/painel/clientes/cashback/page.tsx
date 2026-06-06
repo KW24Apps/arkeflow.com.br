@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { cashbackApi, type RegraCashback } from '@/lib/api/cashback'
 
 const CARD = {
@@ -49,6 +50,7 @@ export default function CashbackRegrasPage() {
   const [validadeMeses, setValidadeMeses] = useState('')
   const [padrao,        setPadrao]        = useState(false)
   const [editandoId,    setEditandoId]    = useState<string | null>(null)
+  const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
   async function load() {
     setLoading(true)
@@ -85,10 +87,14 @@ export default function CashbackRegrasPage() {
   }
 
   async function handleRemover(id: string) {
-    if (!confirm('Remover esta regra?')) return
-    await cashbackApi.remove(id)
-    setRegras(r => r.filter(x => x.id !== id))
-    setFormOpen(false)
+    setModal({
+      open: true,
+      onConfirm: async () => {
+        await cashbackApi.remove(id)
+        setRegras(r => r.filter(x => x.id !== id))
+        setFormOpen(false)
+      },
+    })
   }
 
   return (
@@ -211,6 +217,15 @@ export default function CashbackRegrasPage() {
           +
         </button>
       </main>
+      <ConfirmModal
+        isOpen={modal.open}
+        title="Remover regra de cashback"
+        message="Os clientes vinculados perderão esta regra."
+        confirmLabel="Remover"
+        confirmStyle="danger"
+        onConfirm={() => { setModal(m => ({ ...m, open: false })); modal.onConfirm() }}
+        onCancel={() => setModal(m => ({ ...m, open: false }))}
+      />
     </>
   )
 }

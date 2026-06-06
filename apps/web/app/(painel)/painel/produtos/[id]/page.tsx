@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { produtosApi, type Produto, type Versao } from '@/lib/api/produtos'
 import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
 import { ComposicaoForm, type ItemComposicao } from '@/components/painel/ComposicaoForm'
@@ -110,6 +111,7 @@ export default function ProdutoPage() {
   const [cores,    setCores]    = useState<ItemCatalogo[]>([])
   const [medidas,  setMedidas]  = useState<ItemCatalogo[]>([])
 
+  const [modal, setModal] = useState<{ open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void }>({ open: false, title: '', message: '', confirmLabel: 'Confirmar', onConfirm: () => {} })
   const [editandoForm,   setEditandoForm]   = useState<EditandoForm>(null)
   const [form,           setForm]           = useState<VersaoForm>(FORM_VAZIO)
   const [salvandoVar,    setSalvandoVar]    = useState(false)
@@ -231,9 +233,18 @@ export default function ProdutoPage() {
   }
 
   async function handleDeleteVersao(versaoId: string) {
-    if (!confirm('Remover esta variação?')) return
-    await produtosApi.deleteVersao(id, versaoId)
-    setProduto(prev => prev ? { ...prev, versoes: (prev.versoes ?? []).filter(v => v.id !== versaoId) } : prev)
+    setModal({
+      open: true, title: 'Remover variação', message: 'Esta ação não pode ser desfeita.', confirmLabel: 'Remover',
+      onConfirm: async () => {
+        await produtosApi.deleteVersao(id, versaoId)
+        setProduto(prev => prev ? { ...prev, versoes: (prev.versoes ?? []).filter(v => v.id !== versaoId) } : prev)
+      },
+    })
+  }
+
+  async function handleDeleteProduto() {
+    await produtosApi.remove(id)
+    router.push('/painel/produtos')
   }
 
   const medidasDisponiveis = medidas.filter(m => !form.medidas.some(fm => fm.nome === m.nome))
@@ -355,6 +366,14 @@ export default function ProdutoPage() {
                 {salvandoProduto ? 'Salvando...' : 'Salvar Alterações'}
               </button>
             </div>
+
+            {/* Danger */}
+            <button
+              onClick={() => setModal({ open: true, title: 'Remover produto', message: 'O produto e todas as suas variações serão excluídos permanentemente.', confirmLabel: 'Remover', onConfirm: handleDeleteProduto })}
+              style={{ fontSize: '12px', color: 'rgba(240,100,100,0.55)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', textAlign: 'center', width: '100%' }}
+            >
+              Remover produto
+            </button>
           </div>
 
           {/* ══ RIGHT COLUMN ═════════════════════════════════════════════════ */}
@@ -618,6 +637,15 @@ export default function ProdutoPage() {
 
         </div>
       </main>
+      <ConfirmModal
+        isOpen={modal.open}
+        title={modal.title}
+        message={modal.message}
+        confirmLabel={modal.confirmLabel}
+        confirmStyle="danger"
+        onConfirm={() => { setModal(m => ({ ...m, open: false })); modal.onConfirm() }}
+        onCancel={() => setModal(m => ({ ...m, open: false }))}
+      />
     </>
   )
 }
