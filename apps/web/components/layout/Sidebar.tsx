@@ -22,6 +22,7 @@ const HREF_ICONS: Record<string, string> = {
   '/painel/fornecedores':                   'Truck',
   '/painel/configuracoes/formas-pagamento': 'CreditCard',
   '/painel/configuracoes/dados':            'Settings',
+  '/painel/prova-em-casa':                 'Home',
 }
 
 function NavIcon({ name, size = 15 }: { name?: string; size?: number }) {

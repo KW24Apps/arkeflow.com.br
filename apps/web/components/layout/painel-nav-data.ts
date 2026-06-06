@@ -26,7 +26,7 @@ export const SECTIONS = [
   },
   {
     label: 'Prova em Casa',
-    icon:  'ShoppingBag',
+    icon:  'Home',
     href:  '/painel/prova-em-casa',
     match: ['/painel/prova-em-casa'],
     sub:   [],
