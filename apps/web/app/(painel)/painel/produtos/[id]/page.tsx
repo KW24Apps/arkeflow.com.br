@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { formatCurrency, initCurrency, parseCurrency } from '@/lib/utils/currency'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { api } from '@/lib/api/client'
 import { produtosApi, type Produto, type Versao } from '@/lib/api/produtos'
 import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
 import { ComposicaoForm, type ItemComposicao } from '@/components/painel/ComposicaoForm'
@@ -112,6 +113,18 @@ export default function ProdutoPage() {
   const [cores,    setCores]    = useState<ItemCatalogo[]>([])
   const [medidas,  setMedidas]  = useState<ItemCatalogo[]>([])
 
+  // fiscal
+  const [regimeTributario, setRegimeTributario] = useState('')
+  const [ncm,              setNcm]              = useState('')
+  const [cfop,             setCfop]             = useState('')
+  const [origemMercadoria, setOrigemMercadoria] = useState('')
+  const [csosn,            setCsosn]            = useState('')
+  const [cst,              setCst]              = useState('')
+  const [icmsSt,           setIcmsSt]           = useState('')
+  const [ipi,              setIpi]              = useState('')
+  const [pis,              setPis]              = useState('')
+  const [cofins,           setCofins]           = useState('')
+
   const [modal, setModal] = useState<{ open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void }>({ open: false, title: '', message: '', confirmLabel: 'Confirmar', onConfirm: () => {} })
   const [editandoForm,   setEditandoForm]   = useState<EditandoForm>(null)
   const [form,           setForm]           = useState<VersaoForm>(FORM_VAZIO)
@@ -128,7 +141,8 @@ export default function ProdutoPage() {
       catalogosApi.list('tamanhos'),
       catalogosApi.list('cores'),
       catalogosApi.list('medidas'),
-    ]).then(([p, tp, tam, c, med]) => {
+      api.get<{ regime_tributario: string | null }>('/dados-loja'),
+    ]).then(([p, tp, tam, c, med, dl]) => {
       setProduto(p)
       setTipos(tp); setTamanhos(tam); setCores(c); setMedidas(med)
       setNome(p.nome)
@@ -139,6 +153,16 @@ export default function ProdutoPage() {
       setDescricao(p.descricao ?? '')
       setPreco(initCurrency(p.preco_base))
       setControleEstoque(p.controle_estoque)
+      setRegimeTributario(dl.data.regime_tributario ?? '')
+      setNcm((p as any).ncm ?? '')
+      setCfop((p as any).cfop ?? '')
+      setOrigemMercadoria((p as any).origem_mercadoria != null ? String((p as any).origem_mercadoria) : '')
+      setCsosn((p as any).csosn ?? '')
+      setCst((p as any).cst ?? '')
+      setIcmsSt((p as any).icms_st != null ? String((p as any).icms_st) : '')
+      setIpi((p as any).ipi != null ? String((p as any).ipi) : '')
+      setPis((p as any).pis != null ? String((p as any).pis) : '')
+      setCofins((p as any).cofins != null ? String((p as any).cofins) : '')
       setProdutoSalvo(true)
     }).finally(() => setLoading(false))
   }, [id])
@@ -155,13 +179,22 @@ export default function ProdutoPage() {
     try {
       await produtosApi.update(id, {
         nome,
-        tipo_id:          tipoId || null,
-        genero:           genero || null,
-        marca:            marca || undefined,
-        composicao_itens: composicaoItens as any,
-        descricao:        descricao || undefined,
-        preco_base:       parseCurrency(preco) as any,
-        controle_estoque: controleEstoque,
+        tipo_id:           tipoId || null,
+        genero:            genero || null,
+        marca:             marca || undefined,
+        composicao_itens:  composicaoItens as any,
+        descricao:         descricao || undefined,
+        preco_base:        parseCurrency(preco) as any,
+        controle_estoque:  controleEstoque,
+        ncm:               ncm || null,
+        cfop:              cfop || null,
+        origem_mercadoria: origemMercadoria !== '' ? parseInt(origemMercadoria, 10) : null,
+        csosn:             csosn || null,
+        cst:               cst || null,
+        icms_st:           icmsSt  !== '' ? parseFloat(icmsSt)  : null,
+        ipi:               ipi     !== '' ? parseFloat(ipi)     : null,
+        pis:               pis     !== '' ? parseFloat(pis)     : null,
+        cofins:            cofins  !== '' ? parseFloat(cofins)  : null,
       } as any)
       const atualizado = await produtosApi.get(id)
       setProduto(atualizado)
@@ -356,6 +389,7 @@ export default function ProdutoPage() {
           </div>
 
           {/* ══ RIGHT COLUMN ═════════════════════════════════════════════════ */}
+          <div className="flex flex-col gap-3">
           <div style={CARD} className="flex flex-col gap-3">
 
             {/* Variations header */}
@@ -616,6 +650,103 @@ export default function ProdutoPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* ── Fiscal ──────────────────────────────────────────────────── */}
+          {regimeTributario && regimeTributario !== 'MEI' && (
+            <div style={CARD} className="flex flex-col gap-4">
+              <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.3)' }}>Fiscal</p>
+
+              {/* NCM + CFOP */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col">
+                  <Label>NCM</Label>
+                  <GlassInput value={ncm} onChange={e => setNcm(e.target.value)} placeholder="0000.00.00" maxLength={10} />
+                </div>
+                <div className="flex flex-col">
+                  <Label>CFOP</Label>
+                  <GlassInput value={cfop} onChange={e => setCfop(e.target.value)} placeholder="5102" maxLength={10} />
+                </div>
+              </div>
+
+              {/* Origem + CSOSN ou CST */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col">
+                  <Label>Origem</Label>
+                  <GlassSelect value={origemMercadoria} onChange={e => setOrigemMercadoria(e.target.value)}>
+                    <option value="">Selecione...</option>
+                    <option value="0">0 – Nacional</option>
+                    <option value="1">1 – Estrang. importação direta</option>
+                    <option value="2">2 – Estrang. mercado interno</option>
+                    <option value="3">3 – Nacional 40%–70%</option>
+                    <option value="4">4 – Nacional (PPB)</option>
+                    <option value="5">5 – Nacional ≤ 40%</option>
+                    <option value="6">6 – Estrang. direta s/ similar</option>
+                    <option value="7">7 – Estrang. mercado s/ similar</option>
+                    <option value="8">8 – Nacional &gt; 70%</option>
+                  </GlassSelect>
+                </div>
+                <div className="flex flex-col">
+                  {regimeTributario === 'Simples Nacional' ? (
+                    <>
+                      <Label>CSOSN</Label>
+                      <GlassSelect value={csosn} onChange={e => setCsosn(e.target.value)}>
+                        <option value="">Selecione...</option>
+                        <option value="102">102 – Tributada s/ crédito</option>
+                        <option value="400">400 – Não tributada</option>
+                        <option value="500">500 – ICMS cobrado por ST</option>
+                        <option value="900">900 – Outros</option>
+                      </GlassSelect>
+                    </>
+                  ) : (
+                    <>
+                      <Label>CST ICMS</Label>
+                      <GlassSelect value={cst} onChange={e => setCst(e.target.value)}>
+                        <option value="">Selecione...</option>
+                        <option value="00">00 – Tributada integralmente</option>
+                        <option value="10">10 – Tributada com ST</option>
+                        <option value="20">20 – Redução de BC</option>
+                        <option value="30">30 – Isenta/não trib. com ST</option>
+                        <option value="40">40 – Isenta</option>
+                        <option value="41">41 – Não tributada</option>
+                        <option value="50">50 – Suspensão</option>
+                        <option value="51">51 – Diferimento</option>
+                        <option value="60">60 – ICMS cobrado por ST</option>
+                        <option value="70">70 – Red. BC com ST</option>
+                        <option value="90">90 – Outras</option>
+                      </GlassSelect>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* ICMS-ST + IPI + PIS + COFINS (Lucro Presumido / Lucro Real) */}
+              {(regimeTributario === 'Lucro Presumido' || regimeTributario === 'Lucro Real') && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col">
+                      <Label>ICMS-ST (%)</Label>
+                      <GlassInput type="number" min="0" step="0.01" value={icmsSt} onChange={e => setIcmsSt(e.target.value)} placeholder="0,00" />
+                    </div>
+                    <div className="flex flex-col">
+                      <Label>IPI (%)</Label>
+                      <GlassInput type="number" min="0" step="0.01" value={ipi} onChange={e => setIpi(e.target.value)} placeholder="0,00" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col">
+                      <Label>PIS (%)</Label>
+                      <GlassInput type="number" min="0" step="0.01" value={pis} onChange={e => setPis(e.target.value)} placeholder="0,65" />
+                    </div>
+                    <div className="flex flex-col">
+                      <Label>COFINS (%)</Label>
+                      <GlassInput type="number" min="0" step="0.01" value={cofins} onChange={e => setCofins(e.target.value)} placeholder="3,00" />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           </div>
 
         </div>

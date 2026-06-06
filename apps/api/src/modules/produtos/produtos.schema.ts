@@ -16,6 +16,16 @@ export const createProdutoSchema = z.object({
   preco_base:       z.coerce.number().positive('Preço deve ser positivo'),
   controle_estoque: z.boolean().default(true),
   atributos:        z.array(z.string().min(1)).optional(),
+  // fiscal
+  ncm:               z.string().max(10).optional().nullable(),
+  cfop:              z.string().max(10).optional().nullable(),
+  origem_mercadoria: z.coerce.number().int().min(0).max(8).optional().nullable(),
+  csosn:             z.string().max(10).optional().nullable(),
+  cst:               z.string().max(10).optional().nullable(),
+  icms_st:           z.coerce.number().optional().nullable(),
+  ipi:               z.coerce.number().optional().nullable(),
+  pis:               z.coerce.number().optional().nullable(),
+  cofins:            z.coerce.number().optional().nullable(),
 })
 
 export const updateProdutoSchema = createProdutoSchema.partial()
