@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Banknote, QrCode, CreditCard, Receipt, Wallet, Plus } from 'lucide-react'
+import { Banknote, QrCode, CreditCard, Receipt, Wallet } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 
@@ -249,22 +249,24 @@ export default function FormasPagamentoPage() {
               </button>
             ))}
 
-            {/* + Nova forma */}
-            {!formOpen && (
-              <button
-                onClick={abrirNova}
-                className="p-4 flex flex-col items-center justify-center gap-2 transition-colors min-h-[140px]"
-                style={{ border: '1px dashed rgba(255,255,255,0.35)', borderRadius: '10px', color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.04)' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.5)'; e.currentTarget.style.color = '#0ef'; e.currentTarget.style.background = 'rgba(0,239,255,0.06)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-              >
-                <Plus size={24} strokeWidth={1.5} />
-                <span style={{ fontSize: '13px', fontWeight: 500 }}>Nova forma</span>
-              </button>
-            )}
-
           </div>
         )}
+
+        {/* FAB */}
+        <button
+          onClick={abrirNova}
+          className="fixed bottom-6 right-6 z-50 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          style={{
+            width: '48px', height: '48px',
+            background: 'rgba(0,239,255,0.9)',
+            borderRadius: '50%',
+            color: '#0a0a1a',
+            fontSize: '24px', fontWeight: 700,
+            border: 'none',
+          }}
+        >
+          +
+        </button>
       </main>
     </>
   )
