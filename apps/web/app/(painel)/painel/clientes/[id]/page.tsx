@@ -3,14 +3,97 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
-import { Input } from '@/components/ui/Input'
 import { clientesApi, type Cliente, type VendaHistorico } from '@/lib/api/clientes'
 import { cashbackApi, type RegraCashback } from '@/lib/api/cashback'
 import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
-import { ContatosForm, type Contato } from '@/components/painel/ContatosForm'
 import { api } from '@/lib/api/client'
 
-type Aba = 'dados' | 'contatos' | 'medidas' | 'compras'
+type Aba = 'dados' | 'medidas' | 'compras'
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+
+function fmtCPF(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 11)
+  if (d.length > 9) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, '$1.$2.$3-$4')
+  if (d.length > 6) return d.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3')
+  if (d.length > 3) return d.replace(/(\d{3})(\d{0,3})/, '$1.$2')
+  return d
+}
+
+function fmtCNPJ(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 14)
+  if (d.length > 12) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, '$1.$2.$3/$4-$5')
+  if (d.length > 8)  return d.replace(/(\d{2})(\d{3})(\d{3})(\d{0,4})/, '$1.$2.$3/$4')
+  if (d.length > 5)  return d.replace(/(\d{2})(\d{3})(\d{0,3})/, '$1.$2.$3')
+  if (d.length > 2)  return d.replace(/(\d{2})(\d{0,3})/, '$1.$2')
+  return d
+}
+
+function fmtPhone(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 11)
+  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
+  if (d.length > 6)    return d.replace(/(\d{2})(\d{4})(\d+)/, '($1) $2-$3')
+  if (d.length > 2)    return d.replace(/(\d{2})(\d+)/, '($1) $2')
+  return d
+}
+
+function fmtCEP(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 8)
+  return d.length > 5 ? d.replace(/(\d{5})(\d{0,3})/, '$1-$2') : d
+}
+
+// ── Glass constants ───────────────────────────────────────────────────────────
+
+const CARD = {
+  background: 'rgba(8,18,30,0.48)',
+  backdropFilter: 'blur(8px)',
+  border: '0.5px solid rgba(255,255,255,0.09)',
+  borderRadius: '10px',
+  padding: '16px',
+}
+
+const INPUT: React.CSSProperties = {
+  background: 'rgba(8,18,30,0.5)',
+  border: '0.5px solid rgba(255,255,255,0.12)',
+  borderRadius: '8px',
+  padding: '9px 12px',
+  fontSize: '13px',
+  color: 'rgba(255,255,255,0.75)',
+  width: '100%',
+  outline: 'none',
+}
+
+function Lbl({ children }: { children: React.ReactNode }) {
+  return <label style={{ display: 'block', fontSize: '9px', textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: '4px' }}>{children}</label>
+}
+
+function GInput(props: React.InputHTMLAttributes<HTMLInputElement> & { borderColor?: string }) {
+  const { borderColor, ...rest } = props
+  return (
+    <input
+      {...rest}
+      style={{ ...INPUT, ...rest.style, border: borderColor ? `0.5px solid ${borderColor}` : INPUT.border as string }}
+      className="outline-none"
+      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)'; rest.onFocus?.(e) }}
+      onBlur={e => { e.currentTarget.style.borderColor = borderColor ?? 'rgba(255,255,255,0.12)'; rest.onBlur?.(e) }}
+    />
+  )
+}
+
+function GSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      style={{ ...INPUT, ...props.style }}
+      className="outline-none"
+      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+      onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+    />
+  )
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ClienteDetalhe() {
   const { id }  = useParams<{ id: string }>()
@@ -21,48 +104,111 @@ export default function ClienteDetalhe() {
   const [historico, setHistorico] = useState<VendaHistorico[]>([])
   const [regras,    setRegras]    = useState<RegraCashback[]>([])
   const [loading,   setLoading]   = useState(true)
-  const [editando,  setEditando]  = useState(false)
   const [salvando,  setSalvando]  = useState(false)
 
+  // Core fields
+  const [tipoPessoa,      setTipoPessoa]      = useState<'fisica' | 'juridica'>('fisica')
   const [nome,            setNome]            = useState('')
-  const [telefone,        setTelefone]        = useState('')
   const [cpf,             setCpf]             = useState('')
-  const [email,           setEmail]           = useState('')
+  const [telefones,       setTelefones]       = useState<string[]>([''])
+  const [emails,          setEmails]          = useState<string[]>([''])
+  const [emailErrors,     setEmailErrors]     = useState<Record<number,boolean>>({})
   const [regraCashbackId, setRegraCashbackId] = useState('')
 
-  // Contatos do cliente
-  const [contatos, setContatos] = useState<Contato[]>([])
+  // Address
+  const [cep,         setCep]         = useState('')
+  const [logradouro,  setLogradouro]  = useState('')
+  const [numero,      setNumero]      = useState('')
+  const [complemento, setComplemento] = useState('')
+  const [bairro,      setBairro]      = useState('')
+  const [cidade,      setCidade]      = useState('')
+  const [estado,      setEstado]      = useState('')
+  const [buscandoCep, setBuscandoCep] = useState(false)
 
-  // Medidas corporais
+  // Medidas
   const [medidasDisponiveis, setMedidasDisponiveis] = useState<ItemCatalogo[]>([])
-  const [medidasCliente, setMedidasCliente] = useState<Record<string,string>>({})
-  const [addingMedida,   setAddingMedida]   = useState(false)
-  const [novaMedNome,    setNovaMedNome]    = useState('')
-  const [novaMedValor,   setNovaMedValor]   = useState('')
-  const [salvandoMed,    setSalvandoMed]    = useState(false)
+  const [medidasCliente,     setMedidasCliente]     = useState<Record<string,string>>({})
+  const [addingMedida,       setAddingMedida]       = useState(false)
+  const [novaMedNome,        setNovaMedNome]        = useState('')
+  const [novaMedValor,       setNovaMedValor]       = useState('')
+  const [salvandoMed,        setSalvandoMed]        = useState(false)
 
   useEffect(() => {
-    Promise.all([clientesApi.get(id), clientesApi.historico(id), cashbackApi.list(), catalogosApi.list('medidas'), api.get<Contato[]>(`/clientes/${id}/contatos`).then(r => r.data)])
-      .then(([c, h, rs, meds, cts]) => {
-        setCliente(c); setHistorico(h); setRegras(rs)
-        setMedidasDisponiveis(meds); setContatos(cts)
-        setMedidasCliente((c as any).medidas_json ?? {})
-        setNome(c.nome); setTelefone(c.telefone ?? '')
-        setCpf(c.cpf ?? ''); setEmail(c.email ?? '')
-        setRegraCashbackId(c.regra_cashback_id ?? '')
-      })
-      .catch(() => setCliente(null))
-      .finally(() => setLoading(false))
+    Promise.all([
+      clientesApi.get(id),
+      clientesApi.historico(id),
+      cashbackApi.list(),
+      catalogosApi.list('medidas'),
+      api.get(`/clientes/${id}/contatos`).then(r => r.data).catch(() => []),
+    ]).then(([c, h, rs, meds]) => {
+      setCliente(c); setHistorico(h); setRegras(rs)
+      setMedidasDisponiveis(meds)
+      setMedidasCliente((c as any).medidas_json ?? {})
+
+      setNome(c.nome)
+      setTipoPessoa((c as any).tipo_pessoa ?? 'fisica')
+      setCpf(c.cpf ?? '')
+      setRegraCashbackId(c.regra_cashback_id ?? '')
+
+      // Phones — back-compat: single telefone → array
+      const storedPhones = (c as any).telefones ?? (c.telefone ? [c.telefone] : [''])
+      setTelefones(storedPhones.length > 0 ? storedPhones : [''])
+
+      // Emails — back-compat: single email → array
+      const storedEmails = (c as any).emails ?? (c.email ? [c.email] : [''])
+      setEmails(storedEmails.length > 0 ? storedEmails : [''])
+
+      // Address
+      setCep((c as any).cep ?? '')
+      setLogradouro((c as any).logradouro ?? '')
+      setNumero((c as any).numero ?? '')
+      setComplemento((c as any).complemento ?? '')
+      setBairro((c as any).bairro ?? '')
+      setCidade((c as any).cidade ?? '')
+      setEstado((c as any).estado ?? '')
+    })
+    .catch(() => setCliente(null))
+    .finally(() => setLoading(false))
   }, [id])
+
+  async function buscarCep() {
+    const raw = cep.replace(/\D/g, '')
+    if (raw.length !== 8) return
+    setBuscandoCep(true)
+    try {
+      const res  = await fetch(`https://viacep.com.br/ws/${raw}/json/`)
+      const data = await res.json()
+      if (!data.erro) {
+        setLogradouro(data.logradouro || '')
+        setBairro(data.bairro || '')
+        setCidade(data.localidade || '')
+        setEstado(data.uf || '')
+      }
+    } catch {}
+    finally { setBuscandoCep(false) }
+  }
 
   async function handleSalvar() {
     setSalvando(true)
     try {
       const c = await clientesApi.update(id, {
-        nome, telefone: telefone || undefined, cpf: cpf || undefined,
-        email: email || undefined, regra_cashback_id: regraCashbackId || null,
+        nome,
+        tipo_pessoa:       tipoPessoa,
+        cpf:               cpf || undefined,
+        telefone:          telefones[0]?.trim() || undefined,
+        telefones:         telefones.filter(t => t.trim()),
+        email:             emails[0]?.trim() || undefined,
+        emails:            emails.filter(e => e.trim()),
+        regra_cashback_id: regraCashbackId || null,
+        cep:               cep || undefined,
+        logradouro:        logradouro || undefined,
+        numero:            numero || undefined,
+        complemento:       complemento || undefined,
+        bairro:            bairro || undefined,
+        cidade:            cidade || undefined,
+        estado:            estado || undefined,
       } as any)
-      setCliente(c); setEditando(false)
+      setCliente(c)
     } finally { setSalvando(false) }
   }
 
@@ -90,221 +236,310 @@ export default function ClienteDetalhe() {
     setMedidasCliente(novas)
   }
 
+  // ── Loading / null ─────────────────────────────────────────────────────────
   if (loading) return (
-    <><TopBar />
-      <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div>
-    </>
+    <><TopBar /><div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div></>
   )
-  if (!cliente) return <><TopBar /><p className="text-center text-steel py-16">Não encontrado.</p></>
+  if (!cliente) return (
+    <><TopBar /><p className="text-center py-16" style={{ color: 'rgba(255,255,255,0.4)' }}>Não encontrado.</p></>
+  )
 
   const totalGasto = historico.reduce((s, v) => s + Number(v.total), 0)
 
   return (
     <>
       <TopBar />
-      <main className="flex-1 overflow-y-auto pb-10">
+      <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-10 flex flex-col gap-3">
 
-        {/* Abas */}
-        <div className="bg-deep-ocean border-b border-ocean-depth flex px-4">
+        {/* ── Header card ───────────────────────────────────────────────── */}
+        <div style={CARD}>
+          <div className="flex items-start gap-3">
+            {/* Avatar */}
+            <div className="flex items-center justify-center shrink-0"
+              style={{ width: '52px', height: '52px', background: 'rgba(0,239,255,0.15)', border: '1px solid rgba(0,239,255,0.25)', borderRadius: '50%' }}>
+              <span style={{ color: '#0ef', fontWeight: 700, fontSize: '20px' }}>{cliente.nome.charAt(0).toUpperCase()}</span>
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <p style={{ fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{cliente.nome}</p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {cliente.telefone && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>{cliente.telefone}</span>}
+                {cliente.email    && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>{cliente.email}</span>}
+              </div>
+              {Number(cliente.saldo_cashback) > 0 && (
+                <span className="mt-1.5 inline-block" style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)', background: 'rgba(100,220,160,0.08)', borderRadius: '9999px', padding: '2px 8px' }}>
+                  R$ {Number(cliente.saldo_cashback).toFixed(2)} cashback
+                </span>
+              )}
+            </div>
+
+            {/* KPI pills */}
+            <div className="shrink-0 flex flex-col gap-1.5 items-end">
+              {[
+                { label: 'Compras',     value: String(historico.length)       },
+                { label: 'Total gasto', value: `R$ ${totalGasto.toFixed(0)}`  },
+                { label: 'Cashback',    value: `R$ ${Number(cliente.saldo_cashback).toFixed(2)}` },
+              ].map(k => (
+                <div key={k.label} style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 10px', textAlign: 'right' }}>
+                  <p style={{ fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)' }}>{k.label}</p>
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginTop: '1px' }}>{k.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Pill tab bar ──────────────────────────────────────────────── */}
+        <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px' }} className="flex">
           {([
-            { key: 'dados',    label: 'Dados' },
-            { key: 'contatos', label: `Contatos (${contatos.length})` },
-            { key: 'medidas',  label: `Medidas (${Object.keys(medidasCliente).length})` },
-            { key: 'compras',  label: `Compras (${historico.length})` },
+            { key: 'dados',   label: 'Dados' },
+            { key: 'medidas', label: `Medidas (${Object.keys(medidasCliente).length})` },
+            { key: 'compras', label: `Compras (${historico.length})` },
           ] as { key: Aba; label: string }[]).map(a => (
             <button key={a.key} onClick={() => setAba(a.key)}
-              className={`min-h-[44px] px-5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                aba === a.key ? 'text-electric-cyan border-electric-cyan' : 'text-steel border-transparent hover:text-sea-foam'
-              }`}>
+              style={{
+                flex: 1, padding: '7px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, border: 'none',
+                background: aba === a.key ? 'rgba(0,239,255,0.15)' : 'transparent',
+                color:      aba === a.key ? '#0ef' : 'rgba(255,255,255,0.4)',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
               {a.label}
             </button>
           ))}
         </div>
 
-        <div className="p-4 md:p-6">
-          <div className="max-w-lg flex flex-col gap-4">
+        {/* ══════════════════════════════════════════════════════════════ */}
+        {/* DADOS                                                         */}
+        {/* ══════════════════════════════════════════════════════════════ */}
+        {aba === 'dados' && (
+          <div style={CARD} className="flex flex-col gap-4">
 
-            {/* ── Aba Dados ── */}
-            {aba === 'dados' && (
-              <>
-                {/* Resumo cashback */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-deep-ocean border border-ocean-depth rounded-2xl p-4 text-center">
-                    <p className="text-steel text-xs mb-1">Compras</p>
-                    <p className="text-sea-foam font-bold text-xl">{historico.length}</p>
-                  </div>
-                  <div className="bg-deep-ocean border border-ocean-depth rounded-2xl p-4 text-center">
-                    <p className="text-steel text-xs mb-1">Total gasto</p>
-                    <p className="text-sea-foam font-bold text-sm">R$ {totalGasto.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-deep-ocean border border-ocean-depth rounded-2xl p-4 text-center">
-                    <p className="text-steel text-xs mb-1">Cashback</p>
-                    <p className="text-mint-green font-bold text-sm">R$ {Number(cliente.saldo_cashback).toFixed(2)}</p>
-                  </div>
-                </div>
-
-                {/* Dados editáveis */}
-                <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-sea-foam font-semibold text-sm">Informações</p>
-                    <button onClick={() => setEditando(v => !v)}
-                      className="text-xs text-electric-cyan/70 hover:text-electric-cyan">
-                      {editando ? 'Cancelar' : 'Editar'}
-                    </button>
-                  </div>
-
-                  {editando ? (
-                    <div className="flex flex-col gap-3">
-                      <Input label="Nome" value={nome} onChange={e => setNome(e.target.value)} />
-                      <Input label="Telefone" value={telefone} onChange={e => setTelefone(e.target.value)} />
-                      <Input label="CPF" value={cpf} onChange={e => setCpf(e.target.value)} />
-                      <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-                      {regras.length > 0 && (
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-xs text-steel uppercase tracking-wider">Regra de Cashback</label>
-                          <select value={regraCashbackId} onChange={e => setRegraCashbackId(e.target.value)}
-                            className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none">
-                            <option value="">Sem cashback</option>
-                            {regras.map(r => (
-                              <option key={r.id} value={r.id}>
-                                {r.nome} — {Number(r.percentual).toFixed(1)}%
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      <button onClick={handleSalvar} disabled={salvando}
-                        className="min-h-[48px] bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40">
-                        {salvando ? 'Salvando...' : 'Salvar alterações'}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2.5">
-                      <p className="text-sea-foam font-medium">{cliente.nome}</p>
-                      {cliente.telefone && <p className="text-steel text-sm">📞 {cliente.telefone}</p>}
-                      {cliente.cpf      && <p className="text-steel text-sm">🪪 {cliente.cpf}</p>}
-                      {cliente.email    && <p className="text-steel text-sm">✉️ {cliente.email}</p>}
-                      {(cliente as any).regra_cashback_nome && (
-                        <p className="text-steel text-sm">
-                          💳 {(cliente as any).regra_cashback_nome} — {Number((cliente as any).regra_cashback_percentual).toFixed(1)}% cashback
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </section>
-
-                <button onClick={handleDelete}
-                  className="min-h-[48px] border border-red-500/30 text-red-400 rounded-2xl text-sm">
-                  Remover cliente
+            {/* PF / PJ toggle */}
+            <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '3px' }} className="flex gap-1">
+              {(['fisica', 'juridica'] as const).map(tp => (
+                <button key={tp} onClick={() => setTipoPessoa(tp)}
+                  style={{
+                    flex: 1, padding: '7px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, border: 'none',
+                    background: tipoPessoa === tp ? 'rgba(0,239,255,0.15)' : 'transparent',
+                    color:      tipoPessoa === tp ? '#0ef' : 'rgba(255,255,255,0.4)',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                >
+                  {tp === 'fisica' ? 'Pessoa Física' : 'Pessoa Jurídica'}
                 </button>
-              </>
-            )}
+              ))}
+            </div>
 
-            {/* ── Aba Contatos ── */}
-            {aba === 'contatos' && (
-              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5">
-                <h3 className="text-sea-foam font-semibold text-sm mb-1">Contatos</h3>
-                <p className="text-steel text-xs mb-4">Comercial, financeiro e sócio/representante para comunicações direcionadas.</p>
-                <ContatosForm
-                  contatos={contatos}
-                  onAdd={async (c) => {
-                    const { data } = await api.post<Contato>(`/clientes/${id}/contatos`, c)
-                    setContatos(prev => [...prev, data])
-                  }}
-                  onRemove={async (cid) => {
-                    await api.delete(`/clientes/${id}/contatos/${cid}`)
-                    setContatos(prev => prev.filter(x => x.id !== cid))
-                  }}
-                />
-              </section>
-            )}
+            {/* Nome */}
+            <div className="flex flex-col">
+              <Lbl>{tipoPessoa === 'juridica' ? 'Razão Social' : 'Nome'}</Lbl>
+              <GInput value={nome} onChange={e => setNome(e.target.value)} placeholder={tipoPessoa === 'juridica' ? 'Razão social da empresa' : 'Nome completo'} />
+            </div>
 
-            {/* ── Aba Medidas ── */}
-            {aba === 'medidas' && (
-              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sea-foam font-semibold text-sm">Medidas Corporais</h3>
-                    <p className="text-steel text-xs mt-0.5">Usado para filtrar produtos que se encaixam no cliente</p>
-                  </div>
+            {/* CPF / CNPJ */}
+            <div className="flex flex-col">
+              <Lbl>{tipoPessoa === 'juridica' ? 'CNPJ' : 'CPF'}</Lbl>
+              <GInput
+                value={cpf}
+                onChange={e => setCpf(tipoPessoa === 'juridica' ? fmtCNPJ(e.target.value) : fmtCPF(e.target.value))}
+                placeholder={tipoPessoa === 'juridica' ? '00.000.000/0000-00' : '000.000.000-00'}
+              />
+            </div>
+
+            {/* Telefones */}
+            <div className="flex flex-col gap-2">
+              <Lbl>Telefones</Lbl>
+              {telefones.map((t, i) => (
+                <div key={i} className="flex gap-2">
+                  <GInput
+                    value={t}
+                    onChange={e => {
+                      const v = fmtPhone(e.target.value)
+                      setTelefones(prev => prev.map((x, xi) => xi === i ? v : x))
+                    }}
+                    placeholder="(00) 00000-0000"
+                    style={{ flex: 1 }}
+                  />
+                  {telefones.length > 1 && (
+                    <button onClick={() => setTelefones(prev => prev.filter((_, xi) => xi !== i))}
+                      style={{ color: 'rgba(255,255,255,0.3)', fontSize: '18px', width: '32px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  )}
                 </div>
+              ))}
+              <button onClick={() => setTelefones(prev => [...prev, ''])}
+                style={{ fontSize: '11px', color: 'rgba(0,239,255,0.6)', textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                + Adicionar telefone
+              </button>
+            </div>
 
-                {/* Medidas existentes */}
-                {Object.entries(medidasCliente).map(([chave, valor]) => (
-                  <div key={chave} className="flex items-center justify-between bg-midnight rounded-xl px-4 py-3">
-                    <div>
-                      <p className="text-steel text-xs">{chave}</p>
-                      <p className="text-sea-foam font-semibold">{valor}</p>
-                    </div>
-                    <button onClick={() => handleRemoverMedida(chave)}
-                      className="text-steel hover:text-red-400 text-xl min-h-[40px] min-w-[40px] flex items-center justify-center">×</button>
-                  </div>
-                ))}
+            {/* Emails */}
+            <div className="flex flex-col gap-2">
+              <Lbl>Emails</Lbl>
+              {emails.map((e, i) => (
+                <div key={i} className="flex gap-2">
+                  <GInput
+                    type="email"
+                    value={e}
+                    onChange={ev => setEmails(prev => prev.map((x, xi) => xi === i ? ev.target.value : x))}
+                    onBlur={ev => setEmailErrors(prev => ({ ...prev, [i]: !!ev.target.value && !ev.target.value.includes('@') }))}
+                    borderColor={emailErrors[i] ? 'rgba(248,113,113,0.5)' : undefined}
+                    placeholder="email@exemplo.com"
+                    style={{ flex: 1 }}
+                  />
+                  {emails.length > 1 && (
+                    <button onClick={() => { setEmails(prev => prev.filter((_, xi) => xi !== i)); setEmailErrors(prev => { const n = { ...prev }; delete n[i]; return n }) }}
+                      style={{ color: 'rgba(255,255,255,0.3)', fontSize: '18px', width: '32px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  )}
+                </div>
+              ))}
+              <button onClick={() => setEmails(prev => [...prev, ''])}
+                style={{ fontSize: '11px', color: 'rgba(0,239,255,0.6)', textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                + Adicionar email
+              </button>
+            </div>
 
-                {/* Adicionar medida */}
-                {addingMedida ? (
-                  <div className="flex flex-col gap-3 bg-midnight rounded-xl p-3">
-                    <select value={novaMedNome} onChange={e => setNovaMedNome(e.target.value)}
-                      className="min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none">
-                      <option value="">Selecione a medida...</option>
-                      {medidasDisponiveis.filter(m => !(m.nome in medidasCliente)).map(m => (
-                        <option key={m.id} value={m.nome}>{m.nome}</option>
-                      ))}
-                    </select>
-                    <div className="flex gap-2">
-                      <input value={novaMedValor} onChange={e => setNovaMedValor(e.target.value)}
-                        placeholder="Ex: 96cm"
-                        className="flex-1 min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
-                      <button onClick={handleSalvarMedida} disabled={salvandoMed || !novaMedNome || !novaMedValor}
-                        className="min-h-[48px] px-4 bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40">
-                        {salvandoMed ? '...' : 'OK'}
-                      </button>
-                      <button onClick={() => { setAddingMedida(false); setNovaMedNome(''); setNovaMedValor('') }}
-                        className="min-h-[48px] px-3 text-steel rounded-xl">×</button>
-                    </div>
-                  </div>
-                ) : (
-                  medidasDisponiveis.some(m => !(m.nome in medidasCliente)) && (
-                    <button onClick={() => setAddingMedida(true)}
-                      className="text-xs text-electric-cyan/70 hover:text-electric-cyan self-start min-h-[36px]">
-                      + Adicionar medida
-                    </button>
-                  )
-                )}
+            {/* CEP / Endereço */}
+            <div className="flex flex-col gap-3">
+              <Lbl>Endereço</Lbl>
+              <div className="flex gap-2">
+                <GInput
+                  value={cep} onChange={e => setCep(fmtCEP(e.target.value))}
+                  onBlur={buscarCep} placeholder="00000-000"
+                  style={{ flex: 1 }}
+                />
+                <button onClick={buscarCep} disabled={buscandoCep}
+                  style={{ background: 'rgba(0,239,255,0.15)', border: '0.5px solid rgba(0,239,255,0.3)', borderRadius: '8px', padding: '9px 14px', fontSize: '12px', color: '#0ef', flexShrink: 0 }}>
+                  {buscandoCep ? '...' : 'Buscar'}
+                </button>
+              </div>
+              <GInput value={logradouro} onChange={e => setLogradouro(e.target.value)} placeholder="Logradouro" />
+              <div className="grid grid-cols-3 gap-2">
+                <GInput value={numero}      onChange={e => setNumero(e.target.value)}      placeholder="Nº" />
+                <div className="col-span-2">
+                  <GInput value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Complemento" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <GInput value={bairro} onChange={e => setBairro(e.target.value)} placeholder="Bairro" />
+                <GInput value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Cidade" />
+              </div>
+              <GInput value={estado} onChange={e => setEstado(e.target.value)} placeholder="Estado (UF)" />
+            </div>
 
-                {Object.keys(medidasCliente).length === 0 && !addingMedida && (
-                  <p className="text-steel text-sm text-center py-4">Nenhuma medida cadastrada</p>
-                )}
-              </section>
+            {/* Regra de cashback */}
+            {regras.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <Lbl>Regra de Cashback</Lbl>
+                <GSelect value={regraCashbackId} onChange={e => setRegraCashbackId(e.target.value)}>
+                  <option value="">Sem cashback</option>
+                  {regras.map(r => (
+                    <option key={r.id} value={r.id}>{r.nome} — {Number(r.percentual).toFixed(1)}%</option>
+                  ))}
+                </GSelect>
+              </div>
             )}
 
-            {/* ── Aba Compras ── */}
-            {aba === 'compras' && (
-              <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5">
-                {historico.length === 0 ? (
-                  <p className="text-steel text-sm text-center py-8">Nenhuma compra registrada</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {historico.map(v => (
-                      <div key={v.id} className="flex items-center justify-between bg-midnight rounded-xl px-4 py-3">
-                        <div>
-                          <p className="text-sea-foam text-sm font-medium">R$ {Number(v.total).toFixed(2)}</p>
-                          <p className="text-steel text-xs">
-                            {new Date(v.criado_em).toLocaleDateString('pt-BR')} · {v.total_itens} item(ns)
-                          </p>
-                        </div>
-                        {Number(v.cashback_gerado) > 0 && (
-                          <p className="text-mint-green text-xs">+R$ {Number(v.cashback_gerado).toFixed(2)}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
+            {/* Save */}
+            <button onClick={handleSalvar} disabled={salvando}
+              className="w-full min-h-[44px] disabled:opacity-40 transition-opacity"
+              style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}>
+              {salvando ? 'Salvando...' : 'Salvar alterações'}
+            </button>
 
+            {/* Danger */}
+            <button onClick={handleDelete}
+              style={{ fontSize: '12px', color: 'rgba(240,100,100,0.6)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+              Remover cliente
+            </button>
           </div>
-        </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════ */}
+        {/* MEDIDAS                                                       */}
+        {/* ══════════════════════════════════════════════════════════════ */}
+        {aba === 'medidas' && (
+          <div style={CARD} className="flex flex-col gap-4">
+            <div>
+              <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Medidas Corporais</p>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '3px' }}>Usado para filtrar produtos que se encaixam no cliente</p>
+            </div>
+
+            {Object.entries(medidasCliente).map(([chave, valor]) => (
+              <div key={chave} className="flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '10px 12px' }}>
+                <div>
+                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' }}>{chave}</p>
+                  <p style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>{valor}</p>
+                </div>
+                <button onClick={() => handleRemoverMedida(chave)}
+                  style={{ color: 'rgba(255,255,255,0.3)', fontSize: '18px', padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.8)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}>×</button>
+              </div>
+            ))}
+
+            {addingMedida ? (
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '12px' }} className="flex flex-col gap-3">
+                <GSelect value={novaMedNome} onChange={e => setNovaMedNome(e.target.value)}>
+                  <option value="">Selecione a medida...</option>
+                  {medidasDisponiveis.filter(m => !(m.nome in medidasCliente)).map(m => (
+                    <option key={m.id} value={m.nome}>{m.nome}</option>
+                  ))}
+                </GSelect>
+                <div className="flex gap-2">
+                  <GInput value={novaMedValor} onChange={e => setNovaMedValor(e.target.value)} placeholder="Ex: 96cm" style={{ flex: 1 }} />
+                  <button onClick={handleSalvarMedida} disabled={salvandoMed || !novaMedNome || !novaMedValor}
+                    style={{ background: 'rgba(0,239,255,0.85)', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, color: '#0a0a1a', cursor: 'pointer', opacity: salvandoMed || !novaMedNome || !novaMedValor ? 0.4 : 1 }}>
+                    {salvandoMed ? '...' : 'OK'}
+                  </button>
+                  <button onClick={() => { setAddingMedida(false); setNovaMedNome(''); setNovaMedValor('') }}
+                    style={{ color: 'rgba(255,255,255,0.3)', fontSize: '18px', padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+              </div>
+            ) : (
+              medidasDisponiveis.some(m => !(m.nome in medidasCliente)) && (
+                <button onClick={() => setAddingMedida(true)}
+                  style={{ fontSize: '11px', color: 'rgba(0,239,255,0.6)', textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                  + Adicionar medida
+                </button>
+              )
+            )}
+
+            {Object.keys(medidasCliente).length === 0 && !addingMedida && (
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '16px 0' }}>Nenhuma medida cadastrada</p>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════ */}
+        {/* COMPRAS                                                       */}
+        {/* ══════════════════════════════════════════════════════════════ */}
+        {aba === 'compras' && (
+          <div style={CARD} className="flex flex-col gap-2">
+            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '4px' }}>Histórico de compras</p>
+
+            {historico.length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '24px 0' }}>Nenhuma compra registrada</p>
+            ) : (
+              historico.map(v => (
+                <div key={v.id} className="flex items-center justify-between"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '10px 12px' }}>
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>R$ {Number(v.total).toFixed(2)}</p>
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+                      {new Date(v.criado_em).toLocaleDateString('pt-BR')} · {v.total_itens} item(ns)
+                    </p>
+                  </div>
+                  {Number(v.cashback_gerado) > 0 && (
+                    <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>+R$ {Number(v.cashback_gerado).toFixed(2)}</span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
       </main>
     </>
   )
