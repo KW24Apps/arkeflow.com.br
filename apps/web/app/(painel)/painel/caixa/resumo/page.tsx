@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Lock } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
 import { useAuthStore } from '@/store/auth.store'
@@ -228,16 +228,19 @@ function VendaRow({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ResumoCaixaPage() {
-  const { turno, carregar } = useCaixaStore()
-  const authNome            = useAuthStore(s => (s.usuario as any)?.nome ?? (s.usuario as any)?.username ?? null)
+  const { status, turno, carregar } = useCaixaStore()
+  const authNome                    = useAuthStore(s => (s.usuario as any)?.nome ?? (s.usuario as any)?.username ?? null)
   const [vendas,     setVendas]     = useState<VendaHistoricoItem[]>([])
   const [carregando, setCarregando] = useState(true)
   const [details,    setDetails]    = useState<DetailMap>({})
 
-  // Load turno if absent, then load vendas once turno is available
+  // Always refresh caixa status on mount
+  useEffect(() => { carregar() }, [])
+
+  // Fetch vendas only when caixa is open — skip entirely otherwise
   useEffect(() => {
-    if (!turno) {
-      carregar()
+    if (status !== 'aberto' || !turno) {
+      setCarregando(false)
       return
     }
     setCarregando(true)
@@ -245,7 +248,7 @@ export default function ResumoCaixaPage() {
       .historico({ de: turno.aberto_em, ...(turno.fechado_em ? { ate: turno.fechado_em } : {}) })
       .then(setVendas)
       .finally(() => setCarregando(false))
-  }, [turno?.id])
+  }, [status, turno?.id])
 
   function handleExpand(id: string) {
     if (details[id]) return
@@ -288,12 +291,24 @@ export default function ResumoCaixaPage() {
     letterSpacing: '0.1em',
   }
 
-  // ── Loading ──
-  if (carregando) return (
+  // ── Loading (store still resolving or vendas fetching) ──
+  if (status === 'desconhecido' || (status === 'aberto' && carregando)) return (
     <>
       <TopBar />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
+      </div>
+    </>
+  )
+
+  // ── Caixa fechado / sem turno ──
+  if (status !== 'aberto' || !turno) return (
+    <>
+      <TopBar />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+        <Lock size={32} style={{ color: 'rgba(255,255,255,0.15)' }} />
+        <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)', fontWeight: 500, margin: 0 }}>Caixa fechado</p>
+        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', margin: 0 }}>Abra o caixa para ver o resumo do turno.</p>
       </div>
     </>
   )
