@@ -1,9 +1,7 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
-import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
 import { ContatosForm, type Contato } from '@/components/painel/ContatosForm'
 import { api } from '@/lib/api/client'
 
@@ -15,13 +13,53 @@ interface DadosLoja {
   contatos: Contato[]
 }
 
+// ── Glass constants ───────────────────────────────────────────────────────────
+
+const CARD: React.CSSProperties = {
+  background: 'rgba(8,18,30,0.48)',
+  backdropFilter: 'blur(8px)',
+  border: '0.5px solid rgba(255,255,255,0.09)',
+  borderRadius: '10px',
+  padding: '16px',
+}
+
+const INPUT: React.CSSProperties = {
+  background: 'rgba(8,18,30,0.5)',
+  border: '0.5px solid rgba(255,255,255,0.12)',
+  borderRadius: '8px',
+  padding: '9px 12px',
+  fontSize: '13px',
+  color: 'rgba(255,255,255,0.75)',
+  width: '100%',
+  outline: 'none',
+}
+
+function Lbl({ children }: { children: React.ReactNode }) {
+  return (
+    <label style={{ display: 'block', fontSize: '9px', textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: '4px' }}>
+      {children}
+    </label>
+  )
+}
+
+function GInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      style={{ ...INPUT, ...props.style }}
+      className="outline-none"
+      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)'; props.onFocus?.(e) }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; props.onBlur?.(e) }}
+    />
+  )
+}
+
 export default function DadosEmpresaPage() {
   const [dados,    setDados]    = useState<DadosLoja | null>(null)
   const [loading,  setLoading]  = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [msg,      setMsg]      = useState('')
 
-  // Campos editáveis
   const [cep,         setCep]         = useState('')
   const [logradouro,  setLogradouro]  = useState('')
   const [numero,      setNumero]      = useState('')
@@ -62,64 +100,113 @@ export default function DadosEmpresaPage() {
     setContatos(prev => prev.filter(c => c.id !== id))
   }
 
-  if (loading) return <><TopBar /><div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div></>
+  if (loading) return (
+    <><TopBar /><div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div></>
+  )
 
   return (
     <>
       <TopBar />
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10">
-        <div className="max-w-lg flex flex-col gap-5">
+      <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
 
-          {/* Dados não editáveis */}
-          <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-3">
-            <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Identificação</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-steel text-xs uppercase tracking-wider mb-1">Nome da loja</p>
-                <p className="text-sea-foam text-sm font-medium">{dados?.nome}</p>
+          {/* ── LEFT: Identificação + Endereço ──────────────────────── */}
+          <div className="flex flex-col gap-3">
+
+            {/* Identificação */}
+            <div style={CARD} className="flex flex-col gap-4">
+              <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Identificação</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Lbl>Nome da loja</Lbl>
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>{dados?.nome}</p>
+                </div>
+                <div>
+                  <Lbl>CNPJ</Lbl>
+                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)' }}>{dados?.cnpj ?? '—'}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-steel text-xs uppercase tracking-wider mb-1">CNPJ</p>
-                <p className="text-steel text-sm">{dados?.cnpj ?? '—'}</p>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
+                CNPJ e plano só podem ser alterados pelo suporte ARKEflow.
+              </p>
+            </div>
+
+            {/* Endereço */}
+            <div style={CARD} className="flex flex-col gap-4">
+              <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Endereço</p>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 flex flex-col">
+                  <Lbl>CEP</Lbl>
+                  <GInput value={cep} onChange={e => setCep(e.target.value)} placeholder="00000-000" />
+                </div>
+                <div className="flex flex-col">
+                  <Lbl>Estado</Lbl>
+                  <GInput value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} placeholder="SP" />
+                </div>
               </div>
-            </div>
-            <p className="text-steel text-xs">CNPJ e plano só podem ser alterados pelo suporte ARKEflow.</p>
-          </section>
 
-          {/* Endereço */}
-          <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
-            <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Endereço</h3>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2"><Input label="CEP" value={cep} onChange={e => setCep(e.target.value)} placeholder="00000-000" /></div>
-              <Input label="Estado" value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} placeholder="SP" />
-            </div>
-            <Input label="Logradouro" value={logradouro} onChange={e => setLogradouro(e.target.value)} placeholder="Rua, Av., etc." />
-            <div className="grid grid-cols-3 gap-3">
-              <Input label="Número" value={numero} onChange={e => setNumero(e.target.value)} />
-              <div className="col-span-2"><Input label="Complemento" value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Sala, Loja..." /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Bairro" value={bairro} onChange={e => setBairro(e.target.value)} />
-              <Input label="Cidade" value={cidade} onChange={e => setCidade(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-steel uppercase tracking-wider">Link da loja (futuro)</label>
-              <input value={linkLoja} onChange={e => setLinkLoja(e.target.value.toLowerCase().replace(/\s/g, ''))}
-                placeholder="minha-loja (subdomínio futuro)"
-                className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam placeholder-steel outline-none focus:border-electric-cyan" />
-              <p className="text-steel text-xs">Futuramente: minha-loja.arkeflow.com.br ou domínio próprio</p>
+              <div className="flex flex-col">
+                <Lbl>Logradouro</Lbl>
+                <GInput value={logradouro} onChange={e => setLogradouro(e.target.value)} placeholder="Rua, Av., etc." />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col">
+                  <Lbl>Número</Lbl>
+                  <GInput value={numero} onChange={e => setNumero(e.target.value)} />
+                </div>
+                <div className="col-span-2 flex flex-col">
+                  <Lbl>Complemento</Lbl>
+                  <GInput value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Sala, Loja..." />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col">
+                  <Lbl>Bairro</Lbl>
+                  <GInput value={bairro} onChange={e => setBairro(e.target.value)} />
+                </div>
+                <div className="flex flex-col">
+                  <Lbl>Cidade</Lbl>
+                  <GInput value={cidade} onChange={e => setCidade(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <Lbl>Link da loja (futuro)</Lbl>
+                <GInput
+                  value={linkLoja}
+                  onChange={e => setLinkLoja(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                  placeholder="minha-loja (subdomínio futuro)"
+                />
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>
+                  Futuramente: minha-loja.arkeflow.com.br ou domínio próprio
+                </p>
+              </div>
+
+              {msg && (
+                <p style={{ fontSize: '12px', textAlign: 'center', color: msg.includes('sucesso') ? 'rgba(100,220,160,0.85)' : 'rgba(248,113,113,0.85)' }}>
+                  {msg}
+                </p>
+              )}
+
+              <button
+                onClick={handleSalvar}
+                disabled={salvando}
+                className="w-full min-h-[44px] disabled:opacity-40 transition-opacity"
+                style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}
+              >
+                {salvando ? 'Salvando...' : 'Salvar Endereço'}
+              </button>
             </div>
 
-            {msg && <p className={`text-sm text-center ${msg.includes('sucesso') ? 'text-mint-green' : 'text-red-400'}`}>{msg}</p>}
-            <Button onClick={handleSalvar} loading={salvando} className="min-h-[52px] rounded-2xl w-full">
-              Salvar Endereço
-            </Button>
-          </section>
+          </div>
 
-          {/* Contatos */}
-          <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5">
-            <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider mb-4">Contatos</h3>
-            <p className="text-steel text-xs mb-4">
+          {/* ── RIGHT: Contatos ──────────────────────────────────────── */}
+          <div style={CARD} className="flex flex-col gap-4">
+            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Contatos</p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
               Organize os contatos da empresa por função. Útil para envio de notas, cobranças e comunicações comerciais.
             </p>
             <ContatosForm
@@ -127,7 +214,7 @@ export default function DadosEmpresaPage() {
               onAdd={handleAddContato}
               onRemove={handleRemoveContato}
             />
-          </section>
+          </div>
 
         </div>
       </main>
