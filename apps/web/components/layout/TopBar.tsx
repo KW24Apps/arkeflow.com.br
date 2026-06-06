@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { User, Monitor, Smartphone, Tablet, LogOut } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api/client'
@@ -63,40 +64,51 @@ export function TopBar() {
 
         {open && (
           <div
-            className="absolute right-0 top-full mt-1 w-56 rounded-2xl shadow-xl z-50 overflow-hidden"
-            style={{ background: 'rgba(10,30,42,0.92)', backdropFilter: 'blur(12px)', border: '0.5px solid rgba(255,255,255,0.1)' }}
+            className="absolute right-0 top-full mt-1 z-50"
+            style={{ background: 'rgba(8,18,30,0.98)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: '220px', overflow: 'hidden' }}
           >
-            <div className="px-4 py-3" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-sea-foam text-sm font-medium">{usuario?.email}</p>
-              <p className="text-white/30 text-xs capitalize">{usuario?.nivel?.replace('_', ' ')}</p>
+            {/* User info */}
+            <div style={{ padding: '14px 16px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', fontWeight: 500, margin: 0 }}>{usuario?.email}</p>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', margin: '2px 0 0', textTransform: 'capitalize' }}>{usuario?.nivel?.replace('_', ' ')}</p>
             </div>
 
-            <a href="/painel/perfil"
+            {/* Meus Dados */}
+            <a
+              href="/painel/perfil"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2 min-h-[44px] px-4 text-sm text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors">
-              <span>👤</span> Meus Dados
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', fontSize: '13px', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', transition: 'background 0.12s, color 0.12s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.85)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.6)' }}
+            >
+              <User size={15} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+              Meus Dados
             </a>
 
-            <div className="px-4 py-2" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-white/30 text-[10px] uppercase tracking-wider mb-2">Baixar aplicativo</p>
-              <div className="flex flex-col gap-1">
-                <button disabled className="flex items-center gap-2 min-h-[36px] text-sm text-white/20 cursor-not-allowed">
-                  <span>🪟</span> Windows (em breve)
-                </button>
-                <button disabled className="flex items-center gap-2 min-h-[36px] text-sm text-white/20 cursor-not-allowed">
-                  <span>🍎</span> macOS / iOS (em breve)
-                </button>
-                <button disabled className="flex items-center gap-2 min-h-[36px] text-sm text-white/20 cursor-not-allowed">
-                  <span>🤖</span> Android (em breve)
-                </button>
-              </div>
+            {/* Baixar Aplicativo */}
+            <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)' }}>
+              <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.12em', padding: '10px 16px 4px', margin: 0 }}>Baixar Aplicativo</p>
+              {([
+                { icon: <Monitor  size={15} />, label: 'Windows (em breve)' },
+                { icon: <Tablet   size={15} />, label: 'macOS / iOS (em breve)' },
+                { icon: <Smartphone size={15} />, label: 'Android (em breve)' },
+              ] as const).map(({ icon, label }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', fontSize: '13px', color: 'rgba(255,255,255,0.6)', opacity: 0.4, cursor: 'not-allowed' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>{icon}</span>
+                  {label}
+                </div>
+              ))}
             </div>
 
+            {/* Sair */}
             <button
               onClick={() => { setOpen(false); logout() }}
-              className="w-full flex items-center gap-2 min-h-[44px] px-4 text-sm text-red-400/80 hover:bg-white/5 transition-colors"
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', fontSize: '13px', color: 'rgba(240,100,100,0.8)', background: 'none', border: 'none', cursor: 'pointer', borderTop: '0.5px solid rgba(255,255,255,0.07)', transition: 'background 0.12s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(240,100,100,0.06)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
             >
-              <span>🚪</span> Sair
+              <LogOut size={15} style={{ color: 'rgba(240,100,100,0.6)', flexShrink: 0 }} />
+              Sair
             </button>
           </div>
         )}
