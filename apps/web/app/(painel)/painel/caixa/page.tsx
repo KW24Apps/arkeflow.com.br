@@ -183,8 +183,17 @@ export default function CaixaPage() {
     const { qty, query } = parseQtyPrefix(raw)
     setResultados([]); setHighlightedIndex(-1)
     const found = await buscarBarcode(query, qty)
-    if (!found) setScanErro(`"${query}" não encontrado.${qty > 1 ? ` (qty: ${qty})` : ''}`)
-    setScan(''); scanRef.current?.focus()
+    if (found) {
+      // Barcode hit — clear input and refocus for next scan
+      setScan(''); scanRef.current?.focus()
+    } else {
+      // Fall back to text search — results from onChange already in dropdown
+      // Re-run search to ensure dropdown is fresh, show error only if truly no results
+      await buscarTexto(raw)
+      if (resultados.length === 0) {
+        setScanErro(`"${query}" não encontrado.${qty > 1 ? ` (qty: ${qty})` : ''}`)
+      }
+    }
   }
 
   async function selecionarProduto(p: ProdutoSearch) {
@@ -197,8 +206,16 @@ export default function CaixaPage() {
         const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras }
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
         setResultados([]); setScan('')
+      } else if ((data.versoes?.length ?? 0) > 1) {
+        setScanErro(`${p.nome} tem variações — selecione pelo código de barras ou use a busca avançada.`)
+        setResultados([])
+      } else {
+        setScanErro(`${p.nome} sem variações cadastradas.`)
+        setResultados([])
       }
-    } catch {}
+    } catch (err: any) {
+      setScanErro(err?.response?.data?.error ?? 'Erro ao carregar produto.')
+    }
     scanRef.current?.focus()
   }
 
@@ -369,7 +386,10 @@ export default function CaixaPage() {
           </div>
 
           {/* Input scanner */}
-          <div className="shrink-0 p-3 border-t border-ocean-depth bg-midnight relative">
+          <div
+            className="shrink-0 relative"
+            style={{ background: 'rgba(8,18,30,0.35)', borderTop: '0.5px solid rgba(255,255,255,0.07)', padding: '10px 12px' }}
+          >
             {scanErro && <p className="text-red-400 text-xs mb-2 text-center">{scanErro}</p>}
             <div className="flex gap-2">
               <div className="flex-1 relative">
@@ -379,21 +399,25 @@ export default function CaixaPage() {
                   value={scan}
                   onChange={e => { setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
                   onKeyDown={onScanKeyDown}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
                   onBlur={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
                     const next = e.relatedTarget as HTMLElement | null
                     if (next && (next.tagName === 'SELECT' || next.tagName === 'BUTTON' || next.tagName === 'INPUT' || next.closest('[data-no-refocus]'))) return
                     if (!modalBusca && !modalCheckout) setTimeout(() => scanRef.current?.focus(), 250)
                   }}
                   placeholder='Código de barras, nome... ou "3-código" para qty 3'
                   autoComplete="off"
-                  className="w-full min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl pl-[34px] pr-4 text-sm text-sea-foam placeholder-steel/50 outline-none focus:border-electric-cyan"
+                  style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '9px 12px 9px 36px', fontSize: '13px', color: 'rgba(255,255,255,0.75)', outline: 'none', width: '100%' }}
                 />
               </div>
               <button
                 onClick={() => { setModalBusca(true); setScan(''); setResultados([]) }}
                 title="Busca avançada"
-                className="min-w-[48px] min-h-[48px] bg-deep-ocean border border-ocean-depth rounded-xl text-steel hover:border-electric-cyan hover:text-electric-cyan transition-colors flex items-center justify-center text-lg"
-              >🔍</button>
+                style={{ width: '34px', height: '34px', flexShrink: 0, background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <Search size={14} />
+              </button>
             </div>
 
             {/* Autocomplete dropdown */}
