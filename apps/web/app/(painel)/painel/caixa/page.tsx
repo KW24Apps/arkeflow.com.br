@@ -290,26 +290,6 @@ export default function CaixaPage() {
         {/* ── ESQUERDA: Itens ────────────────────────────────────────────── */}
         <div className="flex flex-col flex-1 min-w-0 border-r border-ocean-depth overflow-hidden">
 
-          {/* Header venda */}
-          <div className="shrink-0 px-4 py-2 border-b border-ocean-depth flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="text-sea-foam text-sm font-semibold truncate">
-                {itens.length === 0 ? 'Nova Venda' : `${totalQtd} item${totalQtd !== 1 ? 'ns' : ''}`}
-              </span>
-              {cliente_nome && <span className="text-xs text-electric-cyan truncate">· {cliente_nome}</span>}
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {cliente_id ? (
-                <button onClick={() => setCliente(null, null)} className="text-steel text-xs hover:text-red-400">✕ cliente</button>
-              ) : (
-                <button className="text-xs text-steel hover:text-sea-foam border border-ocean-depth rounded-lg px-2 py-1">+ Cliente</button>
-              )}
-              {itens.length > 0 && (
-                <button onClick={limpar} className="text-xs text-steel hover:text-red-400">Limpar</button>
-              )}
-            </div>
-          </div>
-
           {/* Lista */}
           <div className="flex-1 overflow-y-auto">
             {itens.length === 0 ? (
