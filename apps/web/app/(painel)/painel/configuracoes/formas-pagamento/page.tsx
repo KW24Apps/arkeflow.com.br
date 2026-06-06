@@ -254,9 +254,9 @@ export default function FormasPagamentoPage() {
               <button
                 onClick={abrirNova}
                 className="p-4 flex flex-col items-center justify-center gap-2 transition-colors min-h-[140px]"
-                style={{ border: '0.5px dashed rgba(255,255,255,0.15)', borderRadius: '10px', color: 'rgba(255,255,255,0.3)' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'rgba(255,255,255,0.3)' }}
+                style={{ border: '1px dashed rgba(255,255,255,0.35)', borderRadius: '10px', color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.04)' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.5)'; e.currentTarget.style.color = '#0ef'; e.currentTarget.style.background = 'rgba(0,239,255,0.06)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
               >
                 <Plus size={24} strokeWidth={1.5} />
                 <span style={{ fontSize: '13px', fontWeight: 500 }}>Nova forma</span>
