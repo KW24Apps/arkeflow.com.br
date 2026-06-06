@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, X, Search } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
+import { caixaApi, type VendaTurno } from '@/lib/api/caixa'
 import { usePDVStore } from '@/store/pdv.store'
 import { useAuthStore } from '@/store/auth.store'
 import { api } from '@/lib/api/client'
@@ -46,7 +47,7 @@ function parseQtyPrefix(input: string): { qty: number; query: string } {
 
 export default function CaixaPage() {
   const router = useRouter()
-  const { status, carregando: cxLoad, erro: cxErro, carregar, abrir, fechar, registrarMovimento, limparErro } = useCaixaStore()
+  const { status, turno, erro: cxErro, carregar, abrir, fechar, registrarMovimento, limparErro } = useCaixaStore()
   const { itens, cliente_id, cliente_nome, addItem, addItemQtd, removeItem, setQtd, setCliente, limpar } = usePDVStore()
   const usuario = useAuthStore(s => s.usuario)
 
@@ -86,6 +87,8 @@ export default function CaixaPage() {
   const [saldoFinal, setSaldoFinal]  = useState('')
   const [obsFech,    setObsFech]     = useState('')
   const [salvMov,    setSalvMov]     = useState(false)
+  const [fechVendas, setFechVendas]  = useState<VendaTurno[]>([])
+  const [fechLoad,   setFechLoad]    = useState(false)
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { carregar() }, [])
@@ -100,6 +103,14 @@ export default function CaixaPage() {
     if (cliente_id) clientesApi.get(cliente_id).then(setClienteInfo).catch(() => {})
     else { setClienteInfo(null); setUsarCB(false) }
   }, [cliente_id])
+
+  // Fetch vendas when fechar modal opens
+  useEffect(() => {
+    if (!modalFechar) return
+    setFechLoad(true)
+    setFechVendas([])
+    caixaApi.vendas().then(r => setFechVendas(r.vendas)).finally(() => setFechLoad(false))
+  }, [modalFechar])
 
   // Auto-open customer modal on first item (once per transaction)
   useEffect(() => {
@@ -263,7 +274,7 @@ export default function CaixaPage() {
   const MOD_LABEL: React.CSSProperties = { fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '10px' }
 
   // ── LOADING ───────────────────────────────────────────────────────────────
-  if (cxLoad && status === 'desconhecido') return (
+  if (status === 'desconhecido' && !cxErro) return (
     <>
       <TopBar />
       <main className="flex-1 flex items-center justify-center">
@@ -628,32 +639,154 @@ export default function CaixaPage() {
       )}
 
       {/* Modal Fechar Caixa */}
-      {modalFechar && (
-        <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4" onClick={() => setModalFechar(false)}>
-          <div className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg p-6 flex flex-col gap-4" style={{ maxHeight: '88vh' }} onClick={e => e.stopPropagation()}>
-            <h3 className="text-sea-foam font-semibold">Fechar Caixa</h3>
-            <p className="text-steel text-xs -mt-2">Confirme o valor em dinheiro no caixa.</p>
-            <div>
-              <label className="text-steel text-xs block mb-1">Saldo final contado</label>
-              <input type="number" min="0" step="0.01" value={saldoFinal}
-                onChange={e => setSaldoFinal(e.target.value)} autoFocus
-                className="w-full min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
-            </div>
-            <div>
-              <label className="text-steel text-xs block mb-1">Observação (opcional)</label>
-              <input type="text" value={obsFech} onChange={e => setObsFech(e.target.value)}
-                className="w-full min-h-[44px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setModalFechar(false)} className="flex-1 min-h-[44px] border border-ocean-depth text-steel rounded-xl text-sm">Cancelar</button>
-              <button onClick={handleFechar} disabled={salvMov}
-                className="flex-1 min-h-[44px] bg-red-500/20 border border-red-500/40 text-red-400 rounded-xl text-sm font-semibold disabled:opacity-40">
-                {salvMov ? '...' : 'Fechar Caixa'}
-              </button>
+      {modalFechar && (() => {
+        const saldoIni    = Number(turno?.saldo_inicial ?? 0)
+        const sangrias    = Number(turno?.total_sangrias ?? 0)
+        const suprimentos = Number(turno?.total_suprimentos ?? 0)
+
+        const porFormaMap: Record<string, { nome: string; tipo: string; total: number }> = {}
+        let dinheiroVendas = 0
+        for (const v of fechVendas) {
+          for (const p of v.pagamentos ?? []) {
+            if (!porFormaMap[p.forma_nome]) porFormaMap[p.forma_nome] = { nome: p.forma_nome, tipo: p.tipo, total: 0 }
+            porFormaMap[p.forma_nome].total += Number(p.valor)
+            if (p.tipo === 'dinheiro') dinheiroVendas += Number(p.valor)
+          }
+        }
+        const porForma     = Object.values(porFormaMap).sort((a, b) => b.total - a.total)
+        const saldoEsperado = saldoIni + dinheiroVendas + suprimentos - sangrias
+        const contado       = parseFloat(saldoFinal) || 0
+        const diferenca     = contado - saldoEsperado
+        const surplusColor  = diferenca >= 0 ? '#64dca0' : '#f06464'
+
+        const PILL_COLORS: Record<string, string> = {
+          dinheiro:       'rgba(100,220,160,0.12)',
+          pix:            'rgba(0,239,255,0.12)',
+          cartao_credito: 'rgba(168,85,247,0.12)',
+          cartao_debito:  'rgba(45,212,191,0.12)',
+          crediario:      'rgba(251,146,60,0.12)',
+        }
+        const PILL_TEXT: Record<string, string> = {
+          dinheiro:       '#64dca0',
+          pix:            '#0ef',
+          cartao_credito: '#c084fc',
+          cartao_debito:  '#5eead4',
+          crediario:      '#fb923c',
+        }
+
+        return (
+          <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4" onClick={() => setModalFechar(false)}>
+            <div
+              style={{ background: 'rgba(8,18,30,0.92)', backdropFilter: 'blur(16px)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '16px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div style={{ padding: '18px 20px 14px', borderBottom: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <div>
+                  <p style={{ fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.88)' }}>Fechar Caixa</p>
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>Revise o resumo do turno antes de confirmar</p>
+                </div>
+                <button onClick={() => setModalFechar(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', fontSize: '18px', lineHeight: 1, padding: '4px' }}>×</button>
+              </div>
+
+              {/* Body — scrollable */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+                {fechLoad ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
+                    <div className="w-7 h-7 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Section 1 — Receita por forma */}
+                    <div>
+                      <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Receita por forma de pagamento</p>
+                      {porForma.length === 0 ? (
+                        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>Nenhuma venda neste turno.</p>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                          {porForma.map(f => (
+                            <div key={f.nome} style={{ background: PILL_COLORS[f.tipo] ?? 'rgba(255,255,255,0.05)', border: `0.5px solid ${PILL_TEXT[f.tipo] ?? 'rgba(255,255,255,0.1)'}33`, borderRadius: '8px', padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                              <span style={{ fontSize: '11px', color: PILL_TEXT[f.tipo] ?? 'rgba(255,255,255,0.5)', fontWeight: 500 }}>{f.nome}</span>
+                              <span style={{ fontSize: '12px', color: PILL_TEXT[f.tipo] ?? 'rgba(255,255,255,0.7)', fontWeight: 700 }}>{fmt(f.total)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 2 — Saldo esperado */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '12px 14px' }}>
+                      <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>Saldo esperado em caixa</p>
+                      {[
+                        { label: 'Saldo inicial',       value: saldoIni,       sign: '+', color: '#64dca0' },
+                        { label: 'Vendas em dinheiro',  value: dinheiroVendas, sign: '+', color: '#64dca0' },
+                        { label: 'Suprimentos',         value: suprimentos,    sign: '+', color: '#64dca0' },
+                        { label: 'Sangrias',            value: sangrias,       sign: '−', color: '#f06464' },
+                      ].map(row => (
+                        <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{row.label}</span>
+                          <span style={{ fontSize: '12px', color: row.color, fontWeight: 600 }}>{row.sign} {fmt(row.value)}</span>
+                        </div>
+                      ))}
+                      <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)', marginTop: '8px', paddingTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Total esperado</span>
+                        <span style={{ fontSize: '14px', color: '#0ef', fontWeight: 700 }}>{fmt(saldoEsperado)}</span>
+                      </div>
+                    </div>
+
+                    {/* Section 3 — Valor contado */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                      <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Valor contado em caixa</p>
+                      <input
+                        type="number" min="0" step="0.01" value={saldoFinal} autoFocus
+                        onChange={e => setSaldoFinal(e.target.value)}
+                        placeholder="R$ 0,00"
+                        style={{ background: 'rgba(0,239,255,0.05)', border: '1px solid rgba(0,239,255,0.25)', borderRadius: '10px', padding: '12px 16px', fontSize: '20px', fontWeight: 600, color: 'rgba(255,255,255,0.88)', outline: 'none', width: '100%', textAlign: 'center' }}
+                        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.55)' }}
+                        onBlur={e  => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.25)' }}
+                      />
+                    </div>
+
+                    {/* Section 4 — Diferença */}
+                    {saldoFinal !== '' && (
+                      <div style={{ background: diferenca >= 0 ? 'rgba(100,220,160,0.08)' : 'rgba(240,100,100,0.08)', border: `0.5px solid ${surplusColor}44`, borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{diferenca >= 0 ? 'Sobra' : 'Falta'}</span>
+                        <span style={{ fontSize: '14px', color: surplusColor, fontWeight: 700 }}>
+                          {diferenca >= 0 ? '+' : ''}{fmt(diferenca)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Observacao */}
+                    <div>
+                      <label style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '6px' }}>Observação (opcional)</label>
+                      <input type="text" value={obsFech} onChange={e => setObsFech(e.target.value)}
+                        placeholder="Ex: fechamento de sábado"
+                        style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: 'rgba(255,255,255,0.75)', outline: 'none', width: '100%' }}
+                        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                        onBlur={e  => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '12px 20px 16px', borderTop: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', gap: '10px', flexShrink: 0 }}>
+                <button onClick={() => setModalFechar(false)}
+                  style={{ flex: 1, minHeight: '44px', background: 'none', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '10px', color: 'rgba(255,255,255,0.45)', fontSize: '13px', cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <button onClick={handleFechar} disabled={salvMov || fechLoad}
+                  style={{ flex: 2, minHeight: '44px', background: salvMov ? 'rgba(0,239,255,0.4)' : 'rgba(0,239,255,0.88)', border: 'none', borderRadius: '10px', color: '#0a0a1a', fontSize: '13px', fontWeight: 700, cursor: salvMov ? 'default' : 'pointer', opacity: salvMov || fechLoad ? 0.6 : 1 }}>
+                  {salvMov ? 'Fechando...' : 'Confirmar fechamento'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
     </div>
     </>
