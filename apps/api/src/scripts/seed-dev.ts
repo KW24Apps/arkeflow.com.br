@@ -147,9 +147,9 @@ function precoAleatorio(base: number, spread: number) {
       const preco  = precoAleatorio(base, spread)
 
       const pRes = await tenant.query(
-        `INSERT INTO produtos (nome, tipo_id, genero, marca, preco_base, controle_estoque, ativo)
-         VALUES ($1, $2, $3, $4, $5, true, true) RETURNING id`,
-        [nome, tipoId ?? null, genero, marca, preco]
+        `INSERT INTO produtos (nome, tipo_id, marca, preco_base, controle_estoque, ativo)
+         VALUES ($1, $2, $3, $4, true, true) RETURNING id`,
+        [nome, tipoId ?? null, marca, preco]
       )
       const prodId = pRes.rows[0].id
       prodCount++
