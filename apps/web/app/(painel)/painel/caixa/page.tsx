@@ -930,7 +930,7 @@ export default function CaixaPage() {
         const porForma     = Object.values(porFormaMap).sort((a, b) => b.total - a.total)
         const saldoEsperado = saldoIni + dinheiroVendas + suprimentos - sangrias
         const contado       = saldoFinal / 100
-        const diferenca     = contado - saldoEsperado
+        const diferenca     = Math.round((contado - saldoEsperado) * 100) / 100
         const surplusColor  = diferenca >= 0 ? '#64dca0' : '#f06464'
 
         const PILL_COLORS: Record<string, string> = {
@@ -1023,9 +1023,9 @@ export default function CaixaPage() {
                     {/* Section 4 — Diferença */}
                     {saldoFinal > 0 && (
                       <div style={{ background: diferenca >= 0 ? 'rgba(100,220,160,0.08)' : 'rgba(240,100,100,0.08)', border: `0.5px solid ${surplusColor}44`, borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{diferenca >= 0 ? 'Sobra' : 'Falta'}</span>
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>{diferenca === 0 ? 'Diferença' : diferenca > 0 ? 'Sobra' : 'Falta'}</span>
                         <span style={{ fontSize: '14px', color: surplusColor, fontWeight: 700 }}>
-                          {diferenca >= 0 ? '+' : ''}{fmt(diferenca)}
+                          {diferenca > 0 ? '+' : diferenca < 0 ? '−' : ''}{fmt(Math.abs(diferenca))}
                         </span>
                       </div>
                     )}
