@@ -228,7 +228,9 @@ export default function NovoClientePage() {
 
               <div className="flex flex-col">
                 <Lbl>{tipoPessoa === 'juridica' ? 'Razão Social *' : 'Nome *'}</Lbl>
-                <GInput value={nome} onChange={e => setNome(e.target.value)} placeholder={tipoPessoa === 'juridica' ? 'Razão social' : 'Nome completo'} />
+                <GInput value={nome} onChange={e => setNome(e.target.value)}
+                  onBlur={() => setNome(n => n.replace(/\b\w/g, c => c.toUpperCase()))}
+                  placeholder={tipoPessoa === 'juridica' ? 'Razão social' : 'Nome completo'} />
               </div>
 
               {/* Telefones */}

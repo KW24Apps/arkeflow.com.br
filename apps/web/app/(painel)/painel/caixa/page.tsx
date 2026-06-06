@@ -419,7 +419,7 @@ export default function CaixaPage() {
         hora: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       }
       setModalBoasVindas(true)
-      boasVindasTimerRef.current = setTimeout(() => setModalBoasVindas(false), 4000)
+      boasVindasTimerRef.current = setTimeout(() => setModalBoasVindas(false), 10000)
     }
     finally { setAbrindo(false) }
   }
