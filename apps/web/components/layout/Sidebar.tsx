@@ -91,7 +91,7 @@ export function Sidebar({ items }: SidebarProps) {
           <div
             className="flex items-center justify-center rounded-lg overflow-hidden"
             style={{
-              height: '44px',
+              height: '56px',
               background: 'rgba(255,255,255,0.05)',
               border: '0.5px dashed rgba(255,255,255,0.15)',
               borderRadius: '8px',
@@ -101,7 +101,11 @@ export function Sidebar({ items }: SidebarProps) {
               <img
                 src={logoUrl + '?t=' + Math.floor(Date.now() / 60000)}
                 alt="Logo"
-                className="max-h-7 max-w-[140px] object-contain"
+                style={{
+                  width: '100%', height: '100%',
+                  objectFit: 'contain', objectPosition: 'center',
+                  mixBlendMode: 'screen', padding: '4px',
+                }}
               />
             ) : (
               <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>
