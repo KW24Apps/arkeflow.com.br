@@ -9,12 +9,10 @@ const dono = [authMiddleware, authorize('dono_loja')]
 const auth = [authMiddleware, authorize('dono_loja', 'vendedor')]
 
 const schema = z.object({
-  nome:                 z.string().min(1),
-  tipo:                 z.string().min(1),
-  desconto_percentual:  z.coerce.number().min(0).max(100).default(0),
-  desconto_maximo:      z.coerce.number().min(0).default(0),
-  ativo:                z.boolean().default(true),
-  aceita_desconto:      z.boolean().default(true),
+  nome:            z.string().min(1),
+  tipo:            z.string().min(1),
+  ativo:           z.boolean().default(true),
+  aceita_desconto: z.boolean().default(true),
 })
 
 export async function formasPagamentoRoutes(app: FastifyInstance) {
@@ -33,9 +31,8 @@ export async function formasPagamentoRoutes(app: FastifyInstance) {
     const pool = getTenantPoolFromRequest(req)
     const data = schema.parse(req.body)
     const { rows: [r] } = await pool.query(
-      `INSERT INTO formas_pagamento (nome, tipo, desconto_percentual, desconto_maximo)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [data.nome, data.tipo, data.desconto_percentual, data.desconto_maximo]
+      `INSERT INTO formas_pagamento (nome, tipo) VALUES ($1, $2) RETURNING *`,
+      [data.nome, data.tipo]
     )
     return reply.status(201).send(r)
   })

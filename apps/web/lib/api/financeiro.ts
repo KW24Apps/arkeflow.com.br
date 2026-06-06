@@ -20,8 +20,7 @@ export interface ParcelaCriediario {
 
 export interface FormaPagamento {
   id: string; nome: string; tipo: string
-  padrao_sistema: boolean; desconto_percentual: string
-  desconto_maximo: string; ativo: boolean
+  padrao_sistema: boolean; ativo: boolean
   aceita_desconto?: boolean
 }
 

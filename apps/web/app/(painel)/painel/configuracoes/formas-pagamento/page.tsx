@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { Banknote, QrCode, CreditCard, Receipt, Wallet } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 
 const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario', 'outro']
@@ -43,17 +42,6 @@ function TipoIcon({ tipo, size = 22 }: { tipo: string; size?: number }) {
   }
 }
 
-function descLine(f: FormaPagamento): string {
-  const pct = Number(f.desconto_percentual)
-  const cap = Number(f.desconto_maximo)
-  if (pct <= 0) return 'Sem desconto'
-  if (cap > 0) {
-    const capFmt = cap.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    return `${pct.toFixed(1)}% desc · máx R$ ${capFmt}`
-  }
-  return `${pct.toFixed(1)}% desc.`
-}
-
 export default function FormasPagamentoPage() {
   const [formas,    setFormas]    = useState<FormaPagamento[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -61,11 +49,9 @@ export default function FormasPagamentoPage() {
   const [editandoId,setEditandoId]= useState<string | null>(null)
   const [salvando,  setSalvando]  = useState(false)
 
-  const [nome,               setNome]               = useState('')
-  const [tipo,               setTipo]               = useState('outro')
-  const [descontoPercentual, setDescontoPercentual] = useState('0')
-  const [descontoMaximoCents,setDescontoMaximoCents]= useState(0)
-  const [ativo,              setAtivo]              = useState(true)
+  const [nome, setNome] = useState('')
+  const [tipo, setTipo] = useState('outro')
+  const [ativo, setAtivo] = useState(true)
   const [aceitaDesconto,     setAceitaDesconto]     = useState(true)
   const [editandoPadrao,     setEditandoPadrao]     = useState(false)
   const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
@@ -86,14 +72,12 @@ export default function FormasPagamentoPage() {
   useEffect(() => { load() }, [])
 
   function abrirNova() {
-    setNome(''); setTipo('outro'); setDescontoPercentual('0'); setDescontoMaximoCents(0)
+    setNome(''); setTipo('outro')
     setAtivo(true); setAceitaDesconto(true); setEditandoId(null); setEditandoPadrao(false); setFormOpen(true)
   }
 
   function abrirEdicao(f: FormaPagamento) {
     setNome(f.nome); setTipo(f.tipo)
-    setDescontoPercentual(String(Number(f.desconto_percentual)))
-    setDescontoMaximoCents(Math.round(Number(f.desconto_maximo) * 100))
     setAtivo(f.ativo)
     setAceitaDesconto(f.aceita_desconto !== false)
     setEditandoId(f.id); setEditandoPadrao(!!f.padrao_sistema); setFormOpen(true)
@@ -106,8 +90,6 @@ export default function FormasPagamentoPage() {
       const data = {
         nome,
         tipo,
-        desconto_percentual: parseFloat(descontoPercentual),
-        desconto_maximo: descontoMaximoCents / 100,
         ativo,
         aceita_desconto: aceitaDesconto,
       }
@@ -183,30 +165,6 @@ export default function FormasPagamentoPage() {
                 </div>
               </>
             )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Desconto %</label>
-                <input
-                  type="number" min="0" max="100" value={descontoPercentual}
-                  onChange={e => setDescontoPercentual(e.target.value)}
-                  onFocus={focusIn} onBlur={focusOut}
-                  className="min-h-[48px] px-4 outline-none w-full"
-                  style={INPUT_STYLE}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Desc. máx. R$</label>
-                <CurrencyInput
-                  value={descontoMaximoCents}
-                  onChange={setDescontoMaximoCents}
-                  onFocus={focusIn as any}
-                  onBlur={focusOut as any}
-                  className="min-h-[48px] px-4 outline-none w-full"
-                  style={INPUT_STYLE}
-                />
-              </div>
-            </div>
 
             {/* Ativo toggle */}
             <div className="flex items-center justify-between">
@@ -367,12 +325,6 @@ export default function FormasPagamentoPage() {
                       </span>
                     )}
                   </div>
-                  <p style={{
-                    fontSize: '11px',
-                    color: Number(f.desconto_percentual) > 0 ? 'rgba(100,220,160,0.8)' : 'rgba(255,255,255,0.25)',
-                  }}>
-                    {descLine(f)}
-                  </p>
                 </div>
               </button>
             ))}

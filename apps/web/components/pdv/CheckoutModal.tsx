@@ -9,10 +9,9 @@ import type { ItemComDesconto } from '@/lib/calcularDesconto'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface PagamentoParcial {
-  forma:       FormaPagamento
-  valor:       number  // amount the customer pays with this method
-  parcelas:    number
-  desconto:    number  // discount value applied (R$)
+  forma:    FormaPagamento
+  valor:    number
+  parcelas: number
 }
 
 export interface CheckoutResult {
@@ -47,7 +46,6 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
   // Forma e valor do pagamento atual
   const [formaAtual,   setFormaAtual]   = useState<FormaPagamento | null>(null)
   const [valorAtual,   setValorAtual]   = useState('')
-  const [descontoPct,  setDescontoPct]  = useState(0)
   const [parcelas,     setParcelas]     = useState(1)
 
   const [processando,  setProcessando]  = useState(false)
@@ -56,7 +54,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
   // ── Load formas on open ───────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return
-    setPagamentos([]); setValorAtual(''); setDescontoPct(0); setParcelas(1)
+    setPagamentos([]); setValorAtual(''); setParcelas(1)
     setErro('')
     setCarregando(true)
     financeiroApi.formasPagamento().then(fs => {
@@ -78,26 +76,11 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
   if (!open) return null
 
   // ── Calculations ──────────────────────────────────────────────────────────
-  const totalDescontoPag = pagamentos.reduce((s, p) => s + p.desconto, 0)
-  const totalJaPago      = pagamentos.reduce((s, p) => s + p.valor, 0)
-  const totalFinal       = Math.max(0, baseTotal - totalDescontoPag)
-  const restante         = Math.max(0, totalFinal - totalJaPago)
+  const totalJaPago = pagamentos.reduce((s, p) => s + p.valor, 0)
+  const restante    = Math.max(0, baseTotal - totalJaPago)
 
-  // Discount for current payment (real-time)
-  const maxPct   = formaAtual ? parseFloat(formaAtual.desconto_percentual) || 0 : 0
-  const capR$    = formaAtual ? parseFloat(formaAtual.desconto_maximo) || 0 : 0
   const valAtual = parseFloat(valorAtual) || 0
-  const descontoAtual = maxPct > 0 && descontoPct > 0
-    ? Math.min(valAtual * (descontoPct / 100), capR$ > 0 ? capR$ : Infinity)
-    : 0
-
-  // Total after adding current payment's discount
-  const totalComDescontoAtual = Math.max(0, totalFinal - descontoAtual)
-  const restanteComDescontoAtual = Math.max(0, totalComDescontoAtual - totalJaPago)
-
-  const troco = valAtual > restanteComDescontoAtual
-    ? valAtual - restanteComDescontoAtual
-    : 0
+  const troco    = valAtual > restante ? valAtual - restante : 0
 
   // ── Validation ───────────────────────────────────────────────────────────
   function validarEntrada(): string | null {
@@ -106,14 +89,12 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
     const ehDinheiro = formaAtual.tipo === 'dinheiro'
 
     // Non-cash: amount must not exceed the effective remaining (after discount)
-    if (!ehDinheiro && valAtual > restanteComDescontoAtual + 0.01) {
+    if (!ehDinheiro && valAtual > restante + 0.01) {
       return 'Valor inválido: pagamento excede o saldo restante.'
     }
 
-    // Cash: troco is always mathematically valid (troco = val - remaining ≤ val)
-    // but guard explicitly against the impossible case
     if (ehDinheiro) {
-      const trocoCalculado = Math.max(0, valAtual - restanteComDescontoAtual)
+      const trocoCalculado = Math.max(0, valAtual - restante)
       if (trocoCalculado > valAtual + 0.01) {
         return 'Operação inválida: troco excede o valor recebido em dinheiro.'
       }
@@ -134,13 +115,10 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
       forma:    formaAtual,
       valor:    valAtual,
       parcelas,
-      desconto: descontoAtual,
     }
-    const novaLista = [...pagamentos, novoPag]
-    const novoTotalDescontoPag = novaLista.reduce((s, p) => s + p.desconto, 0)
-    const novoTotalJaPago      = novaLista.reduce((s, p) => s + p.valor, 0)
-    const novoTotalFinal       = Math.max(0, baseTotal - novoTotalDescontoPag)
-    const novoRestante         = Math.max(0, novoTotalFinal - novoTotalJaPago)
+    const novaLista    = [...pagamentos, novoPag]
+    const novoJaPago   = novaLista.reduce((s, p) => s + p.valor, 0)
+    const novoRestante = Math.max(0, baseTotal - novoJaPago)
 
     if (novoRestante <= 0.01) {
       // Finalize the sale
@@ -149,7 +127,6 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
       // Partial: register and prompt next payment
       setPagamentos(novaLista)
       setValorAtual('')
-      setDescontoPct(0)
       setParcelas(1)
       // Switch to next unused payment method
       const usadas = novaLista.map(p => p.forma.id)
@@ -162,12 +139,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
   async function finalizarVenda(lista: PagamentoParcial[]) {
     setProcessando(true); setErro('')
     try {
-      // Effective total = baseTotal minus all payment-method discounts
-      const totalDescontosPag  = lista.reduce((s, p) => s + p.desconto, 0)
-      const effectiveTotal     = Math.max(0, baseTotal - totalDescontosPag)
-
-      // Cap each payment valor so sum == effectiveTotal (backend expects this)
-      let remaining = effectiveTotal
+      let remaining = baseTotal
       const pagamentosParaAPI = lista
         .map(p => {
           const capped      = Math.min(p.valor, remaining)
@@ -195,7 +167,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
         pagamentos:         pagamentosParaAPI,
         cashback_usado:     cashbackUsar,
         desconto_promocao:  totalDesconto,
-        desconto_pagamento: totalDescontosPag,
+        desconto_pagamento: 0,
         vendedor_id:        vendedor_id ?? null,
         vendedor_nome:      vendedor_nome ?? null,
       })
@@ -209,7 +181,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
   }
 
   function resetState() {
-    setPagamentos([]); setValorAtual(''); setDescontoPct(0); setParcelas(1)
+    setPagamentos([]); setValorAtual(''); setParcelas(1)
     setErro(''); setProcessando(false); setFormaAtual(null)
   }
 
@@ -220,7 +192,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
   }
 
   function autoFill() {
-    setValorAtual(restanteComDescontoAtual.toFixed(2))
+    setValorAtual(restante.toFixed(2))
     setTimeout(() => valorRef.current?.select(), 30)
   }
 
@@ -238,7 +210,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
             <p className="text-steel text-xs mt-0.5">{itensComDesconto.reduce((s, i) => s + i.quantidade, 0)} item(ns)</p>
           </div>
           <div className="text-right">
-            <p className="text-electric-cyan font-black text-3xl">{fmt(totalFinal)}</p>
+            <p className="text-electric-cyan font-black text-3xl">{fmt(baseTotal)}</p>
             {(totalDesconto > 0 || cashbackUsar > 0) && (
               <p className="text-steel text-xs">
                 subtotal {fmt(itensComDesconto.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0))}
@@ -259,7 +231,6 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
                       <span className="text-mint-green text-[10px]">✓</span>
                     </span>
                     <span className="text-sea-foam">{p.forma.nome}</span>
-                    {p.desconto > 0 && <span className="text-mint-green text-xs">−{fmt(p.desconto)}</span>}
                   </div>
                   <span className="text-sea-foam font-semibold">{fmt(p.valor)}</span>
                 </div>
@@ -285,7 +256,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
                   value={formaAtual?.id ?? ''}
                   onChange={e => {
                     const f = formas.find(f => f.id === e.target.value)
-                    if (f) { setFormaAtual(f); setDescontoPct(0); setErro('') }
+                    if (f) { setFormaAtual(f); setErro('') }
                   }}
                   className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan"
                 >
@@ -314,9 +285,9 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-steel text-xs">Valor</label>
-                  {restanteComDescontoAtual > 0 && (
+                  {restante > 0 && (
                     <button onClick={autoFill} className="text-xs text-electric-cyan hover:underline">
-                      preencher restante ({fmt(restanteComDescontoAtual)})
+                      preencher restante ({fmt(restante)})
                     </button>
                   )}
                 </div>
@@ -336,33 +307,6 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
                 )}
               </div>
 
-              {/* Slider de desconto */}
-              {maxPct > 0 && valAtual && (
-                <div className="flex flex-col gap-1.5 bg-midnight rounded-xl p-3">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-steel">Desconto ({formaAtual?.nome})</span>
-                    <span className="text-mint-green font-medium">
-                      {descontoAtual > 0 ? `−${fmt(descontoAtual)}` : 'sem desconto'}
-                    </span>
-                  </div>
-                  <input type="range" min="0" max={maxPct} step="0.5"
-                    value={descontoPct}
-                    onChange={e => setDescontoPct(parseFloat(e.target.value))}
-                    className="w-full accent-electric-cyan h-1.5 rounded-full cursor-pointer" />
-                  <div className="flex justify-between text-[10px] text-steel">
-                    <span>0%</span>
-                    <span>
-                      máx {capR$ > 0 ? `${fmt(capR$)} (${maxPct}%)` : `${maxPct}%`}
-                    </span>
-                  </div>
-                  {descontoAtual > 0 && (
-                    <p className="text-center text-xs text-electric-cyan">
-                      Total ajustado: {fmt(totalComDescontoAtual - totalJaPago)}
-                    </p>
-                  )}
-                </div>
-              )}
-
               {erro && <p className="text-red-400 text-sm text-center">{erro}</p>}
 
               {/* Botões */}
@@ -381,8 +325,8 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
                 >
                   {processando
                     ? 'Registrando...'
-                    : restante <= 0.01 || valAtual >= restanteComDescontoAtual
-                      ? `Finalizar — ${fmt(totalComDescontoAtual)}`
+                    : restante <= 0.01 || valAtual >= restante
+                      ? `Finalizar — ${fmt(baseTotal)}`
                       : `Confirmar ${fmt(valAtual)} →`
                   }
                 </button>
