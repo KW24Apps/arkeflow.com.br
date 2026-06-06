@@ -41,13 +41,13 @@ export default function ProdutosPage() {
       <main className="flex-1 p-4 md:p-5 overflow-y-auto pb-20">
 
         {/* Search */}
-        <div className="flex gap-2 mb-4">
+        <div className="mb-4">
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && load(q)}
             placeholder="Buscar produto..."
-            className="flex-1 outline-none"
+            className="w-full outline-none"
             style={{
               background: 'rgba(8,18,30,0.5)',
               border: '0.5px solid rgba(255,255,255,0.12)',
@@ -59,36 +59,27 @@ export default function ProdutosPage() {
             onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
           />
-          <button
-            onClick={() => load(q)}
-            style={{
-              background: 'rgba(0,239,255,0.2)',
-              border: '0.5px solid rgba(0,239,255,0.4)',
-              color: '#0ef',
-              borderRadius: '8px',
-              padding: '10px 18px',
-              fontSize: '13px',
-              fontWeight: 500,
-            }}
-          >
-            Buscar
-          </button>
         </div>
 
         {/* Content */}
-        {loading ? (
+        {(() => {
+          const lower = q.toLowerCase()
+          const filtered = q ? produtos.filter(p =>
+            [p.nome, (p as any).categoria, (p as any).marca].some(f => f?.toLowerCase().includes(lower))
+          ) : produtos
+          return loading ? (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : produtos.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-3">
-            <p style={{ fontSize: '36px', opacity: 0.3 }}>📦</p>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Nenhum produto cadastrado</p>
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>Toque no + para adicionar</p>
+            <p style={{ fontSize: '36px', opacity: 0.3 }}>{q ? '🔍' : '📦'}</p>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>{q ? 'Nenhum resultado encontrado' : 'Nenhum produto cadastrado'}</p>
+            {!q && <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>Toque no + para adicionar</p>}
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {produtos.map(p => (
+            {filtered.map(p => (
               <div
                 key={p.id}
                 onClick={() => router.push(`/painel/produtos/${p.id}`)}
@@ -147,7 +138,8 @@ export default function ProdutosPage() {
               </div>
             ))}
           </div>
-        )}
+        )
+        })()}
 
         {/* FAB */}
         <Link

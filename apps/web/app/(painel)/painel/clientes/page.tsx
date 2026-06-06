@@ -30,13 +30,13 @@ export default function ClientesPage() {
       <main className="flex-1 p-4 md:p-5 overflow-y-auto pb-20">
 
         {/* Search */}
-        <div className="flex gap-2 mb-4">
+        <div className="mb-4">
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && load(q)}
             placeholder="Buscar por nome, telefone ou CPF..."
-            className="flex-1 outline-none"
+            className="w-full outline-none"
             style={{
               background: 'rgba(8,18,30,0.5)',
               border: '0.5px solid rgba(255,255,255,0.12)',
@@ -48,35 +48,26 @@ export default function ClientesPage() {
             onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
           />
-          <button
-            onClick={() => load(q)}
-            style={{
-              background: 'rgba(0,239,255,0.2)',
-              border: '0.5px solid rgba(0,239,255,0.4)',
-              color: '#0ef',
-              borderRadius: '8px',
-              padding: '10px 18px',
-              fontSize: '13px',
-              fontWeight: 500,
-            }}
-          >
-            Buscar
-          </button>
         </div>
 
-        {loading ? (
+        {(() => {
+          const lower = q.toLowerCase()
+          const filtered = q ? clientes.filter(c =>
+            [c.nome, c.telefone, c.cpf].some(f => f?.toLowerCase().includes(lower))
+          ) : clientes
+          return loading ? (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : clientes.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-3">
-            <span style={{ fontSize: '36px', opacity: 0.3 }}>👤</span>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>Nenhum cliente cadastrado</p>
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>Toque no + para adicionar</p>
+            <span style={{ fontSize: '36px', opacity: 0.3 }}>{q ? '🔍' : '👤'}</span>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>{q ? 'Nenhum resultado encontrado' : 'Nenhum cliente cadastrado'}</p>
+            {!q && <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>Toque no + para adicionar</p>}
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {clientes.map(c => (
+            {filtered.map(c => (
               <Link
                 key={c.id}
                 href={`/painel/clientes/${c.id}`}
@@ -110,7 +101,8 @@ export default function ClientesPage() {
               </Link>
             ))}
           </div>
-        )}
+        )
+        })()}
 
         <Link href="/painel/clientes/novo"
           className="fixed bottom-6 right-6 flex items-center justify-center shadow-lg active:scale-95 transition-transform"

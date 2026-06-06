@@ -31,6 +31,7 @@ export default function ColaboradoresPage() {
   const usuarioLogado  = useAuthStore(s => s.usuario)
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
   const [loading,       setLoading]       = useState(true)
+  const [q,             setQ]             = useState('')
 
   useEffect(() => {
     colaboradoresApi.list().then(setColaboradores).finally(() => setLoading(false))
@@ -54,13 +55,44 @@ export default function ColaboradoresPage() {
       <TopBar />
       <main className="flex-1 p-4 md:p-5 overflow-y-auto pb-20">
 
-        {loading ? (
+        {/* Search */}
+        <div className="mb-4">
+          <input
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Buscar por nome ou email..."
+            className="w-full outline-none"
+            style={{
+              background: 'rgba(8,18,30,0.5)',
+              border: '0.5px solid rgba(255,255,255,0.12)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              fontSize: '13px',
+              color: 'rgba(255,255,255,0.6)',
+            }}
+            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+          />
+        </div>
+
+        {(() => {
+          const lower = q.toLowerCase()
+          const filtered = q ? colaboradores.filter(c =>
+            [c.nome, c.email].some(f => f?.toLowerCase().includes(lower))
+          ) : colaboradores
+          return loading ? (
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center py-16 gap-3">
+            <span style={{ fontSize: '36px', opacity: 0.3 }}>{q ? '🔍' : '👥'}</span>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>{q ? 'Nenhum resultado encontrado' : 'Nenhum colaborador cadastrado'}</p>
+            {!q && <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>Toque no + para adicionar</p>}
+          </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {colaboradores.map(c => {
+            {filtered.map(c => {
               const isMe   = c.id === usuarioLogado?.id
               const isDono = c.nivel === 'dono_loja'
 
@@ -128,7 +160,8 @@ export default function ColaboradoresPage() {
               )
             })}
           </div>
-        )}
+        )
+        })()}
 
         {/* FAB — new collaborator */}
         <Link
