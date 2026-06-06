@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
+import { useAuthStore } from '@/store/auth.store'
 import { vendasApi, type VendaHistoricoItem } from '@/lib/api/vendas'
 
 type DetailMap = Record<string, any>
@@ -220,6 +222,7 @@ function VendaRow({
 
 export default function ResumoCaixaPage() {
   const { turno, carregar } = useCaixaStore()
+  const authNome            = useAuthStore(s => (s.usuario as any)?.nome ?? (s.usuario as any)?.username ?? null)
   const [vendas,     setVendas]     = useState<VendaHistoricoItem[]>([])
   const [carregando, setCarregando] = useState(true)
   const [details,    setDetails]    = useState<DetailMap>({})
@@ -280,15 +283,20 @@ export default function ResumoCaixaPage() {
 
   // ── Loading ──
   if (carregando) return (
-    <div style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
-      <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
-    </div>
+    <>
+      <TopBar />
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
+      </div>
+    </>
   )
 
-  const nomeOp = (turno as any)?.usuario_nome ?? '—'
+  const nomeOp = (turno as any)?.usuario_nome || authNome || '—'
 
   return (
-    <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <>
+    <TopBar />
+    <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto' }}>
 
       {/* ── Section 1: Turno info ── */}
       {turno && (
@@ -370,5 +378,6 @@ export default function ResumoCaixaPage() {
       )}
 
     </div>
+    </>
   )
 }

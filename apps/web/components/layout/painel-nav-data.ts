@@ -18,7 +18,7 @@ export const SECTIONS = [
     label: 'Vendas',
     icon:  'ShoppingCart',
     href:  '/painel/caixa',
-    match: ['/painel/caixa'],
+    match: ['/painel/caixa', '/painel/caixa/resumo'],
     sub: [
       { label: 'Caixa',  href: '/painel/caixa',        permSlug: 'caixa' },
       { label: 'Resumo', href: '/painel/caixa/resumo', permSlug: 'caixa' },
