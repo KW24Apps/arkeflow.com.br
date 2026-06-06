@@ -12,24 +12,37 @@ interface Props {
 
 export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const todosRef = useRef<Colaborador[]>([])
 
-  const [todos,      setTodos]      = useState<Colaborador[]>([])
-  const [q,          setQ]          = useState('')
-  const [carregando, setCarregando] = useState(false)
+  const [q,         setQ]         = useState('')
+  const [filtrados, setFiltrados] = useState<Colaborador[]>([])
 
-  // ── Load on open ──────────────────────────────────────────────────────────
+  // ── Load all into ref on open (silent, no spinner) ────────────────────────
   useEffect(() => {
     if (!open) return
     setQ('')
-    setCarregando(true)
+    setFiltrados([])
     colaboradoresApi.list()
-      .then(cs => setTodos(cs.filter(c => c.ativo)))
+      .then(cs => { todosRef.current = cs.filter(c => c.ativo) })
       .catch(() => {})
-      .finally(() => {
-        setCarregando(false)
-        setTimeout(() => inputRef.current?.focus(), 80)
-      })
+      .finally(() => setTimeout(() => inputRef.current?.focus(), 80))
   }, [open])
+
+  // ── Debounced client-side filter ──────────────────────────────────────────
+  useEffect(() => {
+    if (!q.trim()) { setFiltrados([]); return }
+    const t = setTimeout(() => {
+      const query = q.toLowerCase().trim()
+      setFiltrados(
+        todosRef.current.filter(c =>
+          c.nome.toLowerCase().includes(query) ||
+          c.email.toLowerCase().includes(query) ||
+          c.cargo?.toLowerCase().includes(query)
+        )
+      )
+    }, 280)
+    return () => clearTimeout(t)
+  }, [q])
 
   // ── ESC to close ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -40,16 +53,6 @@ export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
   }, [open, onClose])
 
   if (!open) return null
-
-  // ── Client-side filter ────────────────────────────────────────────────────
-  const query     = q.toLowerCase().trim()
-  const filtrados = query
-    ? todos.filter(c =>
-        c.nome.toLowerCase().includes(query) ||
-        c.email.toLowerCase().includes(query) ||
-        c.cargo?.toLowerCase().includes(query)
-      )
-    : todos
 
   const nivelLabel = (nivel: string) =>
     nivel === 'dono_loja' ? 'Dono / Gerente' : 'Vendedor'
@@ -87,19 +90,20 @@ export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
 
         {/* Results */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
-          {carregando && (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
+          {!q.trim() && (
+            <div className="flex flex-col items-center py-8 gap-2 opacity-40">
+              <span className="text-4xl">🔍</span>
+              <p className="text-steel text-sm">Digite para buscar</p>
             </div>
           )}
 
-          {!carregando && filtrados.length === 0 && (
+          {q.trim() && filtrados.length === 0 && (
             <div className="text-center py-10 text-steel text-sm">
-              {q ? `Nenhum colaborador encontrado para "${q}"` : 'Nenhum colaborador ativo cadastrado.'}
+              Nenhum colaborador encontrado para "{q}"
             </div>
           )}
 
-          {!carregando && filtrados.map(c => (
+          {filtrados.map(c => (
             <button
               key={c.id}
               onClick={() => { usePDVStore.getState().setVendedor(c.id, c.nome); onSelect(c) }}
@@ -124,7 +128,11 @@ export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
         </div>
 
         <div className="shrink-0 px-5 py-3 border-t border-ocean-depth">
-          <p className="text-steel text-xs text-center">{filtrados.length} colaborador{filtrados.length !== 1 ? 'es' : ''}</p>
+          <p className="text-steel text-xs text-center">
+            {q.trim()
+              ? `${filtrados.length} resultado${filtrados.length !== 1 ? 's' : ''}`
+              : 'Digite para filtrar colaboradores'}
+          </p>
         </div>
       </div>
     </div>

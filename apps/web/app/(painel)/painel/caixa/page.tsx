@@ -576,8 +576,8 @@ export default function CaixaPage() {
 
       {/* Modal Sangria / Suprimento */}
       {modalMov && (
-        <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4">
+        <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4" onClick={() => setModalMov(null)}>
+          <div className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg p-6 flex flex-col gap-4" style={{ maxHeight: '88vh' }} onClick={e => e.stopPropagation()}>
             <h3 className="text-sea-foam font-semibold capitalize">{modalMov}</h3>
             <p className="text-steel text-xs -mt-2">{modalMov === 'sangria' ? 'Retirada de dinheiro do caixa.' : 'Reforço de dinheiro no caixa.'}</p>
             <div>
@@ -605,8 +605,8 @@ export default function CaixaPage() {
 
       {/* Modal Fechar Caixa */}
       {modalFechar && (
-        <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4">
+        <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4" onClick={() => setModalFechar(false)}>
+          <div className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg p-6 flex flex-col gap-4" style={{ maxHeight: '88vh' }} onClick={e => e.stopPropagation()}>
             <h3 className="text-sea-foam font-semibold">Fechar Caixa</h3>
             <p className="text-steel text-xs -mt-2">Confirme o valor em dinheiro no caixa.</p>
             <div>
