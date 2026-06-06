@@ -244,9 +244,10 @@ export default function ResumoCaixaPage() {
       return
     }
     setCarregando(true)
+    const abertoEm = new Date(turno.aberto_em).getTime()
     vendasApi
       .historico({ de: turno.aberto_em, ...(turno.fechado_em ? { ate: turno.fechado_em } : {}) })
-      .then(setVendas)
+      .then(data => setVendas(data.filter(v => new Date(v.criado_em).getTime() >= abertoEm)))
       .finally(() => setCarregando(false))
   }, [status, turno?.id])
 
