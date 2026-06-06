@@ -21,6 +21,7 @@ import { promocoesRoutes }          from './modules/promocoes/promocoes.routes'
 import { vendasRoutes }             from './modules/vendas/vendas.routes'
 import { caixaRoutes }              from './modules/caixa/caixa.routes'
 import { sacolasRoutes }            from './modules/sacolas/sacolas.routes'
+import { fornecedoresRoutes }       from './modules/fornecedores/fornecedores.routes'
 
 export function buildApp() {
   const app = Fastify({ logger: env.NODE_ENV === 'development' })
@@ -49,6 +50,7 @@ export function buildApp() {
   app.register(vendasRoutes,           { prefix: '/vendas' })
   app.register(caixaRoutes,            { prefix: '/caixa' })
   app.register(sacolasRoutes,          { prefix: '/sacolas' })
+  app.register(fornecedoresRoutes,     { prefix: '/fornecedores' })
 
   return app
 }

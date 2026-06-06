@@ -103,6 +103,13 @@ export const SECTIONS = [
     ],
   },
   {
+    label: 'Fornecedores',
+    icon:  'Truck',
+    href:  '/painel/fornecedores',
+    match: ['/painel/fornecedores'],
+    sub:   [],
+  },
+  {
     label: 'Financeiro',
     icon:  'CreditCard',
     href:  '/painel/configuracoes/formas-pagamento',

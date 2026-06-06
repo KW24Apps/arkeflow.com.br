@@ -139,7 +139,8 @@ export default function ClienteDetalhe() {
   const [bairro,      setBairro]      = useState('')
   const [cidade,      setCidade]      = useState('')
   const [estado,      setEstado]      = useState('')
-  const [buscandoCep, setBuscandoCep] = useState(false)
+  const [buscandoCep,  setBuscandoCep]  = useState(false)
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
 
   // Medidas
   const [medidasDisponiveis, setMedidasDisponiveis] = useState<ItemCatalogo[]>([])
@@ -186,6 +187,29 @@ export default function ClienteDetalhe() {
     .catch(() => setCliente(null))
     .finally(() => setLoading(false))
   }, [id])
+
+  async function buscarCnpj() {
+    const raw = cpf.replace(/\D/g, '')
+    if (raw.length !== 14) return
+    setBuscandoCnpj(true)
+    try {
+      const res  = await fetch(`https://minhareceita.org/${raw}`)
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.razao_social) setNome(data.razao_social)
+      if (data.email) setEmails([data.email])
+      const tel = data.ddd_telefone_1?.replace(/\D/g, '')
+      if (tel) setTelefones([fmtPhone(tel)])
+      if (data.cep) setCep(fmtCEP(data.cep.replace(/\D/g, '')))
+      if (data.logradouro) setLogradouro(data.logradouro)
+      if (data.numero)     setNumero(data.numero)
+      if (data.complemento) setComplemento(data.complemento)
+      if (data.bairro)     setBairro(data.bairro)
+      if (data.municipio)  setCidade(data.municipio)
+      if (data.uf)         setEstado(data.uf)
+    } catch {}
+    finally { setBuscandoCnpj(false) }
+  }
 
   async function buscarCep() {
     const raw = cep.replace(/\D/g, '')
@@ -368,24 +392,34 @@ export default function ClienteDetalhe() {
                   <div className={regras.length > 0 ? 'grid grid-cols-2 gap-2' : ''}>
                     <div className="flex flex-col">
                       <Lbl>{tipoPessoa === 'juridica' ? 'CNPJ' : 'CPF'}</Lbl>
-                      <GInput
-                        value={cpf}
-                        onChange={e => {
-                          setCpfValidity(null)
-                          setCpf(tipoPessoa === 'juridica' ? fmtCNPJ(e.target.value) : fmtCPF(e.target.value))
-                        }}
-                        onBlur={() => {
-                          if (tipoPessoa === 'fisica' && cpf.replace(/\D/g, '').length === 11) {
-                            setCpfValidity(validateCPF(cpf) ? 'valid' : 'invalid')
+                      <div className="flex gap-2">
+                        <GInput
+                          value={cpf}
+                          onChange={e => {
+                            setCpfValidity(null)
+                            setCpf(tipoPessoa === 'juridica' ? fmtCNPJ(e.target.value) : fmtCPF(e.target.value))
+                          }}
+                          onBlur={() => {
+                            if (tipoPessoa === 'fisica' && cpf.replace(/\D/g, '').length === 11) {
+                              setCpfValidity(validateCPF(cpf) ? 'valid' : 'invalid')
+                            }
+                            if (tipoPessoa === 'juridica') buscarCnpj()
+                          }}
+                          borderColor={
+                            cpfValidity === 'invalid' ? 'rgba(240,100,100,0.5)' :
+                            cpfValidity === 'valid'   ? 'rgba(100,220,160,0.4)' :
+                            undefined
                           }
-                        }}
-                        borderColor={
-                          cpfValidity === 'invalid' ? 'rgba(240,100,100,0.5)' :
-                          cpfValidity === 'valid'   ? 'rgba(100,220,160,0.4)' :
-                          undefined
-                        }
-                        placeholder={tipoPessoa === 'juridica' ? '00.000.000/0000-00' : '000.000.000-00'}
-                      />
+                          placeholder={tipoPessoa === 'juridica' ? '00.000.000/0000-00' : '000.000.000-00'}
+                          style={{ flex: 1 }}
+                        />
+                        {tipoPessoa === 'juridica' && (
+                          <button type="button" onClick={buscarCnpj} disabled={buscandoCnpj}
+                            style={{ background: 'rgba(0,239,255,0.15)', border: '0.5px solid rgba(0,239,255,0.3)', borderRadius: '8px', padding: '9px 10px', fontSize: '11px', color: '#0ef', flexShrink: 0 }}>
+                            {buscandoCnpj ? '...' : 'Buscar'}
+                          </button>
+                        )}
+                      </div>
                       {cpfValidity === 'invalid' && tipoPessoa === 'fisica' && (
                         <p style={{ fontSize: '10px', color: 'rgba(240,100,100,0.7)', marginTop: '3px' }}>CPF inválido</p>
                       )}
