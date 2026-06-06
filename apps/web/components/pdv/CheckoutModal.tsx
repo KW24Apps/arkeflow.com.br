@@ -52,15 +52,12 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
 
   const [processando,  setProcessando]  = useState(false)
   const [erro,         setErro]         = useState('')
-  // Troco: set after a successful sale with overpayment
-  const [trocoFinal,   setTrocoFinal]   = useState(0)
-  const [resultadoVenda, setResultadoVenda] = useState<CheckoutResult | null>(null)
 
   // ── Load formas on open ───────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return
     setPagamentos([]); setValorAtual(''); setDescontoPct(0); setParcelas(1)
-    setErro(''); setTrocoFinal(0); setResultadoVenda(null)
+    setErro('')
     setCarregando(true)
     financeiroApi.formasPagamento().then(fs => {
       setFormas(fs)
@@ -101,8 +98,8 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
 
     const ehDinheiro = formaAtual.tipo === 'dinheiro'
 
-    // Non-cash: amount must not exceed the current remaining balance
-    if (!ehDinheiro && valAtual > restante + 0.01) {
+    // Non-cash: amount must not exceed the effective remaining (after discount)
+    if (!ehDinheiro && valAtual > restanteComDescontoAtual + 0.01) {
       return 'Valor inválido: pagamento excede o saldo restante.'
     }
 
@@ -162,10 +159,6 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
       const totalDescontosPag  = lista.reduce((s, p) => s + p.desconto, 0)
       const effectiveTotal     = Math.max(0, baseTotal - totalDescontosPag)
 
-      // Troco = what the customer paid over the effective total
-      const totalTenderedBruto = lista.reduce((s, p) => s + p.valor, 0)
-      const troco              = Math.max(0, totalTenderedBruto - effectiveTotal)
-
       // Cap each payment valor so sum == effectiveTotal (backend expects this)
       let remaining = effectiveTotal
       const pagamentosParaAPI = lista
@@ -193,21 +186,17 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
         vendedor_nome:      vendedor_nome ?? null,
       })
 
-      if (troco > 0.01) {
-        // Show troco modal before closing — onSuccess called after cashier confirms
-        setTrocoFinal(troco)
-        setResultadoVenda(r)
-      } else {
-        onSuccess(r)
-      }
+      resetState()
+      onSuccess(r)
     } catch (e: any) {
       setErro(e?.response?.data?.error ?? 'Erro ao registrar venda.')
       setProcessando(false)
     }
   }
 
-  function confirmarTroco() {
-    if (resultadoVenda) onSuccess(resultadoVenda)
+  function resetState() {
+    setPagamentos([]); setValorAtual(''); setDescontoPct(0); setParcelas(1)
+    setErro(''); setProcessando(false); setFormaAtual(null)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -217,7 +206,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
   }
 
   function autoFill() {
-    setValorAtual(restante.toFixed(2))
+    setValorAtual(restanteComDescontoAtual.toFixed(2))
     setTimeout(() => valorRef.current?.select(), 30)
   }
 
@@ -311,9 +300,9 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-steel text-xs">Valor</label>
-                  {restante > 0 && (
+                  {restanteComDescontoAtual > 0 && (
                     <button onClick={autoFill} className="text-xs text-electric-cyan hover:underline">
-                      preencher restante ({fmt(restante)})
+                      preencher restante ({fmt(restanteComDescontoAtual)})
                     </button>
                   )}
                 </div>
@@ -328,7 +317,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
                     erro ? 'border-red-400 focus:border-red-400' : 'border-ocean-depth focus:border-electric-cyan'
                   }`}
                 />
-                {troco > 0.01 && (
+                {formaAtual?.tipo === 'dinheiro' && troco > 0 && (
                   <p className="text-mint-green text-sm text-center font-medium">Troco: {fmt(troco)}</p>
                 )}
               </div>
@@ -379,7 +368,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
                   {processando
                     ? 'Registrando...'
                     : restante <= 0.01 || valAtual >= restanteComDescontoAtual
-                      ? `Finalizar — ${fmt(totalFinal)}`
+                      ? `Finalizar — ${fmt(totalComDescontoAtual)}`
                       : `Confirmar ${fmt(valAtual)} →`
                   }
                 </button>
