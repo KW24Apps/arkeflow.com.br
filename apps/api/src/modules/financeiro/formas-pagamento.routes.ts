@@ -43,11 +43,14 @@ export async function formasPagamentoRoutes(app: FastifyInstance) {
     const data = schema.partial().parse(req.body)
 
     const { rows: [atual] } = await pool.query(
-      `SELECT padrao_sistema FROM formas_pagamento WHERE id = $1`, [id]
+      `SELECT padrao_sistema, nome, tipo FROM formas_pagamento WHERE id = $1`, [id]
     )
-    // Protege nome e tipo das formas padrão do sistema
-    if (atual?.padrao_sistema && (data.nome || data.tipo)) {
-      throw new AppError('Nome e tipo de formas padrão não podem ser alterados.', 400)
+    // Block only when padrao_sistema fields are actually being changed
+    if (atual?.padrao_sistema) {
+      if (data.nome !== undefined && data.nome !== atual.nome)
+        throw new AppError('Nome de formas padrão do sistema não pode ser alterado.', 400)
+      if (data.tipo !== undefined && data.tipo !== atual.tipo)
+        throw new AppError('Tipo de formas padrão do sistema não pode ser alterado.', 400)
     }
 
     const keys   = Object.keys(data)
