@@ -30,7 +30,7 @@ export async function financeiroRoutes(app: FastifyInstance) {
 
     const where = conds.length ? 'WHERE ' + conds.join(' AND ') : ''
     const { rows } = await pool.query(
-      `SELECT * FROM lancamentos ${where} ORDER BY data DESC, criado_em DESC LIMIT 200`,
+      `SELECT * FROM lancamentos ${where} ORDER BY data DESC, id DESC LIMIT 200`,
       params
     )
     return reply.send(rows)

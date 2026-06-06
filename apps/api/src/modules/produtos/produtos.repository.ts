@@ -53,8 +53,12 @@ export async function create(pool: Pool, data: {
 }
 
 export async function update(pool: Pool, id: string, data: Record<string, any>) {
-  const keys   = Object.keys(data)
-  const values = Object.values(data)
+  const processed = { ...data }
+  if (processed.composicao_itens !== undefined) {
+    processed.composicao_itens = JSON.stringify(processed.composicao_itens ?? [])
+  }
+  const keys   = Object.keys(processed)
+  const values = Object.values(processed)
   const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
   const { rows: [p] } = await pool.query(
     `UPDATE produtos SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`, [id, ...values]

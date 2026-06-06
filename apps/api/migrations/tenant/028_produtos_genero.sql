@@ -1,0 +1,1 @@
+ALTER TABLE produtos ADD COLUMN IF NOT EXISTS genero TEXT;

@@ -4,6 +4,7 @@ export const createProdutoSchema = z.object({
   nome:             z.string().min(1),
   codigo:           z.string().optional().nullable(),   // SKU/referência interna
   tipo_id:          z.string().uuid().optional().nullable(),
+  genero:           z.string().optional().nullable(),
   categoria:        z.string().optional(),
   marca:            z.string().optional(),
   descricao:        z.string().optional(),
