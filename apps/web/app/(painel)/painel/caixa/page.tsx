@@ -12,6 +12,8 @@ import { promocoesApi } from '@/lib/api/promocoes'
 import { calcularDescontos } from '@/lib/calcularDesconto'
 import { AdvancedSearchModal } from '@/components/pdv/AdvancedSearchModal'
 import { CheckoutModal, type CheckoutResult } from '@/components/pdv/CheckoutModal'
+import { CustomerSearchModal } from '@/components/pdv/CustomerSearchModal'
+import type { Cliente } from '@/lib/api/clientes'
 
 interface ProdutoSearch { id: string; nome: string; preco_base: string; total_versoes: number }
 
@@ -49,6 +51,9 @@ export default function CaixaPage() {
   // ── Modais ────────────────────────────────────────────────────────────────
   const [modalCheckout, setModalCheckout] = useState(false)
   const [vendaOK,       setVendaOK]       = useState<CheckoutResult | null>(null)
+  const [modalCliente,  setModalCliente]  = useState(false)
+  const [clienteAutoAberto, setClienteAutoAberto] = useState(false)
+  const autoOpenedRef = useRef(false)  // prevents re-opening during same transaction
 
   const [modalMov,   setModalMov]    = useState<'sangria' | 'suprimento' | null>(null)
   const [valorMov,   setValorMov]    = useState('')
@@ -71,6 +76,23 @@ export default function CaixaPage() {
     if (cliente_id) clientesApi.get(cliente_id).then(setClienteInfo).catch(() => {})
     else { setClienteInfo(null); setUsarCB(false) }
   }, [cliente_id])
+
+  // Auto-open customer modal on first item (once per transaction)
+  useEffect(() => {
+    if (status !== 'aberto') return
+    if (itens.length === 0) { autoOpenedRef.current = false; return }
+    if (itens.length > 0 && !cliente_id && !autoOpenedRef.current) {
+      autoOpenedRef.current = true
+      setClienteAutoAberto(true)
+      setModalCliente(true)
+    }
+  }, [itens.length, cliente_id, status])
+
+  function handleClienteSelecionado(c: Cliente) {
+    setCliente(c.id, c.nome)
+    setModalCliente(false)
+    setTimeout(() => scanRef.current?.focus(), 100)
+  }
 
   // ── Cálculos ──────────────────────────────────────────────────────────────
   const { itensComDesconto, totalDesconto } = calcularDescontos(itens, promocoes, !clienteInfo?.total_compras, {})
@@ -182,6 +204,7 @@ export default function CaixaPage() {
     setModalCheckout(false)
     setVendaOK(r)
     limpar()
+    autoOpenedRef.current = false
   }
 
   function novaVenda() {
@@ -452,7 +475,34 @@ export default function CaixaPage() {
 
                 {/* Ações do caixa */}
                 <div className="px-4 pt-4 pb-3 flex flex-col gap-2">
-                  <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Gestão do Caixa</p>
+                  <p className="text-steel text-[10px] uppercase tracking-wider mb-1">Ações</p>
+
+                  {/* Manage customer — contextual */}
+                  {cliente_id ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setClienteAutoAberto(false); setModalCliente(true) }}
+                        className="flex-1 min-h-[48px] border border-electric-cyan/40 text-electric-cyan rounded-xl text-sm hover:bg-electric-cyan/10 active:bg-electric-cyan/20 transition-colors px-3 text-left truncate"
+                      >
+                        👤 {cliente_nome}
+                      </button>
+                      <button
+                        onClick={() => setCliente(null, null)}
+                        title="Remover cliente"
+                        className="min-w-[48px] min-h-[48px] border border-ocean-depth text-steel rounded-xl hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors flex items-center justify-center text-lg"
+                      >×</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setClienteAutoAberto(false); setModalCliente(true) }}
+                      className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-electric-cyan/40 hover:text-electric-cyan active:bg-electric-cyan/10 transition-colors text-left px-4"
+                    >
+                      👤 Adicionar Cliente
+                    </button>
+                  )}
+
+                  <div className="border-t border-ocean-depth/50 my-1" />
+
                   <button
                     onClick={() => setModalMov('sangria')}
                     className="min-h-[48px] w-full border border-ocean-depth text-steel rounded-xl text-sm hover:border-red-400/50 hover:text-red-400 active:bg-red-500/10 transition-colors text-left px-4"
@@ -498,6 +548,13 @@ export default function CaixaPage() {
         open={modalBusca}
         onClose={() => { setModalBusca(false); setTimeout(() => scanRef.current?.focus(), 100) }}
         onAddItem={item => { addItem(item); setTimeout(() => scanRef.current?.focus(), 100) }}
+      />
+
+      <CustomerSearchModal
+        open={modalCliente}
+        autoAberto={clienteAutoAberto}
+        onClose={() => { setModalCliente(false); setClienteAutoAberto(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onSelect={handleClienteSelecionado}
       />
 
       <CheckoutModal

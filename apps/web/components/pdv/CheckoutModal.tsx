@@ -51,11 +51,15 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
 
   const [processando,  setProcessando]  = useState(false)
   const [erro,         setErro]         = useState('')
+  // Troco: set after a successful sale with overpayment
+  const [trocoFinal,   setTrocoFinal]   = useState(0)
+  const [resultadoVenda, setResultadoVenda] = useState<CheckoutResult | null>(null)
 
   // ── Load formas on open ───────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return
-    setPagamentos([]); setValorAtual(''); setDescontoPct(0); setParcelas(1); setErro('')
+    setPagamentos([]); setValorAtual(''); setDescontoPct(0); setParcelas(1)
+    setErro(''); setTrocoFinal(0); setResultadoVenda(null)
     setCarregando(true)
     financeiroApi.formasPagamento().then(fs => {
       setFormas(fs)
@@ -90,9 +94,36 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
     ? valAtual - restanteComDescontoAtual
     : 0
 
+  // ── Validation ───────────────────────────────────────────────────────────
+  function validarEntrada(): string | null {
+    if (!formaAtual || valAtual <= 0) return null
+
+    const ehDinheiro = formaAtual.tipo === 'dinheiro'
+
+    // Non-cash: amount must not exceed the current remaining balance
+    if (!ehDinheiro && valAtual > restante + 0.01) {
+      return 'Valor inválido: pagamento excede o saldo restante.'
+    }
+
+    // Cash: troco is always mathematically valid (troco = val - remaining ≤ val)
+    // but guard explicitly against the impossible case
+    if (ehDinheiro) {
+      const trocoCalculado = Math.max(0, valAtual - restanteComDescontoAtual)
+      if (trocoCalculado > valAtual + 0.01) {
+        return 'Operação inválida: troco excede o valor recebido em dinheiro.'
+      }
+    }
+
+    return null
+  }
+
   // ── Register one payment step ─────────────────────────────────────────────
   function registrarEtapa() {
     if (!formaAtual || valAtual <= 0) return
+
+    const erroValidacao = validarEntrada()
+    if (erroValidacao) { setErro(erroValidacao); return }
+    setErro('')
 
     const novoPag: PagamentoParcial = {
       forma:    formaAtual,
@@ -126,6 +157,24 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
   async function finalizarVenda(lista: PagamentoParcial[]) {
     setProcessando(true); setErro('')
     try {
+      // Effective total = baseTotal minus all payment-method discounts
+      const totalDescontosPag  = lista.reduce((s, p) => s + p.desconto, 0)
+      const effectiveTotal     = Math.max(0, baseTotal - totalDescontosPag)
+
+      // Troco = what the customer paid over the effective total
+      const totalTenderedBruto = lista.reduce((s, p) => s + p.valor, 0)
+      const troco              = Math.max(0, totalTenderedBruto - effectiveTotal)
+
+      // Cap each payment valor so sum == effectiveTotal (backend expects this)
+      let remaining = effectiveTotal
+      const pagamentosParaAPI = lista
+        .map(p => {
+          const capped   = Math.min(p.valor, remaining)
+          remaining      = Math.max(0, remaining - capped)
+          return { forma_pagamento_id: p.forma.id, valor: capped, parcelas: p.parcelas }
+        })
+        .filter(p => p.valor > 0)
+
       const r = await vendasApi.registrar({
         cliente_id:         clienteId ?? null,
         itens:              itensComDesconto.map(i => ({
@@ -134,20 +183,27 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
           preco_unitario: i.preco_unitario,
           desconto_item:  i.desconto_item,
         })),
-        pagamentos: lista.map(p => ({
-          forma_pagamento_id: p.forma.id,
-          valor:    p.valor,
-          parcelas: p.parcelas,
-        })),
+        pagamentos:         pagamentosParaAPI,
         cashback_usado:     cashbackUsar,
         desconto_promocao:  totalDesconto,
-        desconto_pagamento: lista.reduce((s, p) => s + p.desconto, 0),
+        desconto_pagamento: totalDescontosPag,
       })
-      onSuccess(r)
+
+      if (troco > 0.01) {
+        // Show troco modal before closing — onSuccess called after cashier confirms
+        setTrocoFinal(troco)
+        setResultadoVenda(r)
+      } else {
+        onSuccess(r)
+      }
     } catch (e: any) {
       setErro(e?.response?.data?.error ?? 'Erro ao registrar venda.')
       setProcessando(false)
     }
+  }
+
+  function confirmarTroco() {
+    if (resultadoVenda) onSuccess(resultadoVenda)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -222,7 +278,7 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
                   value={formaAtual?.id ?? ''}
                   onChange={e => {
                     const f = formas.find(f => f.id === e.target.value)
-                    if (f) { setFormaAtual(f); setDescontoPct(0) }
+                    if (f) { setFormaAtual(f); setDescontoPct(0); setErro('') }
                   }}
                   className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan"
                 >
@@ -261,10 +317,12 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
                   ref={valorRef}
                   type="number" min="0" step="0.01"
                   value={valorAtual}
-                  onChange={e => setValorAtual(e.target.value)}
+                  onChange={e => { setValorAtual(e.target.value); setErro('') }}
                   onKeyDown={handleKeyDown}
                   placeholder="0,00"
-                  className="min-h-[56px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-xl font-semibold text-center outline-none focus:border-electric-cyan"
+                  className={`min-h-[56px] bg-midnight border rounded-xl px-4 text-sea-foam text-xl font-semibold text-center outline-none transition-colors ${
+                    erro ? 'border-red-400 focus:border-red-400' : 'border-ocean-depth focus:border-electric-cyan'
+                  }`}
                 />
                 {troco > 0.01 && (
                   <p className="text-mint-green text-sm text-center font-medium">Troco: {fmt(troco)}</p>
