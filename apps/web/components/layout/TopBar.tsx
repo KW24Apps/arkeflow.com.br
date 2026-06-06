@@ -65,7 +65,7 @@ export function TopBar() {
         {open && (
           <div
             className="absolute right-0 top-full mt-1 z-50"
-            style={{ background: 'rgba(8,18,30,0.98)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: '220px', overflow: 'hidden' }}
+            style={{ background: 'rgb(8,18,30)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', minWidth: '220px', overflow: 'hidden' }}
           >
             {/* User info */}
             <div style={{ padding: '14px 16px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
