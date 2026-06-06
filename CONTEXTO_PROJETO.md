@@ -1,6 +1,6 @@
 # ARKEflow — Contexto do Projeto
 
-> Atualizado em 2026-06-06.
+> Atualizado em 2026-06-06 (sessão 2 — reflete estado pós-build do módulo Caixa/PDV).
 
 ---
 
@@ -24,10 +24,10 @@ ARKEflow é um SaaS de gestão para lojas de varejo (roupas, calçados, acessór
 | Clientes | ✓ | ✓ | Medidas corporais, contatos, soft delete |
 | Estoque | ✓ | ✓ | Ajustes manuais, alertas de mínimo |
 | Financeiro | ✓ | ✓ | Lançamentos, contas a receber, formas de pagamento |
-| Vendas / PDV | ✓ | ✓ | Crediário, cashback, promoções, sacolas |
-| Caixa | ✓ | ✓ | Abertura/fechamento de turno, sangria, suprimento |
+| Vendas / PDV | ✓ | ✓ | CheckoutModal multi-método, cashback, promoções, sacolas, carrinho persistido em localStorage |
+| Caixa | ✓ | ✓ | Turno scoped por usuario_id; sidebar modular (4 módulos); modal boas-vindas; CurrencyInput; página de resumo com histórico de vendas do turno |
 | Colaboradores | ✓ | ✓ | Perfil completo, documentos, modelos de permissão |
-| Promoções | ✓ | ✓ | Desconto fixo/%, segunda peça, compre-ganhe, primeira compra |
+| Promoções | ✓ | ✓ | Card grid redesenhado, inline form, busca em tempo real, ordenação por vencimento |
 | Configurações | ✓ | ✓ | Dados da loja, regime tributário, certificado digital, logo |
 | Fornecedores | ✓ | ✓ | CRUD com CNPJ, endereço, múltiplos telefones |
 | NF-e / NFC-e | ✗ | ✗ | Tabela `notas_fiscais` criada, integração pendente |
@@ -39,7 +39,7 @@ Todas as telas do painel seguem o padrão **Ocean Glass**:
 - Inputs/selects: `rgba(8,18,30,0.5)` + borda `0.5px rgba(255,255,255,0.12)`, foco em `rgba(0,239,255,0.4)`
 - Accent: `#0ef` (electric cyan)
 - Tipografia de label: `9px uppercase letter-spacing 0.1em rgba(255,255,255,0.35)`
-- Componentes reutilizáveis: `GlassInput`, `GlassSelect` definidos localmente em cada página
+- Componentes reutilizáveis: `GlassInput`, `GlassSelect` (global em `components/ui/`), `CurrencyInput` (entrada de centavos right-to-left, local em `caixa/page.tsx`)
 
 ---
 
@@ -103,15 +103,43 @@ Todas as telas do painel seguem o padrão **Ocean Glass**:
 
 ## Próximas tarefas (backlog ordenado por prioridade)
 
-1. **Estoque — Entrada de mercadoria** — formulário de entrada vinculado a fornecedor, atualiza estoque das versões selecionadas, gera lançamento financeiro de saída.
+### PDV / Checkout (curto prazo)
 
-2. **Glass pattern nas telas pendentes** — algumas telas ainda usam componentes genéricos (`Input`, `Button`) em vez do padrão Ocean Glass. Revisar: cadastros/tipos, cadastros/cores, cadastros/tamanhos.
+1. **Formas de pagamento — ordem fixa e desabilitar botão** — forçar exibição na ordem Dinheiro → PIX → Débito → Crédito → Crediário; desabilitar o botão "Fechar venda" enquanto sem itens.
 
-3. **Caixa — melhorias** — relatório de fechamento de turno com breakdown por forma de pagamento; histórico de turnos paginado.
+2. **Promoções aplicadas automaticamente na venda** — o motor de cálculo (`calcularDesconto`) já existe; falta garantir que o backend aplique os descontos no registro da venda.
 
-4. **NF-e / NFC-e** — integrar com provedor (Nuvem Fiscal ou similar); usar campos fiscais já presentes em `produtos` e `lojas`; fluxo de emissão a partir da venda finalizada.
+3. **Fluxo especial de crediário** — tela de entrada + parcelas com data de vencimento; validação de cliente obrigatório; geração de `parcelas_crediario`.
 
-5. **Relatórios** — implementar as telas de relatórios (produtos mais vendidos, fluxo financeiro, clientes com saldo).
+4. **Cashback no checkout** — toggle para usar saldo; abatimento automático do total.
+
+5. **Múltiplos métodos de pagamento em uma venda** — já estruturado no CheckoutModal; validar fluxo completo (backend + histórico).
+
+6. **Parcelamento de cartão de crédito** — UI de seleção de parcelas + envio do número de parcelas para o backend.
+
+7. **Desconto máximo = menor limite entre as formas usadas** — regra de negócio a implementar no CheckoutModal quando há múltiplos métodos.
+
+8. **Cliente opcional no checkout** — permitir finalizar venda sem cliente selecionado (sem cashback, sem promoção de primeira compra).
+
+### Backoffice (médio prazo)
+
+9. **Estoque — Entrada de mercadoria** — formulário vinculado a fornecedor, atualiza estoque das versões, gera lançamento financeiro de saída.
+
+10. **CEP — preenchimento automático de endereço** — integrar ViaCEP nos formulários de cliente, colaborador e configurações da loja.
+
+11. **Glass pattern nas telas pendentes** — revisar cadastros/tipos, cadastros/cores, cadastros/tamanhos.
+
+### Futuro
+
+12. **Relatórios** — produtos mais vendidos, fluxo financeiro, clientes com saldo.
+
+13. **Caixa — dashboard gerencial** — visão consolidada de turnos para o dono da loja.
+
+14. **NF-e / NFC-e** — integrar provedor (Nuvem Fiscal ou similar); campos fiscais já presentes em `produtos` e `lojas`.
+
+15. **Tour de produto / onboarding** — guia interativo para novos usuários.
+
+16. **Mensagens de boas-vindas configuráveis** — banco de frases no banco da plataforma em vez de hardcoded.
 
 ---
 

@@ -1,8 +1,10 @@
 # ARKEflow — Schema do Banco de Dados
 
-> Last updated: 2026-06-06
+> Last updated: 2026-06-06 (verificado na sessão 2 — sem alterações de schema)
 > Derivado dos arquivos de migration — não conecta ao banco real.
 > Platform: 14 migrations (001–014) | Tenant: 30 migrations (001–030)
+>
+> Nota: `turnos_caixa` retorna `total_sangrias` e `total_suprimentos` como agregados calculados pela API (não são colunas físicas).
 
 ---
 
