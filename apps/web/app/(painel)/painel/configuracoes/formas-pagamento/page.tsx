@@ -7,8 +7,29 @@ import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 
 const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario', 'outro']
 
+const CARD = {
+  background: 'rgba(8,18,30,0.48)',
+  backdropFilter: 'blur(8px)',
+  border: '0.5px solid rgba(255,255,255,0.09)',
+  borderRadius: '10px',
+}
+
+const INPUT_STYLE = {
+  background: 'rgba(8,18,30,0.5)',
+  border: '0.5px solid rgba(255,255,255,0.12)',
+  color: 'rgba(255,255,255,0.8)',
+  borderRadius: '8px',
+}
+
+function focusIn(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)'
+}
+function focusOut(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
+  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+}
+
 function TipoIcon({ tipo, size = 22 }: { tipo: string; size?: number }) {
-  const cls = 'text-sea-foam/50'
+  const cls = 'text-white/40'
   switch (tipo) {
     case 'dinheiro':  return <Banknote   size={size} className={cls} />
     case 'pix':       return <QrCode     size={size} className={cls} />
@@ -85,30 +106,38 @@ export default function FormasPagamentoPage() {
       <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10 flex flex-col gap-6">
 
-        <p className="text-steel text-sm">
+        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
           As formas padrão do sistema não podem ser removidas. Você pode ajustar os descontos.
         </p>
 
-        {/* ── Edit panel — always above the grid ─────────────────────────── */}
+        {/* ── Edit panel ───��──────────────────────────────────────────────── */}
         {formOpen && (
-          <div className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
-            <p className="text-sea-foam font-semibold text-sm">
+          <div style={CARD} className="p-5 flex flex-col gap-4">
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
               {editandoId ? 'Editar forma de pagamento' : 'Nova forma de pagamento'}
             </p>
 
             {editandoPadrao ? (
-              <div className="bg-midnight border border-ocean-depth rounded-xl px-4 py-3">
-                <p className="text-sea-foam text-sm font-medium">{nome}</p>
-                <p className="text-steel text-xs capitalize mt-0.5">{tipo}</p>
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} className="px-4 py-3">
+                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', fontWeight: 500 }}>{nome}</p>
+                <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', marginTop: '2px' }} className="capitalize">{tipo}</p>
               </div>
             ) : (
               <>
-                <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome *"
-                  className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
+                <input
+                  value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome *"
+                  onFocus={focusIn} onBlur={focusOut}
+                  className="min-h-[48px] px-4 outline-none w-full"
+                  style={INPUT_STYLE}
+                />
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-steel uppercase tracking-wider">Tipo</label>
-                  <select value={tipo} onChange={e => setTipo(e.target.value)}
-                    className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none">
+                  <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Tipo</label>
+                  <select
+                    value={tipo} onChange={e => setTipo(e.target.value)}
+                    onFocus={focusIn} onBlur={focusOut}
+                    className="min-h-[48px] px-4 outline-none w-full"
+                    style={INPUT_STYLE}
+                  >
                     {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
@@ -117,33 +146,55 @@ export default function FormasPagamentoPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-steel uppercase tracking-wider">Desconto %</label>
-                <input type="number" min="0" max="100" value={descontoPercentual}
+                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Desconto %</label>
+                <input
+                  type="number" min="0" max="100" value={descontoPercentual}
                   onChange={e => setDescontoPercentual(e.target.value)}
-                  className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
+                  onFocus={focusIn} onBlur={focusOut}
+                  className="min-h-[48px] px-4 outline-none w-full"
+                  style={INPUT_STYLE}
+                />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-steel uppercase tracking-wider">Desc. máx. R$</label>
-                <input type="number" min="0" value={descontoMaximo}
+                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Desc. máx. R$</label>
+                <input
+                  type="number" min="0" value={descontoMaximo}
                   onChange={e => setDescontoMaximo(e.target.value)}
-                  className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
+                  onFocus={focusIn} onBlur={focusOut}
+                  className="min-h-[48px] px-4 outline-none w-full"
+                  style={INPUT_STYLE}
+                />
               </div>
             </div>
 
             <div className="flex items-center justify-between gap-3">
               {editandoId && !editandoPadrao ? (
-                <button onClick={() => handleRemover(editandoId)}
-                  className="text-xs text-red-400/60 hover:text-red-400 transition-colors min-h-[44px] px-1">
+                <button
+                  onClick={() => handleRemover(editandoId)}
+                  className="min-h-[40px] px-2 transition-colors"
+                  style={{ fontSize: '12px', color: 'rgba(248,113,113,0.5)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.85)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.5)')}
+                >
                   Remover
                 </button>
               ) : <span />}
               <div className="flex gap-3">
-                <button onClick={() => setFormOpen(false)}
-                  className="min-h-[44px] px-6 border border-ocean-depth text-steel rounded-xl text-sm hover:text-sea-foam transition-colors">
+                <button
+                  onClick={() => setFormOpen(false)}
+                  className="min-h-[40px] px-5 rounded-lg text-sm transition-colors"
+                  style={{ border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+                >
                   Cancelar
                 </button>
-                <button onClick={handleSalvar} disabled={salvando || (!editandoPadrao && !nome)}
-                  className="min-h-[44px] px-6 bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40">
+                <button
+                  onClick={handleSalvar}
+                  disabled={salvando || (!editandoPadrao && !nome)}
+                  className="min-h-[40px] px-5 text-sm font-semibold rounded-lg disabled:opacity-40"
+                  style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', color: '#0ef', borderRadius: '8px' }}
+                >
                   {salvando ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
@@ -163,19 +214,33 @@ export default function FormasPagamentoPage() {
               <button
                 key={f.id}
                 onClick={() => abrirEdicao(f)}
-                className="bg-deep-ocean border border-ocean-depth rounded-2xl p-4 flex flex-col items-center gap-3 text-center hover:border-electric-cyan/40 hover:bg-ocean-depth/40 active:scale-[0.97] transition-all"
+                className="p-4 flex flex-col items-center gap-3 text-center active:scale-[0.97] transition-all"
+                style={CARD}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
               >
-                <div className="w-12 h-12 rounded-xl bg-midnight flex items-center justify-center shrink-0">
+                <div
+                  className="w-12 h-12 flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '10px' }}
+                >
                   <TipoIcon tipo={f.tipo} />
                 </div>
                 <div className="flex flex-col items-center gap-1 w-full min-w-0">
-                  <p className="text-sea-foam font-medium text-sm truncate w-full">{f.nome}</p>
+                  <p className="font-medium truncate w-full" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
+                    {f.nome}
+                  </p>
                   {f.padrao_sistema && (
-                    <span className="bg-ocean-depth text-steel text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide">
+                    <span
+                      className="px-2 py-0.5 rounded-full uppercase tracking-wide"
+                      style={{ fontSize: '9px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}
+                    >
                       Sistema
                     </span>
                   )}
-                  <p className={`text-xs ${Number(f.desconto_percentual) > 0 ? 'text-mint-green' : 'text-steel/50'}`}>
+                  <p style={{
+                    fontSize: '11px',
+                    color: Number(f.desconto_percentual) > 0 ? 'rgba(100,220,160,0.8)' : 'rgba(255,255,255,0.25)',
+                  }}>
                     {Number(f.desconto_percentual) > 0
                       ? `${Number(f.desconto_percentual).toFixed(1)}% desc.`
                       : 'Sem desconto'}
@@ -188,10 +253,13 @@ export default function FormasPagamentoPage() {
             {!formOpen && (
               <button
                 onClick={abrirNova}
-                className="border-2 border-dashed border-ocean-depth rounded-2xl p-4 flex flex-col items-center justify-center gap-2 text-steel hover:border-electric-cyan/50 hover:text-electric-cyan transition-colors min-h-[140px]"
+                className="p-4 flex flex-col items-center justify-center gap-2 transition-colors min-h-[140px]"
+                style={{ border: '0.5px dashed rgba(255,255,255,0.15)', borderRadius: '10px', color: 'rgba(255,255,255,0.3)' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'rgba(255,255,255,0.3)' }}
               >
                 <Plus size={24} strokeWidth={1.5} />
-                <span className="text-sm font-medium">Nova forma</span>
+                <span style={{ fontSize: '13px', fontWeight: 500 }}>Nova forma</span>
               </button>
             )}
 
