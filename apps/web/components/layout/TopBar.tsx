@@ -35,8 +35,8 @@ export function TopBar() {
 
   return (
     <header
-      className="h-12 bg-midnight/50 backdrop-blur-sm flex items-center shrink-0"
-      style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}
+      className="h-12 bg-midnight/50 backdrop-blur-sm flex items-center shrink-0 relative"
+      style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)', zIndex: 100 }}
     >
       {/* Sub-navigation tabs */}
       <div className="flex-1 overflow-x-auto scrollbar-none min-w-0">
