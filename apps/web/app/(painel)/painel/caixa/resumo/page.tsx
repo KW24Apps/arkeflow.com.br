@@ -271,6 +271,22 @@ export default function ResumoCaixaPage() {
   }
   const porForma = Object.values(porFormaMap).sort((a, b) => b.total - a.total)
 
+  // Cash drawer computation — uses lazily loaded payment details
+  let vendasDinheiro = 0
+  let trocoTotal     = 0
+  for (const d of Object.values(details)) {
+    for (const p of (d.pagamentos ?? []) as any[]) {
+      if (p.tipo === 'dinheiro') {
+        vendasDinheiro += Number(p.valor ?? 0)
+        trocoTotal     += Number(p.troco ?? 0)
+      }
+    }
+  }
+  const saldoInicial     = Number((turno as any)?.saldo_inicial     ?? 0)
+  const totalSangrias    = Number((turno as any)?.total_sangrias     ?? 0)
+  const totalSuprimentos = Number((turno as any)?.total_suprimentos  ?? 0)
+  const esperadoGaveta   = saldoInicial + vendasDinheiro + totalSuprimentos - totalSangrias - trocoTotal
+
   // ── Shared styles ──
   const CARD: React.CSSProperties = {
     background: 'rgba(8,18,30,0.48)',
@@ -344,7 +360,7 @@ export default function ResumoCaixaPage() {
       )}
 
       {/* ── Section 2: Summary cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
 
         {/* Receita total */}
         <div style={CARD}>
@@ -355,6 +371,33 @@ export default function ResumoCaixaPage() {
           <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', margin: 0 }}>
             {vendas.length} transação{vendas.length !== 1 ? 'ões' : ''}
           </p>
+        </div>
+
+        {/* Caixa em dinheiro */}
+        <div style={CARD}>
+          <span style={SEC_LABEL}>Caixa em dinheiro</span>
+          <p style={{ fontSize: '22px', fontWeight: 700, color: 'rgba(100,220,160,0.95)', margin: '0 0 10px' }}>
+            {fmt(esperadoGaveta)}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            {([
+              { label: 'Saldo inicial',       value: saldoInicial,     color: 'rgba(255,255,255,0.5)',  show: true },
+              { label: '+ Vendas em dinheiro', value: vendasDinheiro,  color: 'rgba(100,220,160,0.8)',  show: true },
+              { label: '+ Suprimentos',        value: totalSuprimentos, color: 'rgba(100,220,160,0.8)', show: totalSuprimentos > 0 },
+              { label: '− Sangrias',           value: totalSangrias,   color: 'rgba(240,130,130,0.80)', show: totalSangrias > 0 },
+              { label: '− Troco dado',         value: trocoTotal,      color: 'rgba(240,130,130,0.80)', show: trocoTotal > 0 },
+            ] as const).filter(r => r.show).map(r => (
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>{r.label}</span>
+                <span style={{ fontSize: '11px', color: r.color, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.value)}</span>
+              </div>
+            ))}
+            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.08)', margin: '4px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Esperado na gaveta</span>
+              <span style={{ fontSize: '12px', color: 'rgba(100,220,160,0.95)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmt(esperadoGaveta)}</span>
+            </div>
+          </div>
         </div>
 
         {/* Por forma de pagamento */}
