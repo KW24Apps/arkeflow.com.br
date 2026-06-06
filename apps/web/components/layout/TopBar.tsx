@@ -34,7 +34,7 @@ export function TopBar() {
     || 'Usuário'
 
   return (
-    <header className="h-14 bg-deep-ocean border-b border-ocean-depth flex items-center shrink-0">
+    <header className="h-14 bg-midnight/50 backdrop-blur-sm border-b border-ocean-depth flex items-center shrink-0">
       {/* Sub-navigation tabs — scrollable, fills remaining space */}
       <div className="flex-1 overflow-x-auto scrollbar-none min-w-0">
         <PainelSecondaryNav inline />

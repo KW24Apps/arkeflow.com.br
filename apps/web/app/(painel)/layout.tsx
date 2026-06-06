@@ -4,7 +4,7 @@ import { LojaLoader }    from '@/components/layout/LojaLoader'
 
 export default function PainelLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-midnight">
+    <div className="flex min-h-screen bg-transparent">
       <Heartbeat />
       <LojaLoader />
       <PainelSidebar />

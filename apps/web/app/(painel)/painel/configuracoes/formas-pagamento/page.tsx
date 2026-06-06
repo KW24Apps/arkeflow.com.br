@@ -8,13 +8,14 @@ import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario', 'outro']
 
 function TipoIcon({ tipo, size = 22 }: { tipo: string; size?: number }) {
+  const cls = 'text-sea-foam/50'
   switch (tipo) {
-    case 'dinheiro':  return <Banknote   size={size} className="text-mint-green" />
-    case 'pix':       return <QrCode     size={size} className="text-electric-cyan" />
-    case 'debito':    return <CreditCard size={size} className="text-teal-400" />
-    case 'credito':   return <CreditCard size={size} className="text-purple-400" />
-    case 'crediario': return <Receipt    size={size} className="text-orange-400" />
-    default:          return <Wallet     size={size} className="text-steel" />
+    case 'dinheiro':  return <Banknote   size={size} className={cls} />
+    case 'pix':       return <QrCode     size={size} className={cls} />
+    case 'debito':    return <CreditCard size={size} className={cls} />
+    case 'credito':   return <CreditCard size={size} className={cls} />
+    case 'crediario': return <Receipt    size={size} className={cls} />
+    default:          return <Wallet     size={size} className={cls} />
   }
 }
 
