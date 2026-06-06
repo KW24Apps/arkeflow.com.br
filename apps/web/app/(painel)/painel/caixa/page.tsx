@@ -98,6 +98,9 @@ export default function CaixaPage() {
   const [obsAbertura,  setObsAbertura]  = useState('')
   const [abrindo,      setAbrindo]      = useState(false)
 
+  // ── Abertura ─────────────────────────────────────────────────────────────
+  const obsAberturaRef = useRef<HTMLInputElement>(null)
+
   // ── Scanner / busca ───────────────────────────────────────────────────────
   const scanRef      = useRef<HTMLInputElement>(null)
   const [scan,            setScan]           = useState('')
@@ -418,13 +421,16 @@ export default function CaixaPage() {
             <div>
               <label className="text-steel text-xs block mb-1">Saldo inicial em dinheiro</label>
               <CurrencyInput
-                value={saldoInicial} onChange={setSaldoInicial} onEnter={handleAbrir}
+                value={saldoInicial} onChange={setSaldoInicial}
+                onEnter={() => obsAberturaRef.current?.focus()}
                 autoFocus placeholder="R$ 0,00"
                 className="w-full min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
             </div>
             <div>
               <label className="text-steel text-xs block mb-1">Observação (opcional)</label>
-              <input type="text" value={obsAbertura} onChange={e => setObsAbertura(e.target.value)}
+              <input ref={obsAberturaRef} type="text" value={obsAbertura}
+                onChange={e => setObsAbertura(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAbrir()}
                 placeholder="Ex: abertura do dia"
                 className="w-full min-h-[44px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
             </div>
