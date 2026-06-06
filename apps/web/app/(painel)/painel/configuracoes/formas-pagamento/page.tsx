@@ -17,25 +17,32 @@ export default function FormasPagamentoPage() {
   const [tipo,               setTipo]               = useState('outro')
   const [descontoPercentual, setDescontoPercentual] = useState('0')
   const [descontoMaximo,     setDescontoMaximo]     = useState('0')
+  const [editandoPadrao,     setEditandoPadrao]     = useState(false)
 
   async function load() {
     setLoading(true)
-    try { setFormas(await financeiroApi.formasPagamento()) }
-    finally { setLoading(false) }
+    try {
+      const data = await financeiroApi.formasPagamento()
+      setFormas([...data].sort((a, b) => {
+        const ia = TIPOS.indexOf(a.tipo)
+        const ib = TIPOS.indexOf(b.tipo)
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+      }))
+    } finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [])
 
   function abrirNova() {
     setNome(''); setTipo('outro'); setDescontoPercentual('0'); setDescontoMaximo('0')
-    setEditandoId(null); setFormOpen(true)
+    setEditandoId(null); setEditandoPadrao(false); setFormOpen(true)
   }
 
   function abrirEdicao(f: FormaPagamento) {
     setNome(f.nome); setTipo(f.tipo)
     setDescontoPercentual(String(Number(f.desconto_percentual)))
     setDescontoMaximo(String(Number(f.desconto_maximo)))
-    setEditandoId(f.id); setFormOpen(true)
+    setEditandoId(f.id); setEditandoPadrao(!!f.padrao_sistema); setFormOpen(true)
   }
 
   async function handleSalvar() {
@@ -77,15 +84,24 @@ export default function FormasPagamentoPage() {
           {formOpen && (
             <div className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-4">
               <p className="text-sea-foam font-semibold text-sm">{editandoId ? 'Editar' : 'Nova forma de pagamento'}</p>
-              <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome *"
-                className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-steel uppercase tracking-wider">Tipo</label>
-                <select value={tipo} onChange={e => setTipo(e.target.value)}
-                  className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none">
-                  {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
+              {editandoPadrao ? (
+                <div className="bg-midnight border border-ocean-depth rounded-xl px-4 py-3">
+                  <p className="text-sea-foam text-sm font-medium">{nome}</p>
+                  <p className="text-steel text-xs capitalize mt-0.5">{tipo}</p>
+                </div>
+              ) : (
+                <>
+                  <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome *"
+                    className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-steel uppercase tracking-wider">Tipo</label>
+                    <select value={tipo} onChange={e => setTipo(e.target.value)}
+                      className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none">
+                      {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-steel uppercase tracking-wider">Desconto %</label>
@@ -100,7 +116,7 @@ export default function FormasPagamentoPage() {
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setFormOpen(false)} className="flex-1 min-h-[48px] border border-ocean-depth text-steel rounded-xl text-sm">Cancelar</button>
-                <button onClick={handleSalvar} disabled={salvando || !nome}
+                <button onClick={handleSalvar} disabled={salvando || (!editandoPadrao && !nome)}
                   className="flex-1 min-h-[48px] bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40">
                   {salvando ? 'Salvando...' : 'Salvar'}
                 </button>
