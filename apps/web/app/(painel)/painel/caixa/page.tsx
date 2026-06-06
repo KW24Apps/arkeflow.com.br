@@ -20,50 +20,9 @@ import { SalespersonSearchModal } from '@/components/pdv/SalespersonSearchModal'
 import { SacolasModal }           from '@/components/pdv/SacolasModal'
 import type { Cliente } from '@/lib/api/clientes'
 import type { Colaborador } from '@/lib/api/colaboradores'
+import { CurrencyInput } from '@/components/ui/CurrencyInput'
 
 interface ProdutoSearch { id: string; nome: string; preco_base: string; total_versoes: number }
-
-// ── CurrencyInput — stores value as integer cents, right-to-left digit entry ──
-function CurrencyInput({
-  value, onChange, onEnter, placeholder, style, className, autoFocus,
-}: {
-  value:      number
-  onChange:   (cents: number) => void
-  onEnter?:   () => void
-  placeholder?: string
-  style?:     React.CSSProperties
-  className?: string
-  autoFocus?: boolean
-}) {
-  function fmtCents(c: number) {
-    if (c === 0) return ''
-    const r = Math.floor(c / 100)
-    const cents = c % 100
-    return `R$ ${r.toLocaleString('pt-BR')},${cents.toString().padStart(2, '0')}`
-  }
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Backspace') { e.preventDefault(); onChange(Math.floor(value / 10)); return }
-    if (e.key >= '0' && e.key <= '9') {
-      e.preventDefault()
-      const next = value * 10 + parseInt(e.key, 10)
-      if (next <= 99_999_999) onChange(next)
-      return
-    }
-    if (e.key === 'Enter' && onEnter) { onEnter(); return }
-  }
-  return (
-    <input
-      type="text"
-      value={fmtCents(value)}
-      onChange={() => {}}
-      onKeyDown={onKeyDown}
-      placeholder={placeholder ?? 'R$ 0,00'}
-      autoFocus={autoFocus}
-      style={style}
-      className={className}
-    />
-  )
-}
 
 function CaixaRow({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
   const [hov, setHov] = useState(false)

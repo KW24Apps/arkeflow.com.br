@@ -4,18 +4,20 @@ import { useEffect, useState } from 'react'
 import { Banknote, QrCode, CreditCard, Receipt, Wallet } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 
 const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario', 'outro']
 
-const CARD = {
+const CARD: React.CSSProperties = {
   background: 'rgba(8,18,30,0.48)',
   backdropFilter: 'blur(8px)',
   border: '0.5px solid rgba(255,255,255,0.09)',
   borderRadius: '10px',
+  position: 'relative',
 }
 
-const INPUT_STYLE = {
+const INPUT_STYLE: React.CSSProperties = {
   background: 'rgba(8,18,30,0.5)',
   border: '0.5px solid rgba(255,255,255,0.12)',
   color: 'rgba(255,255,255,0.8)',
@@ -41,6 +43,17 @@ function TipoIcon({ tipo, size = 22 }: { tipo: string; size?: number }) {
   }
 }
 
+function descLine(f: FormaPagamento): string {
+  const pct = Number(f.desconto_percentual)
+  const cap = Number(f.desconto_maximo)
+  if (pct <= 0) return 'Sem desconto'
+  if (cap > 0) {
+    const capFmt = cap.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return `${pct.toFixed(1)}% desc · máx R$ ${capFmt}`
+  }
+  return `${pct.toFixed(1)}% desc.`
+}
+
 export default function FormasPagamentoPage() {
   const [formas,    setFormas]    = useState<FormaPagamento[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -51,18 +64,20 @@ export default function FormasPagamentoPage() {
   const [nome,               setNome]               = useState('')
   const [tipo,               setTipo]               = useState('outro')
   const [descontoPercentual, setDescontoPercentual] = useState('0')
-  const [descontoMaximo,     setDescontoMaximo]     = useState('0')
+  const [descontoMaximoCents,setDescontoMaximoCents]= useState(0)
+  const [ativo,              setAtivo]              = useState(true)
   const [editandoPadrao,     setEditandoPadrao]     = useState(false)
   const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
   async function load() {
     setLoading(true)
     try {
-      const data = await financeiroApi.formasPagamento()
+      const data = await financeiroApi.formasPagamento(true)
       setFormas([...data].sort((a, b) => {
         const ia = TIPOS.indexOf(a.tipo)
         const ib = TIPOS.indexOf(b.tipo)
-        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+        if (ia !== ib) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+        return a.nome.localeCompare(b.nome)
       }))
     } finally { setLoading(false) }
   }
@@ -70,14 +85,15 @@ export default function FormasPagamentoPage() {
   useEffect(() => { load() }, [])
 
   function abrirNova() {
-    setNome(''); setTipo('outro'); setDescontoPercentual('0'); setDescontoMaximo('0')
-    setEditandoId(null); setEditandoPadrao(false); setFormOpen(true)
+    setNome(''); setTipo('outro'); setDescontoPercentual('0'); setDescontoMaximoCents(0)
+    setAtivo(true); setEditandoId(null); setEditandoPadrao(false); setFormOpen(true)
   }
 
   function abrirEdicao(f: FormaPagamento) {
     setNome(f.nome); setTipo(f.tipo)
     setDescontoPercentual(String(Number(f.desconto_percentual)))
-    setDescontoMaximo(String(Number(f.desconto_maximo)))
+    setDescontoMaximoCents(Math.round(Number(f.desconto_maximo) * 100))
+    setAtivo(f.ativo)
     setEditandoId(f.id); setEditandoPadrao(!!f.padrao_sistema); setFormOpen(true)
   }
 
@@ -85,11 +101,26 @@ export default function FormasPagamentoPage() {
     if (!editandoPadrao && !nome) return
     setSalvando(true)
     try {
-      const data = { nome, tipo, desconto_percentual: parseFloat(descontoPercentual), desconto_maximo: parseFloat(descontoMaximo) }
+      const data = {
+        nome,
+        tipo,
+        desconto_percentual: parseFloat(descontoPercentual),
+        desconto_maximo: descontoMaximoCents / 100,
+        ativo,
+      }
       if (editandoId) await financeiroApi.atualizarFormaPagamento(editandoId, data as any)
       else await financeiroApi.criarFormaPagamento(data as any)
       await load(); setFormOpen(false)
     } finally { setSalvando(false) }
+  }
+
+  async function toggleAtivo(f: FormaPagamento) {
+    try {
+      await financeiroApi.atualizarFormaPagamento(f.id, { ativo: !f.ativo } as any)
+      await load()
+    } catch (err: any) {
+      alert(err?.response?.data?.error ?? 'Erro ao atualizar.')
+    }
   }
 
   async function handleRemover(id: string) {
@@ -98,8 +129,8 @@ export default function FormasPagamentoPage() {
       onConfirm: async () => {
         try {
           await financeiroApi.removerFormaPagamento(id)
-          setFormas(f => f.filter(x => x.id !== id))
           setFormOpen(false)
+          await load()
         } catch (err: any) {
           alert(err?.response?.data?.error ?? 'Erro ao remover.')
         }
@@ -113,10 +144,10 @@ export default function FormasPagamentoPage() {
       <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-10 flex flex-col gap-6">
 
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
-          As formas padrão do sistema não podem ser removidas. Você pode ajustar os descontos.
+          As formas padrão do sistema não podem ser removidas. Você pode ajustar os descontos e ativar/desativar.
         </p>
 
-        {/* ── Edit panel ───��──────────────────────────────────────────────── */}
+        {/* ── Edit panel ──────────────────────────────────────────────────── */}
         {formOpen && (
           <div style={CARD} className="p-5 flex flex-col gap-4">
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
@@ -163,14 +194,36 @@ export default function FormasPagamentoPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Desc. máx. R$</label>
-                <input
-                  type="number" min="0" value={descontoMaximo}
-                  onChange={e => setDescontoMaximo(e.target.value)}
-                  onFocus={focusIn} onBlur={focusOut}
+                <CurrencyInput
+                  value={descontoMaximoCents}
+                  onChange={setDescontoMaximoCents}
+                  onFocus={focusIn as any}
+                  onBlur={focusOut as any}
                   className="min-h-[48px] px-4 outline-none w-full"
                   style={INPUT_STYLE}
                 />
               </div>
+            </div>
+
+            {/* Ativo toggle */}
+            <div className="flex items-center justify-between">
+              <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Status</label>
+              <button
+                onClick={() => setAtivo(v => !v)}
+                style={{
+                  padding: '4px 14px',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  border: ativo ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.15)',
+                  background: ativo ? 'rgba(0,239,255,0.12)' : 'rgba(255,255,255,0.05)',
+                  color: ativo ? '#0ef' : 'rgba(255,255,255,0.35)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {ativo ? 'Ativo' : 'Inativo'}
+              </button>
             </div>
 
             <div className="flex items-center justify-between gap-3">
@@ -221,10 +274,42 @@ export default function FormasPagamentoPage() {
                 key={f.id}
                 onClick={() => abrirEdicao(f)}
                 className="p-4 flex flex-col items-center gap-3 text-center active:scale-[0.97] transition-all"
-                style={CARD}
+                style={{ ...CARD, opacity: f.ativo ? 1 : 0.45 }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
               >
+                {/* Active/inactive dot toggle — top-right corner */}
+                <button
+                  onClick={e => { e.stopPropagation(); toggleAtivo(f) }}
+                  title={f.ativo ? 'Clique para desativar' : 'Clique para ativar'}
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    border: `1.5px solid ${f.ativo ? '#0ef' : 'rgba(255,255,255,0.2)'}`,
+                    background: f.ativo ? 'rgba(0,239,255,0.12)' : 'rgba(255,255,255,0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    padding: 0,
+                    transition: 'all 0.15s',
+                    flexShrink: 0,
+                  }}
+                >
+                  <span style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: f.ativo ? '#0ef' : 'rgba(255,255,255,0.15)',
+                    display: 'block',
+                    transition: 'all 0.15s',
+                  }} />
+                </button>
+
                 <div
                   className="w-12 h-12 flex items-center justify-center shrink-0"
                   style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '10px' }}
@@ -235,21 +320,34 @@ export default function FormasPagamentoPage() {
                   <p className="font-medium truncate w-full" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
                     {f.nome}
                   </p>
-                  {f.padrao_sistema && (
-                    <span
-                      className="px-2 py-0.5 rounded-full uppercase tracking-wide"
-                      style={{ fontSize: '9px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}
-                    >
-                      Sistema
-                    </span>
-                  )}
+                  <div className="flex flex-wrap items-center justify-center gap-1">
+                    {f.padrao_sistema && (
+                      <span
+                        className="px-2 py-0.5 rounded-full uppercase tracking-wide"
+                        style={{ fontSize: '9px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}
+                      >
+                        Sistema
+                      </span>
+                    )}
+                    {!f.ativo && (
+                      <span
+                        className="px-2 py-0.5 rounded-full uppercase tracking-wide"
+                        style={{
+                          fontSize: '9px',
+                          background: 'rgba(240,100,100,0.08)',
+                          border: '0.5px solid rgba(240,100,100,0.25)',
+                          color: 'rgba(240,130,130,0.75)',
+                        }}
+                      >
+                        Inativo
+                      </span>
+                    )}
+                  </div>
                   <p style={{
                     fontSize: '11px',
                     color: Number(f.desconto_percentual) > 0 ? 'rgba(100,220,160,0.8)' : 'rgba(255,255,255,0.25)',
                   }}>
-                    {Number(f.desconto_percentual) > 0
-                      ? `${Number(f.desconto_percentual).toFixed(1)}% desc.`
-                      : 'Sem desconto'}
+                    {descLine(f)}
                   </p>
                 </div>
               </button>

@@ -20,8 +20,10 @@ export async function formasPagamentoRoutes(app: FastifyInstance) {
 
   app.get('/', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
+    const { incluir_inativos } = (req.query ?? {}) as { incluir_inativos?: string }
+    const where = incluir_inativos === 'true' ? '' : 'WHERE ativo = true'
     const { rows } = await pool.query(
-      `SELECT * FROM formas_pagamento WHERE ativo = true ORDER BY padrao_sistema DESC, nome`
+      `SELECT * FROM formas_pagamento ${where} ORDER BY padrao_sistema DESC, nome`
     )
     return reply.send(rows)
   })

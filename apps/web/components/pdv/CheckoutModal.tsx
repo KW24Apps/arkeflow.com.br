@@ -60,8 +60,15 @@ export function CheckoutModal({ open, onClose, onSuccess, itensComDesconto, base
     setErro('')
     setCarregando(true)
     financeiroApi.formasPagamento().then(fs => {
-      setFormas(fs)
-      const first = fs.find(f => f.ativo)
+      const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario']
+      const sorted = [...fs].sort((a, b) => {
+        const ia = TIPOS.indexOf(a.tipo)
+        const ib = TIPOS.indexOf(b.tipo)
+        if (ia !== ib) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+        return a.nome.localeCompare(b.nome)
+      })
+      setFormas(sorted)
+      const first = sorted.find(f => f.ativo)
       setFormaAtual(first ?? null)
       setCarregando(false)
       setTimeout(() => valorRef.current?.focus(), 100)
