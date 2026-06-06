@@ -78,7 +78,8 @@ arkeflow.com.br/
 │       │   │   ├── financeiro/     # + contas-receber/
 │       │   │   ├── configuracoes/  # geral, dados (campos fiscais), sistema, formas-pagamento
 │       │   │   ├── colaboradores/  # + novo/ + [id]/ + permissoes/
-│       │   │   ├── caixa/          # + vendas/
+│       │   │   ├── caixa/          # + resumo/ (histórico/stats do turno atual)
+│       │   │   ├── prova-em-casa/  # gestão de itens em prova
 │       │   │   ├── promocoes/      # + nova/
 │       │   │   ├── fornecedores/   # + novo/ + [id]/
 │       │   │   ├── perfil/
@@ -98,7 +99,7 @@ arkeflow.com.br/
 │       ├── lib/
 │       │   ├── api/                # client.ts (axios) + wrappers por módulo
 │       │   └── auth/session.ts
-│       ├── store/                  # Zustand: auth, loja, pdv, caixa, sacolas
+│       ├── store/                  # Zustand: auth, loja, pdv (persist localStorage 'pdv-store'), caixa, sacolas
 │       ├── middleware.ts           # Protege /painel /pdv /admin via JWT cookie
 │       └── next.config.mjs         # output: 'standalone'
 │
@@ -128,6 +129,8 @@ loja_XXXXX (banco isolado por loja)
 - O tenant é resolvido em toda requisição via `apps/api/src/core/tenant/resolver.ts`
 - Provisionamento automático de banco ao cadastrar nova loja: `platform/lojas/provisioner.ts`
 - `usuario_id` em `vendas` não tem FK real — o usuário mora no banco da plataforma
+- Queries em `turnos_caixa` são sempre filtradas por `usuario_id` do JWT — cada colaborador vê apenas o seu próprio turno ativo
+- `auth.service.ts` inclui `u.nome` no SELECT do login para popular o nome do usuário no JWT payload
 
 **Padrão de módulo no backend:** cada módulo segue `.routes → .controller → .service → .repository` com validação Zod no `.schema`. Módulos simples (sem lógica de negócio complexa) omitem service/controller e encapsulam tudo em `.routes`.
 

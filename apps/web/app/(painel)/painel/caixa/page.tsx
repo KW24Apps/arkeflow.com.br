@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, X, Search } from 'lucide-react'
+import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, X, Search, Check, Clock, DollarSign } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
 import { caixaApi, type VendaTurno } from '@/lib/api/caixa'
@@ -85,6 +85,61 @@ function parseQtyPrefix(input: string): { qty: number; query: string } {
   return m ? { qty: parseInt(m[1], 10), query: m[2].trim() } : { qty: 1, query: input }
 }
 
+// ── Boas-vindas ───────────────────────────────────────────────────────────────
+
+const PARTE1 = (nome: string, hora: number, diaSemana: number) => {
+  const periodo = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
+  const dias = ['Boa domingo', 'Boa segunda', 'Feliz terça', 'Boa quarta', 'Quase sexta, é quinta', 'Boa sexta', 'Bom sábado']
+  const opcoes = [
+    `${periodo}, ${nome}!`,
+    `${periodo}!`,
+    `Olá, ${nome}!`,
+    `E aí, ${nome}?`,
+    `${dias[diaSemana]}!`,
+    `${dias[diaSemana]}, ${nome}!`,
+    `Tudo pronto, ${nome}?`,
+    `Hora de trabalhar, ${nome}!`,
+    `Chegou a hora, ${nome}!`,
+    `Vamos nessa, ${nome}!`,
+    `${periodo}, ${nome}! Caixa aberto.`,
+    `Bem-vindo de volta, ${nome}!`,
+    `${nome}, é hora de vender!`,
+    `Preparado, ${nome}?`,
+    `Vamos lá, ${nome}!`,
+  ]
+  return opcoes[Math.floor(Math.random() * opcoes.length)]
+}
+
+const PARTE2 = [
+  'Que as vendas fluam hoje.',
+  'Foco e energia!',
+  'Cada cliente é uma oportunidade.',
+  'Bora fechar bem o dia.',
+  'Hoje pode ser incrível.',
+  'Um cliente de cada vez.',
+  'Ótimas vendas pela frente!',
+  'Sorria, você está no caixa!',
+  'Que venham os clientes.',
+  'Faça cada atendimento valer.',
+  'Energia boa atrai cliente bom.',
+  'O melhor ainda está por vir.',
+  'Boas vendas começam com bom humor.',
+  'Cada venda conta.',
+  'Hoje é dia de superar.',
+  'Atenção e simpatia fazem a diferença.',
+  'Bora bater as metas!',
+  'Um dia de cada vez.',
+  'Tudo começa com o primeiro cliente.',
+  'Foco no que importa.',
+]
+
+function getMensagem(nome: string): string {
+  const now = new Date()
+  const p1  = PARTE1(nome, now.getHours(), now.getDay())
+  const p2  = PARTE2[Math.floor(Math.random() * PARTE2.length)]
+  return `${p1} ${p2}`
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CaixaPage() {
@@ -97,6 +152,10 @@ export default function CaixaPage() {
   const [saldoInicial, setSaldoInicial] = useState(0)
   const [obsAbertura,  setObsAbertura]  = useState('')
   const [abrindo,      setAbrindo]      = useState(false)
+
+  // ── Abertura ─────────────────────────────────────────────────────────────
+  const obsAberturaRef = useRef<HTMLInputElement>(null)
+  const obsFechRef     = useRef<HTMLInputElement>(null)
 
   // ── Scanner / busca ───────────────────────────────────────────────────────
   const scanRef      = useRef<HTMLInputElement>(null)
@@ -116,7 +175,8 @@ export default function CaixaPage() {
   const [vendaOK,       setVendaOK]       = useState<CheckoutResult | null>(null)
   const [modalCliente,     setModalCliente]     = useState(false)
   const [clienteAutoAberto,setClienteAutoAberto] = useState(false)
-  const autoOpenedRef = useRef(false)
+  const autoOpenedRef     = useRef(false)
+  const novaVendaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [modalVendedor,    setModalVendedor]    = useState(false)
   const [vendedor,         setVendedor]         = useState<Colaborador | null>(null)
@@ -137,8 +197,14 @@ export default function CaixaPage() {
   const [produtoVariacao, setProdutoVariacao] = useState<{ produto: any; qty: number } | null>(null)
   const [focadoIdx,       setFocadoIdx]       = useState(0)
 
+  // ── Boas-vindas ───────────────────────────────────────────────────────────
+  const [modalBoasVindas,  setModalBoasVindas]  = useState(false)
+  const boasVindasRef      = useRef<{ msg: string; hora: string } | null>(null)
+  const boasVindasTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { carregar() }, [])
+  useEffect(() => () => { if (boasVindasTimerRef.current) clearTimeout(boasVindasTimerRef.current) }, [])
 
   useEffect(() => {
     if (status !== 'aberto') return
@@ -158,6 +224,13 @@ export default function CaixaPage() {
     setFechVendas([])
     caixaApi.vendas().then(r => setFechVendas(r.vendas)).finally(() => setFechLoad(false))
   }, [modalFechar])
+
+  // Auto-dismiss vendaOK success screen after 3 seconds
+  useEffect(() => {
+    if (!vendaOK) return
+    novaVendaTimerRef.current = setTimeout(() => novaVenda(), 3000)
+    return () => { if (novaVendaTimerRef.current) clearTimeout(novaVendaTimerRef.current) }
+  }, [vendaOK])
 
   // Auto-focus first non-esgotado card when variant modal opens
   useEffect(() => {
@@ -338,7 +411,16 @@ export default function CaixaPage() {
   // ── Abertura ──────────────────────────────────────────────────────────────
   async function handleAbrir() {
     setAbrindo(true)
-    try { await abrir(saldoInicial / 100, obsAbertura || undefined) }
+    try {
+      await abrir(saldoInicial / 100, obsAbertura || undefined)
+      const now = new Date()
+      boasVindasRef.current = {
+        msg:  getMensagem(primeiroNome),
+        hora: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      }
+      setModalBoasVindas(true)
+      boasVindasTimerRef.current = setTimeout(() => setModalBoasVindas(false), 10000)
+    }
     finally { setAbrindo(false) }
   }
 
@@ -410,13 +492,16 @@ export default function CaixaPage() {
             <div>
               <label className="text-steel text-xs block mb-1">Saldo inicial em dinheiro</label>
               <CurrencyInput
-                value={saldoInicial} onChange={setSaldoInicial} onEnter={handleAbrir}
+                value={saldoInicial} onChange={setSaldoInicial}
+                onEnter={() => obsAberturaRef.current?.focus()}
                 autoFocus placeholder="R$ 0,00"
                 className="w-full min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
             </div>
             <div>
               <label className="text-steel text-xs block mb-1">Observação (opcional)</label>
-              <input type="text" value={obsAbertura} onChange={e => setObsAbertura(e.target.value)}
+              <input ref={obsAberturaRef} type="text" value={obsAbertura}
+                onChange={e => setObsAbertura(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAbrir()}
                 placeholder="Ex: abertura do dia"
                 className="w-full min-h-[44px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
             </div>
@@ -516,7 +601,7 @@ export default function CaixaPage() {
                 <input
                   ref={scanRef}
                   value={scan}
-                  onChange={e => { setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
+                  onChange={e => { if (vendaOK) novaVenda(); setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
                   onKeyDown={onScanKeyDown}
                   onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
                   onBlur={e => {
@@ -579,11 +664,8 @@ export default function CaixaPage() {
                 {vendaOK.cashback_gerado > 0 && (
                   <p className="text-mint-green text-xs mt-1">+{fmt(vendaOK.cashback_gerado)} cashback</p>
                 )}
+                <p className="text-steel text-xs mt-3 opacity-50">Nova venda em instantes...</p>
               </div>
-              <button onClick={novaVenda}
-                className="min-h-[52px] w-full bg-electric-cyan text-midnight rounded-2xl font-bold text-sm">
-                Nova Venda
-              </button>
             </div>
           ) : (
             <>
@@ -723,6 +805,46 @@ export default function CaixaPage() {
         cashbackUsar={cashbackUsar}
         clienteId={cliente_id}
       />
+
+      {/* Modal Boas-vindas */}
+      {modalBoasVindas && boasVindasRef.current && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => { setModalBoasVindas(false); if (boasVindasTimerRef.current) clearTimeout(boasVindasTimerRef.current) }}
+        >
+          <div
+            style={{ background: 'rgb(8,18,30)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '36px 32px', width: '340px', maxWidth: '90vw', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Check circle */}
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(100,220,160,0.1)', border: '1px solid rgba(100,220,160,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+              <Check size={22} style={{ color: 'rgba(100,220,160,0.9)' }} />
+            </div>
+
+            {/* Message */}
+            <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.8)', fontWeight: 500, lineHeight: 1.5, margin: 0 }}>
+              {boasVindasRef.current.msg}
+            </p>
+
+            {/* Info rows */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.4)', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={14} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+                <span>Caixa aberto às {boasVindasRef.current.hora}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <DollarSign size={14} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+                <span>Saldo inicial: {fmt(saldoInicial / 100)}</span>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }} />
+
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', margin: 0 }}>Fechando em instantes...</p>
+          </div>
+        </div>
+      )}
 
       {/* Modal Seleção de Variação */}
       {modalVariacao && produtoVariacao && (() => {
@@ -933,6 +1055,7 @@ export default function CaixaPage() {
                       <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Valor contado em caixa</p>
                       <CurrencyInput
                         value={saldoFinal} onChange={setSaldoFinal}
+                        onEnter={() => obsFechRef.current?.focus()}
                         autoFocus placeholder="R$ 0,00"
                         style={{ background: 'rgba(0,239,255,0.05)', border: '1px solid rgba(0,239,255,0.25)', borderRadius: '10px', padding: '12px 16px', fontSize: '20px', fontWeight: 600, color: 'rgba(255,255,255,0.88)', outline: 'none', width: '100%', textAlign: 'center' }}
                       />
@@ -951,7 +1074,9 @@ export default function CaixaPage() {
                     {/* Observacao */}
                     <div>
                       <label style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '6px' }}>Observação (opcional)</label>
-                      <input type="text" value={obsFech} onChange={e => setObsFech(e.target.value)}
+                      <input ref={obsFechRef} type="text" value={obsFech}
+                        onChange={e => setObsFech(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && !salvMov && !fechLoad && handleFechar()}
                         placeholder="Ex: fechamento de sábado"
                         style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: 'rgba(255,255,255,0.75)', outline: 'none', width: '100%' }}
                         onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}

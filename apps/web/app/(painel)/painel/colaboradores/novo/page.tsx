@@ -41,14 +41,14 @@ function Lbl({ children }: { children: React.ReactNode }) {
   return <label style={{ display: 'block', fontSize: '9px', textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: '4px' }}>{children}</label>
 }
 
-function GField({ label, value, onChange, type = 'text', placeholder = '' }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
+function GField({ label, value, onChange, onBlur, type = 'text', placeholder = '' }: { label: string; value: string; onChange: (v: string) => void; onBlur?: () => void; type?: string; placeholder?: string }) {
   return (
     <div className="flex flex-col">
       <Lbl>{label}</Lbl>
       <input type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
         style={INPUT} className="outline-none"
         onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
-        onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; onBlur?.() }}
       />
     </div>
   )
@@ -152,7 +152,7 @@ export default function NovoColaboradorPage() {
               <div style={CARD} className="flex flex-col gap-3">
                 <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Dados de acesso</p>
 
-                <GField label="Nome *"               value={nome}     onChange={setNome} placeholder="Nome do colaborador" />
+                <GField label="Nome *" value={nome} onChange={setNome} onBlur={() => setNome(n => n.replace(/\b\w/g, c => c.toUpperCase()))} placeholder="Nome do colaborador" />
                 <GField label="Email *"              value={email}    onChange={setEmail}    type="email" placeholder="email@exemplo.com" />
                 <GField label="Usuário (opcional)"   value={username} onChange={v => setUsername(v.toLowerCase())} placeholder="ex: joao.silva" />
                 <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '-4px' }}>Minúsculas, números, ponto e _. Permite login sem email.</p>

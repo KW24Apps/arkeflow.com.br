@@ -29,10 +29,7 @@ export function TopBar() {
     router.push('/login')
   }
 
-  const nomeExibido = (usuario as any)?.nome
-    || (usuario as any)?.username
-    || usuario?.email?.split('@')[0]
-    || 'Usuário'
+  const nomeExibido = (usuario as any)?.nome || (usuario as any)?.username || 'Usuário'
 
   return (
     <header

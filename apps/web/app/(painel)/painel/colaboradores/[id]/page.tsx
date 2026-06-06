@@ -58,7 +58,10 @@ function Lbl({ children }: { children: React.ReactNode }) {
   )
 }
 
-function GField({ label, value, onChange, type = 'text', placeholder = '' }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
+const isUUID  = (v: any): boolean => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
+const isEmail = (v: any): boolean => typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+
+function GField({ label, value, onChange, onBlur, type = 'text', placeholder = '' }: { label: string; value: string; onChange: (v: string) => void; onBlur?: () => void; type?: string; placeholder?: string }) {
   return (
     <div className="flex flex-col">
       <Lbl>{label}</Lbl>
@@ -68,7 +71,7 @@ function GField({ label, value, onChange, type = 'text', placeholder = '' }: { l
         style={INPUT}
         className="outline-none"
         onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
-        onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; onBlur?.() }}
       />
     </div>
   )
@@ -195,9 +198,9 @@ export default function ColaboradorDetalhe() {
     try {
       await colaboradoresApi.updateAcesso(id, {
         nome,
-        ...(email ? { email } : {}),
-        username:            username || null,
-        modelo_permissao_id: modeloId || null,
+        ...(isEmail(email) ? { email } : {}),
+        username:            (username && username.length >= 3) ? username : null,
+        modelo_permissao_id: isUUID(modeloId) ? modeloId : null,
         permissoes:          Array.isArray(permissoes) ? permissoes : [],
         dias_semana:         diasSemana,
         hora_inicio:         diasSemana ? horaInicio : null,
@@ -234,9 +237,9 @@ export default function ColaboradorDetalhe() {
     try {
       await colaboradoresApi.updateAcesso(id, {
         nome,
-        ...(email ? { email } : {}),
-        username:            username || null,
-        modelo_permissao_id: modeloId || null,
+        ...(isEmail(email) ? { email } : {}),
+        username:            (username && username.length >= 3) ? username : null,
+        modelo_permissao_id: isUUID(modeloId) ? modeloId : null,
         permissoes:          Array.isArray(permissoes) ? permissoes : [],
         dias_semana:         diasSemana,
         hora_inicio:         diasSemana ? horaInicio : null,
@@ -421,7 +424,7 @@ export default function ColaboradorDetalhe() {
                     </div>
                   )}
 
-                  <GField label="Nome"               value={nome}     onChange={setNome} />
+                  <GField label="Nome" value={nome} onChange={setNome} onBlur={() => setNome(n => n.replace(/\b\w/g, c => c.toUpperCase()))} />
                   <GField label="Email"              value={email}    onChange={setEmail}    type="email" placeholder="email@exemplo.com" />
                   <GField label="Usuário (opcional)" value={username} onChange={v => setUsername(v.toLowerCase())} placeholder="ex: joao.silva" />
 
