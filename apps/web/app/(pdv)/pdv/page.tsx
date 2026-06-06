@@ -308,25 +308,6 @@ export default function PDVPage() {
 
         {erro && <p className="mx-3 mt-2 text-red-400 text-xs text-center">{erro}</p>}
 
-        {/* Cliente */}
-        <div className="mx-3 mt-3">
-          {cliente_id ? (
-            <div className="flex items-center justify-between bg-electric-cyan/10 border border-electric-cyan/30 rounded-xl px-4 py-2">
-              <div className="flex items-center gap-2">
-                <User size={14} className="text-electric-cyan shrink-0" />
-                <p className="text-sea-foam text-sm">{cliente_nome}</p>
-              </div>
-              <button onClick={() => setCliente(null, null)} className="text-steel hover:text-sea-foam text-xs">Remover</button>
-            </div>
-          ) : (
-            <button onClick={() => router.push('/pdv/cliente')}
-              className="w-full min-h-[44px] border border-ocean-depth rounded-xl text-steel text-sm hover:border-teal-current transition-colors flex items-center justify-center gap-2">
-              <User size={14} />
-              Vincular cliente (opcional)
-            </button>
-          )}
-        </div>
-
         {/* Sacola */}
         <div className="flex-1 overflow-y-auto px-3 py-2">
           {itens.length === 0 ? (

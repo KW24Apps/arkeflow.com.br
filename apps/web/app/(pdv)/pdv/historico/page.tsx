@@ -103,7 +103,12 @@ export default function PDVHistorico() {
   useEffect(() => {
     if (!turno) carregarCaixa()
     caixaApi.vendas()
-      .then(r => setVendas(r.vendas))
+      .then(r => {
+        const abrioEm = r.turno?.aberto_em
+        const all = r.vendas ?? []
+        // Keep only sales from the current turno (guard against backend returning all history)
+        setVendas(abrioEm ? all.filter(v => v.criado_em >= abrioEm) : all)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
