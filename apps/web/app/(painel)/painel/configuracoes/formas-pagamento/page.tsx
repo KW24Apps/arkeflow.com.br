@@ -66,6 +66,7 @@ export default function FormasPagamentoPage() {
   const [descontoPercentual, setDescontoPercentual] = useState('0')
   const [descontoMaximoCents,setDescontoMaximoCents]= useState(0)
   const [ativo,              setAtivo]              = useState(true)
+  const [aceitaDesconto,     setAceitaDesconto]     = useState(true)
   const [editandoPadrao,     setEditandoPadrao]     = useState(false)
   const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
@@ -86,7 +87,7 @@ export default function FormasPagamentoPage() {
 
   function abrirNova() {
     setNome(''); setTipo('outro'); setDescontoPercentual('0'); setDescontoMaximoCents(0)
-    setAtivo(true); setEditandoId(null); setEditandoPadrao(false); setFormOpen(true)
+    setAtivo(true); setAceitaDesconto(true); setEditandoId(null); setEditandoPadrao(false); setFormOpen(true)
   }
 
   function abrirEdicao(f: FormaPagamento) {
@@ -94,6 +95,7 @@ export default function FormasPagamentoPage() {
     setDescontoPercentual(String(Number(f.desconto_percentual)))
     setDescontoMaximoCents(Math.round(Number(f.desconto_maximo) * 100))
     setAtivo(f.ativo)
+    setAceitaDesconto(f.aceita_desconto !== false)
     setEditandoId(f.id); setEditandoPadrao(!!f.padrao_sistema); setFormOpen(true)
   }
 
@@ -107,6 +109,7 @@ export default function FormasPagamentoPage() {
         desconto_percentual: parseFloat(descontoPercentual),
         desconto_maximo: descontoMaximoCents / 100,
         ativo,
+        aceita_desconto: aceitaDesconto,
       }
       if (editandoId) await financeiroApi.atualizarFormaPagamento(editandoId, data as any)
       else await financeiroApi.criarFormaPagamento(data as any)
@@ -223,6 +226,27 @@ export default function FormasPagamentoPage() {
                 }}
               >
                 {ativo ? 'Ativo' : 'Inativo'}
+              </button>
+            </div>
+
+            {/* Aceita desconto toggle */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Aceita desconto</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                  Porção desta forma elegível para o desconto global do caixa.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAceitaDesconto(v => !v)}
+                className="relative transition-colors shrink-0 mt-1"
+                style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: aceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+              >
+                <span
+                  className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                  style={{ left: aceitaDesconto ? '21px' : '3px' }}
+                />
               </button>
             </div>
 

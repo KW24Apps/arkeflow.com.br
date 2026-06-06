@@ -14,6 +14,7 @@ const schema = z.object({
   desconto_percentual:  z.coerce.number().min(0).max(100).default(0),
   desconto_maximo:      z.coerce.number().min(0).default(0),
   ativo:                z.boolean().default(true),
+  aceita_desconto:      z.boolean().default(true),
 })
 
 export async function formasPagamentoRoutes(app: FastifyInstance) {

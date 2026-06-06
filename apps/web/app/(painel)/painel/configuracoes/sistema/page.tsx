@@ -3,10 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
+import { CurrencyInput } from '@/components/ui/CurrencyInput'
 
 interface SistemaConfig {
   controle_estoque: boolean
   logo_url_loja: string | null
+  desconto_max_percentual: string | number
+  desconto_max_valor: string | number
+  promocao_aceita_desconto: boolean
 }
 
 async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
@@ -49,11 +53,19 @@ export default function ConfigSistemaPage() {
   const [controleEstoque, setControleEstoque] = useState(true)
   const [preview,         setPreview]         = useState<string | null>(null)
 
+  const [descontoMaxPct,         setDescontoMaxPct]         = useState('0')
+  const [descontoMaxValorCents,  setDescontoMaxValorCents]  = useState(0)
+  const [promocaoAceitaDesconto, setPromocaoAceitaDesconto] = useState(false)
+  const [descontoSaved,          setDescontoSaved]          = useState(false)
+
   useEffect(() => {
     api.get<SistemaConfig>('/dados-loja/sistema').then(r => {
       setCfg(r.data)
       setControleEstoque(r.data.controle_estoque)
       if (r.data.logo_url_loja) setPreview(r.data.logo_url_loja)
+      setDescontoMaxPct(String(Number(r.data.desconto_max_percentual ?? 0)))
+      setDescontoMaxValorCents(Math.round(Number(r.data.desconto_max_valor ?? 0) * 100))
+      setPromocaoAceitaDesconto(r.data.promocao_aceita_desconto ?? false)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -88,6 +100,24 @@ export default function ConfigSistemaPage() {
       setToggleSaved(true)
       setTimeout(() => setToggleSaved(false), 2000)
     } catch { setControleEstoque(!novoValor) }
+  }
+
+  async function handleSaveDesconto(fields: Record<string, any>) {
+    try {
+      await api.put('/dados-loja/sistema', fields)
+      setDescontoSaved(true)
+      setTimeout(() => setDescontoSaved(false), 2000)
+    } catch {}
+  }
+
+  async function handleTogglePromocao() {
+    const novoValor = !promocaoAceitaDesconto
+    setPromocaoAceitaDesconto(novoValor)
+    try {
+      await api.put('/dados-loja/sistema', { promocao_aceita_desconto: novoValor })
+      setDescontoSaved(true)
+      setTimeout(() => setDescontoSaved(false), 2000)
+    } catch { setPromocaoAceitaDesconto(!novoValor) }
   }
 
   if (loading) return (
@@ -196,6 +226,73 @@ export default function ConfigSistemaPage() {
                 <p style={{ fontSize: '11px', color: 'rgba(234,179,8,0.8)' }}>⚠️ Alertas e validações de quantidade ficam desabilitados.</p>
               </div>
             )}
+          </div>
+
+          {/* ── Desconto ────────────────────────────────────────────── */}
+          <div style={CARD} className="flex flex-col gap-4 md:col-span-2">
+            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Desconto</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Percentual máximo</label>
+                <div className="relative">
+                  <input
+                    type="number" min="0" max="100" step="0.1"
+                    value={descontoMaxPct}
+                    onChange={e => setDescontoMaxPct(e.target.value)}
+                    onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                    onBlur={e => {
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                      handleSaveDesconto({ desconto_max_percentual: parseFloat(descontoMaxPct) || 0 })
+                    }}
+                    className="w-full min-h-[44px] px-4 pr-8 outline-none"
+                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px' }}
+                  />
+                  <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Teto em R$</label>
+                <CurrencyInput
+                  value={descontoMaxValorCents}
+                  onChange={setDescontoMaxValorCents}
+                  onBlur={() => handleSaveDesconto({ desconto_max_valor: descontoMaxValorCents / 100 })}
+                  className="w-full min-h-[44px] px-4 outline-none"
+                  style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px' }}
+                />
+              </div>
+            </div>
+
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '-4px' }}>
+              Trava no primeiro limite atingido. 0 = sem limite.
+            </p>
+
+            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Produtos em promoção aceitam desconto adicional</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                  Desativado: itens já em promoção não recebem o desconto do caixa por cima.
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleTogglePromocao}
+                  className="relative transition-colors"
+                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: promocaoAceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                >
+                  <span
+                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                    style={{ left: promocaoAceitaDesconto ? '21px' : '3px' }}
+                  />
+                </button>
+                {descontoSaved && (
+                  <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>
+                )}
+              </div>
+            </div>
           </div>
 
         </div>
