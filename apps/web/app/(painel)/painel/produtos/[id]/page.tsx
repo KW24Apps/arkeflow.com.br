@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { formatCurrency, initCurrency, parseCurrency } from '@/lib/utils/currency'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { produtosApi, type Produto, type Versao } from '@/lib/api/produtos'
 import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
@@ -136,7 +137,7 @@ export default function ProdutoPage() {
       setMarca(p.marca ?? '')
       setComposicaoItens((p as any).composicao_itens ?? [])
       setDescricao(p.descricao ?? '')
-      setPreco(Number(p.preco_base).toString())
+      setPreco(initCurrency(p.preco_base))
       setControleEstoque(p.controle_estoque)
       setProdutoSalvo(true)
     }).finally(() => setLoading(false))
@@ -159,7 +160,7 @@ export default function ProdutoPage() {
         marca:            marca || undefined,
         composicao_itens: composicaoItens as any,
         descricao:        descricao || undefined,
-        preco_base:       parseFloat(preco.replace(',', '.')) as any,
+        preco_base:       parseCurrency(preco) as any,
         controle_estoque: controleEstoque,
       } as any)
       const atualizado = await produtosApi.get(id)
@@ -186,7 +187,7 @@ export default function ProdutoPage() {
       tamanho_id: tam, cor_id: cor,
       estoque_atual: String(v.estoque_atual),
       estoque_minimo: String(v.estoque_minimo),
-      preco_especifico: v.preco_especifico ? String(Number(v.preco_especifico)) : '',
+      preco_especifico: v.preco_especifico ? initCurrency(v.preco_especifico) : '',
       medidas: med,
       codigo_barras: (v as any).codigo_barras ?? '',
     })
@@ -215,7 +216,7 @@ export default function ProdutoPage() {
         atributos_json,
         estoque_atual:    form.estoque_atual    ? parseInt(form.estoque_atual)                        : 0,
         estoque_minimo:   form.estoque_minimo   ? parseInt(form.estoque_minimo)                       : 0,
-        preco_especifico: form.preco_especifico ? parseFloat(form.preco_especifico.replace(',', '.')) : null,
+        preco_especifico: form.preco_especifico ? parseCurrency(form.preco_especifico) : null,
         codigo_barras:    form.codigo_barras    || null,
       }
 
@@ -308,8 +309,11 @@ export default function ProdutoPage() {
                 <div className="flex flex-col">
                   <Label>Preço base (R$) *</Label>
                   <GlassInput
-                    type="text" inputMode="decimal"
-                    value={preco} onChange={e => setPreco(e.target.value)} placeholder="0,00"
+                    type="text" inputMode="numeric"
+                    value={preco}
+                    onChange={e => setPreco(formatCurrency(e.target.value))}
+                    onFocus={e => { e.currentTarget.select(); e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                    placeholder="0,00"
                   />
                 </div>
               </div>
@@ -526,10 +530,14 @@ export default function ProdutoPage() {
                       <Label>{label}</Label>
                       <GlassInput
                         type={key === 'preco_especifico' ? 'text' : 'number'}
-                        inputMode={key === 'preco_especifico' ? 'decimal' : 'numeric'}
+                        inputMode={key === 'preco_especifico' ? 'numeric' : 'numeric'}
                         min="0"
                         value={(form as any)[key]}
-                        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                        onChange={e => setForm(f => ({
+                          ...f,
+                          [key]: key === 'preco_especifico' ? formatCurrency(e.target.value) : e.target.value,
+                        }))}
+                        onFocus={key === 'preco_especifico' ? e => { e.currentTarget.select(); e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' } : undefined}
                         placeholder={placeholder}
                         style={{ ...INPUT_STYLE, textAlign: 'center' }}
                       />

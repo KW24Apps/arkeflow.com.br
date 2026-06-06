@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { formatCurrency, parseCurrency } from '@/lib/utils/currency'
 import { promocoesApi } from '@/lib/api/promocoes'
 import { SeletorAplicacao, type AplicacaoData } from '@/components/painel/SeletorAplicacao'
 
@@ -61,7 +62,7 @@ export default function NovaPromocaoPage() {
                        : aplicacao.categorias_alvo.length ? 'categoria'
                        : 'produtos_selecionados',
         valor_desconto:  ['desconto_percentual','desconto_fixo','primeira_compra'].includes(tipo)
-                         ? parseFloat(valor) : null,
+                         ? (tipo === 'desconto_fixo' ? parseCurrency(valor) : parseFloat(valor)) : null,
         unidade:         tipo === 'desconto_percentual' ? 'percentual'
                        : tipo === 'desconto_fixo'       ? 'reais' : null,
         percentual_brinde: tipo === 'segunda_peca'  ? parseFloat(percentBrinde) : null,
@@ -87,7 +88,7 @@ export default function NovaPromocaoPage() {
           <section className="bg-deep-ocean border border-ocean-depth rounded-2xl p-5 flex flex-col gap-3">
             <h3 className="text-sea-foam font-semibold text-xs uppercase tracking-wider">Tipo de promoção</h3>
             {TIPOS.map(t => (
-              <button key={t.value} type="button" onClick={() => setTipo(t.value)}
+              <button key={t.value} type="button" onClick={() => { setTipo(t.value); setValor('') }}
                 className={`flex items-start gap-3 min-h-[52px] px-4 py-3 rounded-xl border text-left transition-colors ${
                   tipo === t.value ? 'border-electric-cyan bg-electric-cyan/10' : 'border-ocean-depth hover:border-teal-current'
                 }`}>
@@ -130,7 +131,9 @@ export default function NovaPromocaoPage() {
             {tipo === 'desconto_fixo' && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-steel uppercase tracking-wider">Valor do desconto (R$)</label>
-                <input type="number" min="0" value={valor} onChange={e => setValor(e.target.value)}
+                <input type="text" inputMode="numeric" value={valor}
+                  onChange={e => setValor(formatCurrency(e.target.value))}
+                  onFocus={e => e.currentTarget.select()}
                   placeholder="Ex: 30,00"
                   className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan" />
               </div>

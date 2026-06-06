@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
+import { formatCurrency, initCurrency, parseCurrency } from '@/lib/utils/currency'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { colaboradoresApi, type Colaborador, type LogAcesso, type ColaboradorPerfil } from '@/lib/api/colaboradores'
 import { SeletorHorario } from '@/components/painel/SeletorHorario'
@@ -174,7 +175,7 @@ export default function ColaboradorDetalhe() {
       setDiasSemana(c.dias_semana); setHoraInicio(c.hora_inicio ?? '08:00'); setHoraFim(c.hora_fim ?? '18:00')
       setCpf(c.cpf ?? ''); setRg(c.rg ?? ''); setDataNascimento(c.data_nascimento ?? '')
       setTelefone(c.telefone ?? ''); setCargo(c.cargo ?? '')
-      setDataAdmissao(c.data_admissao ?? ''); setSalario(c.salario ? String(c.salario) : ''); setTipoContrato(c.tipo_contrato ?? '')
+      setDataAdmissao(c.data_admissao ?? ''); setSalario(c.salario ? initCurrency(c.salario) : ''); setTipoContrato(c.tipo_contrato ?? '')
       setCep(c.cep ?? ''); setLogradouro(c.logradouro ?? ''); setNumero(c.numero ?? '')
       setComplemento(c.complemento ?? ''); setBairro(c.bairro ?? ''); setCidade(c.cidade ?? ''); setEstado(c.estado ?? '')
       setBanco(c.banco ?? ''); setAgencia(c.agencia ?? ''); setConta(c.conta ?? '')
@@ -212,7 +213,7 @@ export default function ColaboradorDetalhe() {
     const perfil: ColaboradorPerfil = {
       cpf: cpf || null, rg: rg || null, data_nascimento: dataNascimento || null,
       telefone: telefone || null, cargo: cargo || null,
-      data_admissao: dataAdmissao || null, salario: salario ? parseFloat(salario.replace(',', '.')) : null,
+      data_admissao: dataAdmissao || null, salario: salario ? parseCurrency(salario) : null,
       tipo_contrato: (tipoContrato || null) as any,
       cep: cep || null, logradouro: logradouro || null, numero: numero || null,
       complemento: complemento || null, bairro: bairro || null,
@@ -244,7 +245,7 @@ export default function ColaboradorDetalhe() {
       const perfil: ColaboradorPerfil = {
         cpf: cpf || null, rg: rg || null, data_nascimento: dataNascimento || null,
         telefone: telefone || null, cargo: cargo || null,
-        data_admissao: dataAdmissao || null, salario: salario ? parseFloat(salario.replace(',', '.')) : null,
+        data_admissao: dataAdmissao || null, salario: salario ? parseCurrency(salario) : null,
         tipo_contrato: (tipoContrato || null) as any,
         cep: cep || null, logradouro: logradouro || null, numero: numero || null,
         complemento: complemento || null, bairro: bairro || null,
@@ -363,30 +364,24 @@ export default function ColaboradorDetalhe() {
             </div>
           </div>
 
-          {/* Active toggle */}
-          {!isDono && (
-            <button
-              onClick={handleToggleAtivo}
-              className="shrink-0 relative transition-colors"
-              style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: colab.ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-            >
-              <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                style={{ left: colab.ativo ? '21px' : '3px' }} />
-            </button>
+          {/* Tab bar (main) or back button (logs) */}
+          {view === 'main' ? (
+            <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px' }} className="flex shrink-0">
+              <button style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', background: 'rgba(0,239,255,0.15)', color: '#0ef', cursor: 'default' }}>
+                Dados cadastrais
+              </button>
+              <button onClick={() => setView('logs')} style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
+                Logs ({logs.length})
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => setView('main')} style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>
+                ← Voltar aos dados
+              </button>
+              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>Logs de acesso ({logs.length})</span>
+            </div>
           )}
-
-          {/* Logs pill */}
-          <button
-            onClick={() => setView(view === 'logs' ? 'main' : 'logs')}
-            style={{
-              padding: '6px 12px', borderRadius: '16px', fontSize: '11px', fontWeight: 500,
-              background: view === 'logs' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.06)',
-              border: '0.5px solid rgba(255,255,255,0.15)',
-              color: 'rgba(255,255,255,0.4)', cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
-          >
-            Logs ({logs.length}) →
-          </button>
         </div>
 
         {/* ── Scrollable content ─────────────────────────────────────────── */}
@@ -493,7 +488,18 @@ export default function ColaboradorDetalhe() {
                     <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Emprego</p>
                     <div className="grid grid-cols-2 gap-3">
                       <GField label="Data de admissão" value={dataAdmissao} onChange={setDataAdmissao} type="date" />
-                      <GField label="Salário (R$)"     value={salario}     onChange={setSalario}     placeholder="0,00" />
+                      <div className="flex flex-col">
+                        <Lbl>Salário (R$)</Lbl>
+                        <input
+                          type="text" inputMode="numeric" value={salario} placeholder="0,00"
+                          onChange={e => setSalario(formatCurrency(e.target.value))}
+                          onFocus={e => e.currentTarget.select()}
+                          onBlur={e => { if (!e.currentTarget.value) setSalario('0,00') }}
+                          style={INPUT} className="outline-none"
+                          onFocusCapture={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+                          onBlurCapture={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+                        />
+                      </div>
                     </div>
                     <GSelect label="Tipo de contrato" value={tipoContrato} onChange={setTipoContrato}>
                       <option value="">Selecione...</option>
