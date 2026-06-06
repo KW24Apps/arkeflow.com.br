@@ -116,7 +116,8 @@ export default function CaixaPage() {
   const [vendaOK,       setVendaOK]       = useState<CheckoutResult | null>(null)
   const [modalCliente,     setModalCliente]     = useState(false)
   const [clienteAutoAberto,setClienteAutoAberto] = useState(false)
-  const autoOpenedRef = useRef(false)
+  const autoOpenedRef     = useRef(false)
+  const novaVendaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [modalVendedor,    setModalVendedor]    = useState(false)
   const [vendedor,         setVendedor]         = useState<Colaborador | null>(null)
@@ -158,6 +159,13 @@ export default function CaixaPage() {
     setFechVendas([])
     caixaApi.vendas().then(r => setFechVendas(r.vendas)).finally(() => setFechLoad(false))
   }, [modalFechar])
+
+  // Auto-dismiss vendaOK success screen after 3 seconds
+  useEffect(() => {
+    if (!vendaOK) return
+    novaVendaTimerRef.current = setTimeout(() => novaVenda(), 3000)
+    return () => { if (novaVendaTimerRef.current) clearTimeout(novaVendaTimerRef.current) }
+  }, [vendaOK])
 
   // Auto-focus first non-esgotado card when variant modal opens
   useEffect(() => {
@@ -516,7 +524,7 @@ export default function CaixaPage() {
                 <input
                   ref={scanRef}
                   value={scan}
-                  onChange={e => { setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
+                  onChange={e => { if (vendaOK) novaVenda(); setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
                   onKeyDown={onScanKeyDown}
                   onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
                   onBlur={e => {
@@ -579,11 +587,8 @@ export default function CaixaPage() {
                 {vendaOK.cashback_gerado > 0 && (
                   <p className="text-mint-green text-xs mt-1">+{fmt(vendaOK.cashback_gerado)} cashback</p>
                 )}
+                <p className="text-steel text-xs mt-3 opacity-50">Nova venda em instantes...</p>
               </div>
-              <button onClick={novaVenda}
-                className="min-h-[52px] w-full bg-electric-cyan text-midnight rounded-2xl font-bold text-sm">
-                Nova Venda
-              </button>
             </div>
           ) : (
             <>
