@@ -168,48 +168,78 @@ function VendaRow({
                     <span style={{ ...ITEM_LABEL, textAlign: 'center' }}>Qtd</span>
                     <span style={{ ...ITEM_LABEL, textAlign: 'right' }}>Valor</span>
                   </div>
-                  {(detail.itens ?? []).map((item: any, i: number) => {
-                    const lineTotal = Number(item.preco_unitario) * item.quantidade - Number(item.desconto_item)
-                    return (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 44px 88px', gap: '8px', alignItems: 'center', marginBottom: '5px' }}>
-                        {/* Product name + attribute chips */}
-                        <div style={{ minWidth: 0 }}>
-                          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>{item.produto_nome}</span>
-                          {Object.keys(item.atributos_json ?? {}).length > 0 && (
-                            <span style={{ marginLeft: '6px' }}>
-                              {Object.entries(item.atributos_json ?? {}).map(([key, val]: [string, any]) => (
-                                <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
-                                  {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
-                                </span>
-                              ))}
+                  {(() => {
+                    const vendaTeveDesconto = Number(detail.desconto_pagamento ?? 0) > 0
+                    return (detail.itens ?? []).map((item: any, i: number) => {
+                      const lineTotal    = Number(item.preco_unitario) * item.quantidade - Number(item.desconto_item)
+                      const itemElegivel = vendaTeveDesconto && item.aceita_desconto !== false
+                      return (
+                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 44px 88px', gap: '8px', alignItems: 'center', marginBottom: '5px' }}>
+                          {/* Product name + attribute chips + desconto chip */}
+                          <div style={{ minWidth: 0 }}>
+                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>{item.produto_nome}</span>
+                            {Object.keys(item.atributos_json ?? {}).length > 0 && (
+                              <span style={{ marginLeft: '6px' }}>
+                                {Object.entries(item.atributos_json ?? {}).map(([key, val]: [string, any]) => (
+                                  <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
+                                    {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
+                                  </span>
+                                ))}
+                              </span>
+                            )}
+                            {itemElegivel && (
+                              <span style={{ fontSize: '10px', background: 'rgba(100,220,160,0.12)', border: '0.5px solid rgba(100,220,160,0.3)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(100,220,160,0.9)', fontWeight: 500, marginRight: '4px', display: 'inline-block' }}>desconto</span>
+                            )}
+                          </div>
+                          {/* Quantity chip */}
+                          <div style={{ textAlign: 'center' }}>
+                            <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.55)' }}>
+                              {item.quantidade}
                             </span>
-                          )}
-                        </div>
-                        {/* Quantity chip */}
-                        <div style={{ textAlign: 'center' }}>
-                          <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.55)' }}>
-                            {item.quantidade}
+                          </div>
+                          {/* Line total */}
+                          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {fmt(lineTotal)}
                           </span>
                         </div>
-                        {/* Line total */}
-                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {fmt(lineTotal)}
-                        </span>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  })()}
+                </div>
+
+                {/* Totals block */}
+                <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Subtotal</span>
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>{fmt(detail.subtotal ?? detail.total)}</span>
+                  </div>
+                  {Number(detail.desconto_pagamento ?? 0) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>Desconto</span>
+                      <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)', fontVariantNumeric: 'tabular-nums' }}>− {fmt(detail.desconto_pagamento)}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Total</span>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmt(detail.total)}</span>
+                  </div>
                 </div>
 
                 {/* Pagamento */}
                 <div>
                   <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 6px' }}>Pagamento</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                    {(detail.pagamentos ?? []).map((p: any, i: number) => (
-                      <span key={i} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '4px 10px', color: 'rgba(255,255,255,0.6)' }}>
-                        {p.forma_nome} · {fmt(p.valor)}
-                        {p.tipo === 'dinheiro' && Number(p.troco) > 0 && ` · troco ${fmt(p.troco)}`}
-                      </span>
-                    ))}
+                    {(detail.pagamentos ?? []).map((p: any, i: number) => {
+                      const temTroco = p.tipo === 'dinheiro' && Number(p.troco) > 0
+                      const label = temTroco && p.valor_recebido != null
+                        ? `${p.forma_nome} · recebido ${fmt(p.valor_recebido)} · troco ${fmt(p.troco)}`
+                        : `${p.forma_nome} · ${fmt(p.valor)}`
+                      return (
+                        <span key={i} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '4px 10px', color: 'rgba(255,255,255,0.6)' }}>
+                          {label}
+                        </span>
+                      )
+                    })}
                   </div>
                 </div>
 
