@@ -11,6 +11,7 @@ import { usePDVStore } from '@/store/pdv.store'
 import { useAuthStore } from '@/store/auth.store'
 import { api } from '@/lib/api/client'
 import { clientesApi } from '@/lib/api/clientes'
+import { financeiroApi } from '@/lib/api/financeiro'
 import { promocoesApi } from '@/lib/api/promocoes'
 import { calcularDescontos } from '@/lib/calcularDesconto'
 import { AdvancedSearchModal } from '@/components/pdv/AdvancedSearchModal'
@@ -156,6 +157,10 @@ export default function CaixaPage() {
   const [produtoVariacao, setProdutoVariacao] = useState<{ produto: any; qty: number } | null>(null)
   const [focadoIdx,       setFocadoIdx]       = useState(0)
 
+  // ── Desconto do caixa ─────────────────────────────────────────────────────
+  const [descontoCfg, setDescontoCfg] = useState<{ pct: number; valor: number; promoAceita: boolean } | null>(null)
+  const [formasDesc,  setFormasDesc]  = useState<string[]>([])
+
   // ── Boas-vindas ───────────────────────────────────────────────────────────
   const [modalBoasVindas,  setModalBoasVindas]  = useState(false)
   const boasVindasRef      = useRef<{ msg: string; hora: string } | null>(null)
@@ -168,6 +173,13 @@ export default function CaixaPage() {
   useEffect(() => {
     if (status !== 'aberto') return
     promocoesApi.list(false).then(setPromocoes).catch(() => {})
+    api.get('/dados-loja/sistema').then(r => {
+      const d = r.data
+      setDescontoCfg({ pct: Number(d.desconto_max_percentual ?? 0), valor: Number(d.desconto_max_valor ?? 0), promoAceita: !!d.promocao_aceita_desconto })
+    }).catch(() => {})
+    financeiroApi.formasPagamento().then(fs => {
+      setFormasDesc(fs.filter(f => f.ativo && f.aceita_desconto !== false).map(f => f.nome))
+    }).catch(() => {})
     setTimeout(() => scanRef.current?.focus(), 150)
   }, [status])
 
@@ -258,6 +270,22 @@ export default function CaixaPage() {
   const cashbackDisp = clienteInfo ? Number(clienteInfo.saldo_cashback) : 0
   const cashbackUsar = usarCB ? Math.min(cashbackDisp, subtotal - totalDesconto) : 0
   const baseTotal    = Math.max(0, subtotal - totalDesconto - cashbackUsar)
+
+  // Desconto global do caixa — display only
+  const baseElegivel = itensComDesconto.reduce((s, i) => {
+    const emPromo = i.desconto_item > 0
+    if (emPromo && descontoCfg && !descontoCfg.promoAceita) return s
+    return s + (i.preco_unitario * i.quantidade - i.desconto_item)
+  }, 0)
+  let descontoCaixa = 0
+  if (descontoCfg) {
+    const porPct = descontoCfg.pct > 0 ? baseElegivel * (descontoCfg.pct / 100) : Infinity
+    const porVal = descontoCfg.valor > 0 ? descontoCfg.valor : Infinity
+    if (porPct !== Infinity || porVal !== Infinity) {
+      descontoCaixa = Math.round(Math.min(porPct, porVal, baseElegivel) * 100) / 100
+    }
+  }
+  const valorComDesconto = subtotal - descontoCaixa
 
   function adicionarVariacao(versao: any) {
     if (!produtoVariacao) return
@@ -637,12 +665,36 @@ export default function CaixaPage() {
                   </span>
                 </div>
                 <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', margin: '10px 0' }} />
-                <span style={{ ...MOD_LABEL, marginBottom: '4px' }}>Total da venda</span>
-                <p style={{ fontSize: '26px', fontWeight: 700, color: '#0ef', marginTop: '4px', lineHeight: 1.1, marginBottom: 0 }}>
-                  R$ {subtotal.toFixed(2)}
-                </p>
-                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', margin: 0 }}>
-                  {totalQtd} {totalQtd === 1 ? 'item' : 'itens'} · sem desconto
+                <span style={MOD_LABEL}>Total da venda</span>
+                {/* Sem desconto */}
+                <div>
+                  <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 2px' }}>Sem desconto</p>
+                  <p style={{ fontSize: '24px', fontWeight: 600, color: '#0ef', lineHeight: 1.1, margin: 0 }}>
+                    R$ {subtotal.toFixed(2)}
+                  </p>
+                </div>
+                {/* Com desconto — only when a cashier discount is applicable */}
+                {descontoCaixa > 0 && (
+                  <>
+                    <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', margin: '8px 0' }} />
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', margin: '0 0 2px' }}>
+                      Desconto pagável em:
+                    </p>
+                    {formasDesc.length > 0 && (
+                      <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.75)', margin: '0 0 6px', lineHeight: 1.4 }}>
+                        {formasDesc.join(', ')}
+                      </p>
+                    )}
+                    <div>
+                      <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 2px' }}>Com desconto</p>
+                      <p style={{ fontSize: '24px', fontWeight: 600, color: 'rgba(100,220,160,0.9)', lineHeight: 1.1, margin: 0 }}>
+                        R$ {valorComDesconto.toFixed(2)}
+                      </p>
+                    </div>
+                  </>
+                )}
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', margin: '6px 0 0' }}>
+                  {totalQtd} {totalQtd === 1 ? 'item' : 'itens'}
                 </p>
               </div>
 
