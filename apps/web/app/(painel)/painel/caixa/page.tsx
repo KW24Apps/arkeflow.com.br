@@ -538,6 +538,10 @@ export default function CaixaPage() {
                 </thead>
                 <tbody>
                   {itensComDesconto.map(item => {
+                    const itemElegivel = !!descontoCfg
+                      && (descontoCfg.pct > 0 || descontoCfg.valor > 0)
+                      && item.aceita_desconto !== false
+                      && !(item.desconto_item > 0 && !descontoCfg.promoAceita)
                     return (
                       <tr key={item.versao_id} className="border-b border-ocean-depth/50 hover:bg-deep-ocean/50">
                         <td className="px-4 py-3">
@@ -548,6 +552,9 @@ export default function CaixaPage() {
                                 {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
                               </span>
                             ))}
+                            {itemElegivel && (
+                              <span style={{ fontSize: '10px', background: 'rgba(100,220,160,0.12)', border: '0.5px solid rgba(100,220,160,0.3)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(100,220,160,0.9)', fontWeight: 500, display: 'inline-block', marginRight: '4px' }}>desconto</span>
+                            )}
                           </p>
                           {item.desconto_item > 0 && (
                             <p className="text-mint-green text-xs">−{fmt(item.desconto_item)} promo</p>
@@ -691,6 +698,9 @@ export default function CaixaPage() {
                       <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 2px' }}>Com desconto</p>
                       <p style={{ fontSize: '24px', fontWeight: 600, color: 'rgba(100,220,160,0.9)', lineHeight: 1.1, margin: 0 }}>
                         R$ {valorComDesconto.toFixed(2)}
+                      </p>
+                      <p style={{ fontSize: '11px', color: 'rgba(100,220,160,0.7)', margin: '4px 0 0' }}>
+                        Desconto {fmt(descontoCaixa)}
                       </p>
                     </div>
                   </>
