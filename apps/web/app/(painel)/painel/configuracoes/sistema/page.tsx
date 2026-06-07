@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
+import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 
 interface SistemaConfig {
   controle_estoque: boolean
@@ -11,6 +12,7 @@ interface SistemaConfig {
   desconto_max_percentual: string | number
   desconto_max_valor: string | number
   promocao_aceita_desconto: boolean
+  desconto_restringe_formas: boolean
 }
 
 async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
@@ -53,19 +55,26 @@ export default function ConfigSistemaPage() {
   const [controleEstoque, setControleEstoque] = useState(true)
   const [preview,         setPreview]         = useState<string | null>(null)
 
-  const [descontoMaxPct,         setDescontoMaxPct]         = useState(0)
-  const [descontoMaxValorCents,  setDescontoMaxValorCents]  = useState(0)
-  const [promocaoAceitaDesconto, setPromocaoAceitaDesconto] = useState(false)
-  const [descontoSaved,          setDescontoSaved]          = useState(false)
+  const [descontoMaxPct,          setDescontoMaxPct]          = useState(0)
+  const [descontoMaxValorCents,   setDescontoMaxValorCents]   = useState(0)
+  const [promocaoAceitaDesconto,  setPromocaoAceitaDesconto]  = useState(false)
+  const [descontoRestringeFormas, setDescontoRestringeFormas] = useState(false)
+  const [formas,                  setFormas]                  = useState<FormaPagamento[]>([])
+  const [descontoSaved,           setDescontoSaved]           = useState(false)
 
   useEffect(() => {
-    api.get<SistemaConfig>('/dados-loja/sistema').then(r => {
-      setCfg(r.data)
-      setControleEstoque(r.data.controle_estoque)
-      if (r.data.logo_url_loja) setPreview(r.data.logo_url_loja)
-      setDescontoMaxPct(Number(r.data.desconto_max_percentual ?? 0))
-      setDescontoMaxValorCents(Math.round(Number(r.data.desconto_max_valor ?? 0) * 100))
-      setPromocaoAceitaDesconto(r.data.promocao_aceita_desconto ?? false)
+    Promise.all([
+      api.get<SistemaConfig>('/dados-loja/sistema'),
+      financeiroApi.formasPagamento(),
+    ]).then(([sysRes, fs]) => {
+      setCfg(sysRes.data)
+      setControleEstoque(sysRes.data.controle_estoque)
+      if (sysRes.data.logo_url_loja) setPreview(sysRes.data.logo_url_loja)
+      setDescontoMaxPct(Number(sysRes.data.desconto_max_percentual ?? 0))
+      setDescontoMaxValorCents(Math.round(Number(sysRes.data.desconto_max_valor ?? 0) * 100))
+      setPromocaoAceitaDesconto(sysRes.data.promocao_aceita_desconto ?? false)
+      setDescontoRestringeFormas(sysRes.data.desconto_restringe_formas ?? false)
+      setFormas(fs.filter(f => f.ativo))
     }).finally(() => setLoading(false))
   }, [])
 
@@ -118,6 +127,26 @@ export default function ConfigSistemaPage() {
       setDescontoSaved(true)
       setTimeout(() => setDescontoSaved(false), 2000)
     } catch { setPromocaoAceitaDesconto(!novoValor) }
+  }
+
+  async function handleToggleRestringeFormas() {
+    const novoValor = !descontoRestringeFormas
+    setDescontoRestringeFormas(novoValor)
+    try {
+      await api.put('/dados-loja/sistema', { desconto_restringe_formas: novoValor })
+      setDescontoSaved(true)
+      setTimeout(() => setDescontoSaved(false), 2000)
+    } catch { setDescontoRestringeFormas(!novoValor) }
+  }
+
+  async function handleToggleFormaDesconto(forma: FormaPagamento) {
+    const novoValor = !(forma.aceita_desconto !== false)
+    setFormas(prev => prev.map(f => f.id === forma.id ? { ...f, aceita_desconto: novoValor } : f))
+    try {
+      await financeiroApi.atualizarFormaPagamento(forma.id, { aceita_desconto: novoValor } as any)
+    } catch {
+      setFormas(prev => prev.map(f => f.id === forma.id ? { ...f, aceita_desconto: forma.aceita_desconto } : f))
+    }
   }
 
   if (loading) return (
@@ -293,6 +322,60 @@ export default function ConfigSistemaPage() {
                 )}
               </div>
             </div>
+
+            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Restringir formas quando há desconto</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                  Ativado: somente formas marcadas abaixo ficam disponíveis no checkout com desconto.
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleToggleRestringeFormas}
+                  className="relative transition-colors"
+                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: descontoRestringeFormas ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                >
+                  <span
+                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                    style={{ left: descontoRestringeFormas ? '21px' : '3px' }}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {formas.length > 0 && (
+              <>
+                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>
+                  Formas que aceitam desconto
+                </p>
+                <div className="flex flex-col gap-2">
+                  {formas.map(f => {
+                    const aceita = f.aceita_desconto !== false
+                    return (
+                      <div key={f.id} className="flex items-center justify-between">
+                        <p style={{ fontSize: '12px', color: aceita ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)' }}>{f.nome}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFormaDesconto(f)}
+                          className="relative shrink-0 transition-colors"
+                          style={{ width: '36px', height: '20px', borderRadius: '9999px', border: 'none', background: aceita ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                        >
+                          <span
+                            className="absolute top-[3px] w-[14px] h-[14px] bg-white rounded-full transition-all"
+                            style={{ left: aceita ? '19px' : '3px' }}
+                          />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
         </div>

@@ -156,17 +156,19 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
   app.put('/sistema', { preHandler: dono }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
     const user = req.user as JwtPayload
-    const { logo_url, link_loja, controle_estoque, desconto_max_percentual, desconto_max_valor, promocao_aceita_desconto } = req.body as any
+    const { logo_url, link_loja, controle_estoque, desconto_max_percentual, desconto_max_valor, promocao_aceita_desconto, desconto_restringe_formas } = req.body as any
 
     // Atualiza configuracoes_loja no banco da loja
     if (controle_estoque !== undefined || link_loja !== undefined ||
-        desconto_max_percentual !== undefined || desconto_max_valor !== undefined || promocao_aceita_desconto !== undefined) {
+        desconto_max_percentual !== undefined || desconto_max_valor !== undefined || promocao_aceita_desconto !== undefined ||
+        desconto_restringe_formas !== undefined) {
       const upd: string[] = []; const val: any[] = []
-      if (controle_estoque !== undefined)        { val.push(controle_estoque);         upd.push(`controle_estoque = $${val.length}`) }
-      if (link_loja !== undefined)               { val.push(link_loja ?? null);        upd.push(`link_loja = $${val.length}`) }
-      if (desconto_max_percentual !== undefined) { val.push(desconto_max_percentual);  upd.push(`desconto_max_percentual = $${val.length}`) }
-      if (desconto_max_valor !== undefined)      { val.push(desconto_max_valor);       upd.push(`desconto_max_valor = $${val.length}`) }
-      if (promocao_aceita_desconto !== undefined){ val.push(promocao_aceita_desconto); upd.push(`promocao_aceita_desconto = $${val.length}`) }
+      if (controle_estoque !== undefined)         { val.push(controle_estoque);          upd.push(`controle_estoque = $${val.length}`) }
+      if (link_loja !== undefined)                { val.push(link_loja ?? null);         upd.push(`link_loja = $${val.length}`) }
+      if (desconto_max_percentual !== undefined)  { val.push(desconto_max_percentual);   upd.push(`desconto_max_percentual = $${val.length}`) }
+      if (desconto_max_valor !== undefined)       { val.push(desconto_max_valor);        upd.push(`desconto_max_valor = $${val.length}`) }
+      if (promocao_aceita_desconto !== undefined) { val.push(promocao_aceita_desconto);  upd.push(`promocao_aceita_desconto = $${val.length}`) }
+      if (desconto_restringe_formas !== undefined){ val.push(desconto_restringe_formas); upd.push(`desconto_restringe_formas = $${val.length}`) }
       if (upd.length) await pool.query(`UPDATE configuracoes_loja SET ${upd.join(', ')}`, val)
     }
 
