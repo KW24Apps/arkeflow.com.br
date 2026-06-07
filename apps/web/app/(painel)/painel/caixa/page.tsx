@@ -136,7 +136,6 @@ export default function CaixaPage() {
   const [modalCliente,     setModalCliente]     = useState(false)
   const [clienteAutoAberto,setClienteAutoAberto] = useState(false)
   const autoOpenedRef     = useRef(false)
-  const novaVendaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [modalVendedor,    setModalVendedor]    = useState(false)
   const [vendedor,         setVendedor]         = useState<Colaborador | null>(null)
@@ -196,12 +195,10 @@ export default function CaixaPage() {
     caixaApi.vendas().then(r => setFechVendas(r.vendas)).finally(() => setFechLoad(false))
   }, [modalFechar])
 
-  // Auto-dismiss vendaOK success screen after 3 seconds
+  // Start next sale when first product is added after a completed sale
   useEffect(() => {
-    if (!vendaOK) return
-    novaVendaTimerRef.current = setTimeout(() => novaVenda(), 3000)
-    return () => { if (novaVendaTimerRef.current) clearTimeout(novaVendaTimerRef.current) }
-  }, [vendaOK])
+    if (vendaOK && itens.length > 0) novaVenda()
+  }, [vendaOK, itens.length])
 
   // Auto-focus first non-esgotado card when variant modal opens
   useEffect(() => {
@@ -597,7 +594,7 @@ export default function CaixaPage() {
                 <input
                   ref={scanRef}
                   value={scan}
-                  onChange={e => { if (vendaOK) novaVenda(); setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
+                  onChange={e => { setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
                   onKeyDown={onScanKeyDown}
                   onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
                   onBlur={e => {
@@ -650,18 +647,79 @@ export default function CaixaPage() {
           data-no-refocus
         >
           {vendaOK ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 gap-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-mint-green/20 flex items-center justify-center">
-                <span className="text-3xl text-mint-green">✓</span>
+            <div className="flex-1 flex flex-col gap-3 py-2">
+              {/* Check + total */}
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div className="w-12 h-12 rounded-full bg-mint-green/20 flex items-center justify-center">
+                  <span style={{ fontSize: '22px', color: 'rgba(100,220,160,0.9)' }}>✓</span>
+                </div>
+                <div>
+                  <p style={{ fontSize: '20px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', lineHeight: 1.1 }}>{fmt(vendaOK.total)}</p>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', marginTop: '2px' }}>Venda registrada</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sea-foam font-bold text-xl">{fmt(vendaOK.total)}</p>
-                <p className="text-steel text-sm mt-1">Venda registrada</p>
-                {vendaOK.cashback_gerado > 0 && (
-                  <p className="text-mint-green text-xs mt-1">+{fmt(vendaOK.cashback_gerado)} cashback</p>
-                )}
-                <p className="text-steel text-xs mt-3 opacity-50">Nova venda em instantes...</p>
+
+              <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+              {/* Payments */}
+              <div className="flex flex-col gap-1.5">
+                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', margin: '0 0 2px' }}>Pagamento</p>
+                {vendaOK.pagamentos.map((p, i) => (
+                  <div key={i}>
+                    <div className="flex items-center justify-between">
+                      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>{p.nome}</span>
+                      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>{fmt(p.valor)}</span>
+                    </div>
+                    {p.troco > 0 && (
+                      <p style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)', marginLeft: '8px' }}>↳ troco {fmt(p.troco)}</p>
+                    )}
+                  </div>
+                ))}
               </div>
+
+              {/* Financial adjustments */}
+              {(vendaOK.desconto_promocao + vendaOK.desconto_pagamento > 0 || vendaOK.cashback_gerado > 0 || vendaOK.cashback_usado > 0) && (
+                <>
+                  <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+                  <div className="flex flex-col gap-1">
+                    {vendaOK.desconto_promocao > 0 && vendaOK.desconto_pagamento > 0 ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Promoção</span>
+                          <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>− {fmt(vendaOK.desconto_promocao)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Desconto</span>
+                          <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>− {fmt(vendaOK.desconto_pagamento)}</span>
+                        </div>
+                      </>
+                    ) : (vendaOK.desconto_promocao + vendaOK.desconto_pagamento > 0) ? (
+                      <div className="flex items-center justify-between">
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Desconto</span>
+                        <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>− {fmt(vendaOK.desconto_promocao + vendaOK.desconto_pagamento)}</span>
+                      </div>
+                    ) : null}
+                    {vendaOK.cashback_gerado > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Cashback</span>
+                        <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>+ {fmt(vendaOK.cashback_gerado)}</span>
+                      </div>
+                    )}
+                    {vendaOK.cashback_usado > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Cashback usado</span>
+                        <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>− {fmt(vendaOK.cashback_usado)}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textAlign: 'center', lineHeight: 1.4 }}>
+                Passe um produto para iniciar a próxima venda
+              </p>
             </div>
           ) : (
             <>

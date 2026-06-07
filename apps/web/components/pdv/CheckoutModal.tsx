@@ -22,9 +22,13 @@ interface SistemaConfig {
 }
 
 export interface CheckoutResult {
-  venda_id:        string
-  total:           number
-  cashback_gerado: number
+  venda_id:           string
+  total:              number
+  cashback_gerado:    number
+  pagamentos:         { nome: string; valor: number; troco: number }[]
+  desconto_promocao:  number
+  desconto_pagamento: number
+  cashback_usado:     number
 }
 
 interface Props {
@@ -233,8 +237,22 @@ export function CheckoutModal({
         vendedor_id:        vendedor_id ?? null,
         vendedor_nome:      vendedor_nome ?? null,
       })
+      const pagamentosRecap = pagamentosParaAPI.map(p => {
+        const original = lista.find(l => l.forma.id === p.forma_pagamento_id)
+        return {
+          nome:  original?.forma.nome ?? '',
+          valor: p.valor,
+          troco: p.troco ?? 0,
+        }
+      })
       resetState()
-      onSuccess(r)
+      onSuccess({
+        ...r,
+        pagamentos:         pagamentosRecap,
+        desconto_promocao:  totalDesconto,
+        desconto_pagamento: D,
+        cashback_usado:     cashbackUsar,
+      })
     } catch (e: any) {
       setErro(e?.response?.data?.error ?? 'Erro ao registrar venda.')
       setProcessando(false)
