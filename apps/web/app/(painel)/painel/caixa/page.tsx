@@ -105,7 +105,7 @@ function getMensagem(nome: string): string {
 export default function CaixaPage() {
   const router = useRouter()
   const { status, turno, erro: cxErro, carregar, abrir, fechar, registrarMovimento, limparErro } = useCaixaStore()
-  const { itens, cliente_id, cliente_nome, addItem, addItemQtd, removeItem, setQtd, setCliente, limpar } = usePDVStore()
+  const { itens, cliente_id, cliente_nome, addItem, addItemQtd, removeItem, setQtd, setCliente, limpar, clientePerguntado, setClientePerguntado } = usePDVStore()
   const usuario = useAuthStore(s => s.usuario)
 
   // ── Abertura ──────────────────────────────────────────────────────────────
@@ -135,7 +135,6 @@ export default function CaixaPage() {
   const [vendaOK,       setVendaOK]       = useState<CheckoutResult | null>(null)
   const [modalCliente,     setModalCliente]     = useState(false)
   const [clienteAutoAberto,setClienteAutoAberto] = useState(false)
-  const autoOpenedRef     = useRef(false)
 
   const [modalVendedor,    setModalVendedor]    = useState(false)
   const [vendedor,         setVendedor]         = useState<Colaborador | null>(null)
@@ -244,12 +243,12 @@ export default function CaixaPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [modalVariacao, produtoVariacao, focadoIdx])
 
-  // Auto-open customer modal on first item (once per transaction)
+  // Auto-open customer modal on first item (once per sale, persisted)
   useEffect(() => {
     if (status !== 'aberto') return
-    if (itens.length === 0) { autoOpenedRef.current = false; return }
-    if (itens.length > 0 && !cliente_id && !autoOpenedRef.current) {
-      autoOpenedRef.current = true
+    if (itens.length === 0) return
+    if (!cliente_id && !clientePerguntado) {
+      setClientePerguntado(true)
       setClienteAutoAberto(true)
       setModalCliente(true)
     }
@@ -429,7 +428,6 @@ export default function CaixaPage() {
     setVendaOK(r)
     limpar()
     setVendedor(null)
-    autoOpenedRef.current = false
   }
 
   function novaVenda() {

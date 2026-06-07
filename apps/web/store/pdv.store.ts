@@ -14,19 +14,21 @@ export interface SacolaItem {
 }
 
 interface PDVStore {
-  itens:         SacolaItem[]
-  cliente_id:    string | null
-  cliente_nome:  string | null
-  sacola_id:     string | null  // remote bag this cart was loaded from
-  vendedor_id:   string | null
-  vendedor_nome: string | null
+  itens:              SacolaItem[]
+  cliente_id:         string | null
+  cliente_nome:       string | null
+  sacola_id:          string | null  // remote bag this cart was loaded from
+  vendedor_id:        string | null
+  vendedor_nome:      string | null
+  clientePerguntado:  boolean        // persisted: modal asked once per sale
 
-  addItem:       (item: Omit<SacolaItem, 'quantidade'>) => void
-  addItemQtd:    (item: Omit<SacolaItem, 'quantidade'>, qtd: number) => void
-  removeItem:    (versao_id: string) => void
-  setQtd:        (versao_id: string, qtd: number) => void
-  setCliente:    (id: string | null, nome: string | null) => void
-  setVendedor:   (id: string | null, nome: string | null) => void
+  addItem:               (item: Omit<SacolaItem, 'quantidade'>) => void
+  addItemQtd:            (item: Omit<SacolaItem, 'quantidade'>, qtd: number) => void
+  removeItem:            (versao_id: string) => void
+  setQtd:                (versao_id: string, qtd: number) => void
+  setCliente:            (id: string | null, nome: string | null) => void
+  setVendedor:           (id: string | null, nome: string | null) => void
+  setClientePerguntado:  (v: boolean) => void
   // Loads a remote bag into the cart (replaces current cart)
   carregarSacola:(sacola_id: string, itens: SacolaItemRemoto[], cliente_id: string | null, cliente_nome: string | null, vendedor_id?: string | null, vendedor_nome?: string | null) => void
   limpar:        () => void
@@ -35,12 +37,13 @@ interface PDVStore {
 export const usePDVStore = create<PDVStore>()(
   persist(
     (set) => ({
-      itens:         [],
-      cliente_id:    null,
-      cliente_nome:  null,
-      sacola_id:     null,
-      vendedor_id:   null,
-      vendedor_nome: null,
+      itens:             [],
+      cliente_id:        null,
+      cliente_nome:      null,
+      sacola_id:         null,
+      vendedor_id:       null,
+      vendedor_nome:     null,
+      clientePerguntado: false,
 
       addItem: (item) => set(state => {
         const existente = state.itens.find(i => i.versao_id === item.versao_id)
@@ -76,6 +79,8 @@ export const usePDVStore = create<PDVStore>()(
 
       setVendedor: (id, nome) => set({ vendedor_id: id, vendedor_nome: nome }),
 
+      setClientePerguntado: (v) => set({ clientePerguntado: v }),
+
       carregarSacola: (sacola_id, itens, cliente_id, cliente_nome, vendedor_id = null, vendedor_nome = null) => set({
         sacola_id,
         cliente_id,
@@ -93,14 +98,15 @@ export const usePDVStore = create<PDVStore>()(
         })),
       }),
 
-      limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null, vendedor_id: null, vendedor_nome: null }),
+      limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null, vendedor_id: null, vendedor_nome: null, clientePerguntado: false }),
     }),
     {
       name: 'pdv-store',
       partialize: (state) => ({
-        itens:        state.itens,
-        cliente_id:   state.cliente_id,
-        cliente_nome: state.cliente_nome,
+        itens:             state.itens,
+        cliente_id:        state.cliente_id,
+        cliente_nome:      state.cliente_nome,
+        clientePerguntado: state.clientePerguntado,
       }),
     }
   )
