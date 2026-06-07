@@ -134,7 +134,7 @@ export default function FormasPagamentoPage() {
 
         {/* ── Edit panel ──────────────────────────────────────────────────── */}
         {formOpen && (
-          <div style={CARD} className="p-5 flex flex-col gap-4">
+          <div style={{ ...CARD, maxWidth: '460px' }} className="p-5 flex flex-col gap-4">
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
               {editandoId ? 'Editar forma de pagamento' : 'Nova forma de pagamento'}
             </p>
@@ -167,44 +167,34 @@ export default function FormasPagamentoPage() {
             )}
 
             {/* Ativo toggle */}
-            <div className="flex items-center justify-between">
-              <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Status</label>
+            <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Forma ativa</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>Disponível no checkout do caixa.</p>
+              </div>
               <button
+                type="button"
                 onClick={() => setAtivo(v => !v)}
-                style={{
-                  padding: '4px 14px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  border: ativo ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.15)',
-                  background: ativo ? 'rgba(0,239,255,0.12)' : 'rgba(255,255,255,0.05)',
-                  color: ativo ? '#0ef' : 'rgba(255,255,255,0.35)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                }}
+                className="relative transition-colors shrink-0"
+                style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
               >
-                {ativo ? 'Ativo' : 'Inativo'}
+                <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: ativo ? '21px' : '3px' }} />
               </button>
             </div>
 
             {/* Aceita desconto toggle */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
+            <div className="flex items-center justify-between py-3">
+              <div>
                 <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Aceita desconto</p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
-                  Porção desta forma elegível para o desconto global do caixa.
-                </p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>Elegível para o desconto global do caixa.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setAceitaDesconto(v => !v)}
-                className="relative transition-colors shrink-0 mt-1"
+                className="relative transition-colors shrink-0"
                 style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: aceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
               >
-                <span
-                  className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                  style={{ left: aceitaDesconto ? '21px' : '3px' }}
-                />
+                <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: aceitaDesconto ? '21px' : '3px' }} />
               </button>
             </div>
 
@@ -260,36 +250,16 @@ export default function FormasPagamentoPage() {
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
               >
-                {/* Active/inactive dot toggle — top-right corner */}
+                {/* Active/inactive pill switch — top-right corner */}
                 <button
                   onClick={e => { e.stopPropagation(); toggleAtivo(f) }}
                   title={f.ativo ? 'Clique para desativar' : 'Clique para ativar'}
-                  style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    border: `1.5px solid ${f.ativo ? '#0ef' : 'rgba(255,255,255,0.2)'}`,
-                    background: f.ativo ? 'rgba(0,239,255,0.12)' : 'rgba(255,255,255,0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    padding: 0,
-                    transition: 'all 0.15s',
-                    flexShrink: 0,
-                  }}
+                  style={{ position: 'absolute', top: '9px', right: '9px', width: '36px', height: '20px',
+                    borderRadius: '9999px', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
+                    background: f.ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', transition: 'all 0.15s' }}
                 >
-                  <span style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    background: f.ativo ? '#0ef' : 'rgba(255,255,255,0.15)',
-                    display: 'block',
-                    transition: 'all 0.15s',
-                  }} />
+                  <span style={{ position: 'absolute', top: '3px', left: f.ativo ? '19px' : '3px',
+                    width: '14px', height: '14px', borderRadius: '50%', background: '#fff', transition: 'all 0.15s' }} />
                 </button>
 
                 <div
