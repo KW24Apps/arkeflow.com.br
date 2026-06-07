@@ -13,7 +13,7 @@ export async function produtosRoutes(app: FastifyInstance) {
     const pool = getTenantPoolFromRequest(req)
     const { codigo } = req.params as { codigo: string }
     const { rows: [versao] } = await pool.query(
-      `SELECT v.*, p.nome AS produto_nome, p.preco_base, p.controle_estoque, p.id AS produto_id
+      `SELECT v.*, p.nome AS produto_nome, p.preco_base, p.controle_estoque, p.aceita_desconto, p.id AS produto_id
        FROM versoes v
        JOIN produtos p ON p.id = v.produto_id
        WHERE v.codigo_barras = $1 AND v.ativo = true AND v.arquivado = false AND p.ativo = true AND p.arquivado = false`,

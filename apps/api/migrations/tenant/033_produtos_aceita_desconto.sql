@@ -1,0 +1,1 @@
+ALTER TABLE produtos ADD COLUMN IF NOT EXISTS aceita_desconto BOOLEAN NOT NULL DEFAULT true;

@@ -9,7 +9,8 @@ export interface SacolaItem {
   atributos:      Record<string, string>
   preco_unitario: number
   quantidade:     number
-  codigo_barras?: string | null
+  codigo_barras?:   string | null
+  aceita_desconto?: boolean
 }
 
 interface PDVStore {

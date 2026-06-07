@@ -236,7 +236,7 @@ export default function CaixaPage() {
         if (!versao || (produtoVariacao!.produto.controle_estoque && versao.estoque_atual <= 0)) return
         const { produto, qty } = produtoVariacao!
         const preco = versao.preco_especifico ? parseFloat(versao.preco_especifico) : parseFloat(produto.preco_base)
-        const item  = { versao_id: versao.id, produto_id: produto.id, nome: produto.nome, atributos: versao.atributos_json, preco_unitario: preco, codigo_barras: versao.codigo_barras ?? null }
+        const item  = { versao_id: versao.id, produto_id: produto.id, nome: produto.nome, atributos: versao.atributos_json, preco_unitario: preco, codigo_barras: versao.codigo_barras ?? null, aceita_desconto: produto.aceita_desconto ?? true }
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
         setModalVariacao(false); setProdutoVariacao(null); setFocadoIdx(0)
         setResultados([]); setScan('')
@@ -273,7 +273,9 @@ export default function CaixaPage() {
 
   // Desconto global do caixa — display only
   const baseElegivel = itensComDesconto.reduce((s, i) => {
+    const aceita  = i.aceita_desconto !== false
     const emPromo = i.desconto_item > 0
+    if (!aceita) return s
     if (emPromo && descontoCfg && !descontoCfg.promoAceita) return s
     return s + (i.preco_unitario * i.quantidade - i.desconto_item)
   }, 0)
@@ -303,7 +305,7 @@ export default function CaixaPage() {
     try {
       const { data } = await api.get<any>(`/produtos/barcode/${encodeURIComponent(codigo)}`)
       const preco = data.preco_especifico ? parseFloat(data.preco_especifico) : parseFloat(data.preco_base)
-      const item  = { versao_id: data.versao_id ?? codigo, produto_id: data.produto_id, nome: data.produto_nome, atributos: data.atributos_json ?? {}, preco_unitario: preco, codigo_barras: data.codigo_barras }
+      const item  = { versao_id: data.versao_id ?? codigo, produto_id: data.produto_id, nome: data.produto_nome, atributos: data.atributos_json ?? {}, preco_unitario: preco, codigo_barras: data.codigo_barras, aceita_desconto: data.aceita_desconto ?? true }
       qty > 1 ? addItemQtd(item, qty) : addItem(item)
       setScanErro(''); return true
     } catch { return false }
@@ -376,7 +378,7 @@ export default function CaixaPage() {
       if (data.versoes?.length === 1) {
         const v = data.versoes[0]
         const preco = v.preco_especifico ? parseFloat(v.preco_especifico) : parseFloat(data.preco_base)
-        const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras }
+        const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras, aceita_desconto: data.aceita_desconto ?? true }
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
         setResultados([]); setScan('')
         scanRef.current?.focus()

@@ -107,6 +107,7 @@ export default function ProdutoPage() {
   const [descricao,       setDescricao]       = useState('')
   const [preco,           setPreco]           = useState('')
   const [controleEstoque, setControleEstoque] = useState(true)
+  const [aceitaDesconto,  setAceitaDesconto]  = useState(true)
 
   const [tipos,    setTipos]    = useState<ItemCatalogo[]>([])
   const [tamanhos, setTamanhos] = useState<ItemCatalogo[]>([])
@@ -153,6 +154,7 @@ export default function ProdutoPage() {
       setDescricao(p.descricao ?? '')
       setPreco(initCurrency(p.preco_base))
       setControleEstoque(p.controle_estoque)
+      setAceitaDesconto((p as any).aceita_desconto !== false)
       setRegimeTributario(dl.data.regime_tributario ?? '')
       setNcm((p as any).ncm ?? '')
       setCfop((p as any).cfop ?? '')
@@ -186,6 +188,7 @@ export default function ProdutoPage() {
         descricao:         descricao || undefined,
         preco_base:        parseCurrency(preco) as any,
         controle_estoque:  controleEstoque,
+        aceita_desconto:   aceitaDesconto,
         ncm:               ncm || null,
         cfop:              cfop || null,
         origem_mercadoria: origemMercadoria !== '' ? parseInt(origemMercadoria, 10) : null,
@@ -382,6 +385,25 @@ export default function ProdutoPage() {
                 <span
                   className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
                   style={{ left: controleEstoque ? '21px' : '3px' }}
+                />
+              </button>
+            </div>
+
+            {/* Permitir desconto toggle */}
+            <div style={{ ...ROW_STYLE, padding: '10px 12px' }} className="flex items-center justify-between">
+              <div>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>Permitir desconto</p>
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>Desative para produtos que nunca entram no desconto do caixa</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAceitaDesconto(v => !v)}
+                className="shrink-0 relative transition-colors"
+                style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: aceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+              >
+                <span
+                  className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                  style={{ left: aceitaDesconto ? '21px' : '3px' }}
                 />
               </button>
             </div>
