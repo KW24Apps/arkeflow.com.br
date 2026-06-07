@@ -30,6 +30,7 @@ const vendaSchema = z.object({
   pagamentos:        z.array(pagamentoSchema).min(1),
   cashback_usado:    z.coerce.number().min(0).default(0),
   desconto_promocao: z.coerce.number().min(0).default(0),
+  desconto_pagamento: z.coerce.number().min(0).default(0),
   vendedor_id:       z.string().uuid().optional().nullable(),
   vendedor_nome:     z.string().optional().nullable(),
 })
@@ -48,7 +49,7 @@ export async function vendasRoutes(app: FastifyInstance) {
 
     // Calcula totais
     const subtotal = data.itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
-    const desconto_total = data.itens.reduce((s, i) => s + i.desconto_item, 0) + data.desconto_promocao
+    const desconto_total = data.itens.reduce((s, i) => s + i.desconto_item, 0) + data.desconto_promocao + data.desconto_pagamento
     const total = Math.max(0, subtotal - desconto_total - data.cashback_usado)
 
     // Valida que pagamentos cobrem o total
@@ -104,7 +105,7 @@ export async function vendasRoutes(app: FastifyInstance) {
            vendedor_id, vendedor_nome)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'finalizada',$9,$10) RETURNING id`,
         [data.cliente_id ?? null, user.id, subtotal, data.desconto_promocao,
-         0, data.cashback_usado, total, cashback_gerado,
+         data.desconto_pagamento, data.cashback_usado, total, cashback_gerado,
          data.vendedor_id ?? null, data.vendedor_nome ?? null]
       )
       const venda_id = venda.id
