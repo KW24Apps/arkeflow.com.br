@@ -10,6 +10,14 @@ export const createClienteSchema = z.object({
 export const updateClienteSchema = createClienteSchema.partial().extend({
   regra_cashback_id: z.string().uuid().nullable().optional(),
   medidas_json:      z.record(z.string()).optional(),
+  // Address fields
+  cep:          z.string().optional().nullable(),
+  logradouro:   z.string().optional().nullable(),
+  numero:       z.string().optional().nullable(),
+  complemento:  z.string().optional().nullable(),
+  bairro:       z.string().optional().nullable(),
+  cidade:       z.string().optional().nullable(),
+  estado:       z.string().max(2).optional().nullable(),
 })
 
 export type CreateClienteInput = z.infer<typeof createClienteSchema>

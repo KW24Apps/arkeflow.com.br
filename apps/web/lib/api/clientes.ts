@@ -12,6 +12,14 @@ export interface Cliente {
   regra_cashback_percentual?: string
   criado_em: string
   ativo: boolean
+  // Address
+  cep?:         string | null
+  logradouro?:  string | null
+  numero?:      string | null
+  complemento?: string | null
+  bairro?:      string | null
+  cidade?:      string | null
+  estado?:      string | null
 }
 
 export interface VendaHistorico {

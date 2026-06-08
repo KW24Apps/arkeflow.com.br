@@ -18,6 +18,7 @@ import { atributosInline, atributosCompletos } from '@/lib/utils/atributos'
 import { AdvancedSearchModal } from '@/components/pdv/AdvancedSearchModal'
 import { CheckoutModal, type CheckoutResult } from '@/components/pdv/CheckoutModal'
 import { CustomerSearchModal } from '@/components/pdv/CustomerSearchModal'
+import { ClienteDadosModal } from '@/components/pdv/ClienteDadosModal'
 import { SalespersonSearchModal } from '@/components/pdv/SalespersonSearchModal'
 import { SacolasModal }           from '@/components/pdv/SacolasModal'
 import type { Cliente } from '@/lib/api/clientes'
@@ -137,9 +138,10 @@ export default function CaixaPage() {
   const [modalCliente,     setModalCliente]     = useState(false)
   const [clienteAutoAberto,setClienteAutoAberto] = useState(false)
 
-  const [modalVendedor,    setModalVendedor]    = useState(false)
-  const [vendedor,         setVendedor]         = useState<Colaborador | null>(null)
-  const [modalSacolas,     setModalSacolas]     = useState(false)
+  const [modalVendedor,      setModalVendedor]      = useState(false)
+  const [vendedor,           setVendedor]           = useState<Colaborador | null>(null)
+  const [modalSacolas,       setModalSacolas]       = useState(false)
+  const [modalDadosCliente,  setModalDadosCliente]  = useState(false)
 
   const [modalMov,   setModalMov]    = useState<'sangria' | 'suprimento' | null>(null)
   const [valorMov,   setValorMov]    = useState(0)
@@ -818,7 +820,7 @@ export default function CaixaPage() {
                 <div
                   role="button"
                   onClick={() => {
-                    if (cliente_id) { window.open(`/painel/clientes/${cliente_id}`, '_blank') }
+                    if (cliente_id) { setModalDadosCliente(true) }
                     else { setClienteAutoAberto(false); setModalCliente(true) }
                   }}
                   style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
@@ -911,7 +913,7 @@ export default function CaixaPage() {
         vendedorRemovivel={!vendedorDaSacola}
         onAbrirCliente={() => { setClienteAutoAberto(false); setModalCliente(true) }}
         onAbrirVendedor={() => setModalVendedor(true)}
-        onAbrirDadosCliente={() => { if (cliente_id) window.open(`/painel/clientes/${cliente_id}`, '_blank') }}
+        onAbrirDadosCliente={() => setModalDadosCliente(true)}
         onRemoverCliente={() => setCliente(null, null)}
         onRemoverVendedor={() => { setVendedor(null); setVendedorStore(null, null) }}
       />
@@ -939,6 +941,13 @@ export default function CaixaPage() {
         open={modalSacolas}
         onClose={() => { setModalSacolas(false); setTimeout(() => scanRef.current?.focus(), 100) }}
         onCarregada={() => setTimeout(() => scanRef.current?.focus(), 100)}
+      />
+
+      <ClienteDadosModal
+        open={modalDadosCliente}
+        clienteId={cliente_id}
+        onClose={() => setModalDadosCliente(false)}
+        onSaved={(c) => setCliente(c.id, c.nome)}
       />
 
       {/* Modal Boas-vindas */}
