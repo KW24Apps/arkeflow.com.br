@@ -14,6 +14,7 @@ import { clientesApi } from '@/lib/api/clientes'
 import { financeiroApi } from '@/lib/api/financeiro'
 import { promocoesApi } from '@/lib/api/promocoes'
 import { calcularDescontos } from '@/lib/calcularDesconto'
+import { atributosInline, atributosCompletos } from '@/lib/utils/atributos'
 import { AdvancedSearchModal } from '@/components/pdv/AdvancedSearchModal'
 import { CheckoutModal, type CheckoutResult } from '@/components/pdv/CheckoutModal'
 import { CustomerSearchModal } from '@/components/pdv/CustomerSearchModal'
@@ -542,14 +543,51 @@ export default function CaixaPage() {
                         <td className="px-4 py-3">
                           <p className="text-sea-foam font-medium truncate max-w-[200px]">{item.nome}</p>
                           <p className="text-steel text-xs">
-                            {Object.keys(item.atributos).length === 0 ? 'Versão única' : Object.entries(item.atributos).map(([key, val]) => (
-                              <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
-                                {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
-                              </span>
-                            ))}
-                            {itemElegivel && (
-                              <span style={{ fontSize: '10px', background: 'rgba(100,220,160,0.12)', border: '0.5px solid rgba(100,220,160,0.3)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(100,220,160,0.9)', fontWeight: 500, display: 'inline-block', marginRight: '4px' }}>desconto</span>
-                            )}
+                            {(() => {
+                              const inline   = atributosInline(item.atributos)
+                              const completo = atributosCompletos(item.atributos)
+                              const temMais  = completo.medidas.length > 0
+                              const CHIP: React.CSSProperties = { fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.65)', marginRight: '4px', display: 'inline-block' }
+                              return (
+                                <>
+                                  {inline.length === 0
+                                    ? <span style={{ ...CHIP, color: 'rgba(255,255,255,0.3)' }}>Versão única</span>
+                                    : inline.map((v, i) => <span key={i} style={CHIP}>{v}</span>)
+                                  }
+                                  {temMais && (
+                                    <span style={{ position: 'relative', display: 'inline-block' }}
+                                      onMouseEnter={e => { const t = e.currentTarget.querySelector<HTMLElement>('[data-tip]'); if (t) t.style.display = 'block' }}
+                                      onMouseLeave={e => { const t = e.currentTarget.querySelector<HTMLElement>('[data-tip]'); if (t) t.style.display = 'none' }}>
+                                      <span style={{ ...CHIP, color: 'rgba(255,255,255,0.35)', cursor: 'default' }}>+</span>
+                                      <span data-tip style={{ display: 'none', position: 'absolute', left: 0, top: '110%', zIndex: 50, background: 'rgb(10,22,34)', border: '0.5px solid rgba(255,255,255,0.14)', borderRadius: '9px', boxShadow: '0 4px 16px rgba(0,0,0,0.5)', minWidth: '200px', padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                                        <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 7px' }}>Detalhes da variação</p>
+                                        {completo.principais.map(a => (
+                                          <div key={a.label} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '3px' }}>
+                                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{a.label}</span>
+                                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{a.valor}</span>
+                                          </div>
+                                        ))}
+                                        {completo.medidas.length > 0 && (
+                                          <>
+                                            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.08)', margin: '7px 0 6px' }} />
+                                            <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 5px' }}>Medidas</p>
+                                            {completo.medidas.map(a => (
+                                              <div key={a.label} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '3px' }}>
+                                                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{a.label}</span>
+                                                <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{a.valor}</span>
+                                              </div>
+                                            ))}
+                                          </>
+                                        )}
+                                      </span>
+                                    </span>
+                                  )}
+                                  {itemElegivel && (
+                                    <span style={{ fontSize: '10px', background: 'rgba(100,220,160,0.12)', border: '0.5px solid rgba(100,220,160,0.3)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(100,220,160,0.9)', fontWeight: 500, display: 'inline-block', marginRight: '4px' }}>desconto</span>
+                                  )}
+                                </>
+                              )
+                            })()}
                           </p>
                           {item.desconto_item > 0 && (
                             <p className="text-mint-green text-xs">−{fmt(item.desconto_item)} promo</p>
