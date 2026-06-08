@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, Lock } from 'lucide-react'
+import { ChevronDown, Lock, Search } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
 import { useAuthStore } from '@/store/auth.store'
@@ -47,7 +47,6 @@ function ConfirmModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel
 
 // ─── VendaRow ─────────────────────────────────────────────────────────────────
 
-const GRID  = '50px 1fr 1fr 80px 40px 80px 20px'
 const BADGE: React.CSSProperties = {
   fontSize: '9px',
   background: 'rgba(255,255,255,0.06)',
@@ -92,62 +91,47 @@ function VendaRow({
           background: 'rgba(8,18,30,0.35)',
           border: `0.5px solid ${hov ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.07)'}`,
           borderRadius: '8px',
-          marginBottom: '4px',
+          marginBottom: '6px',
           cursor: 'pointer',
           transition: 'border-color 0.12s',
         }}
         onMouseEnter={() => setHov(true)}
         onMouseLeave={() => setHov(false)}
       >
-        {/* Summary row */}
+        {/* Summary row — self-contained flex card */}
         <div
-          style={{ display: 'grid', gridTemplateColumns: GRID, alignItems: 'center', padding: '10px 12px' }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '10px 12px' }}
           onClick={toggle}
         >
-          {/* HORA */}
-          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>{fmtHr(venda.criado_em)}</span>
-
-          {/* CLIENTE */}
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 500, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {venda.cliente_nome ?? 'Não identificado'}
-            </p>
-            {venda.cliente_telefone && (
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', margin: 0 }}>{venda.cliente_telefone}</p>
-            )}
+          {/* Left: hora + cliente */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>{fmtHr(venda.criado_em)}</span>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 500, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {venda.cliente_nome ?? 'Sem cliente'}
+              </p>
+              {venda.cliente_telefone && (
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', margin: 0 }}>{venda.cliente_telefone}</p>
+              )}
+            </div>
           </div>
 
-          {/* VENDEDOR */}
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {detail?.vendedor_nome ?? '—'}
-          </span>
-
-          {/* FORMA */}
-          <div>
-            {pagamentos.length === 0 ? (
-              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>—</span>
-            ) : pagamentos.length === 1 ? (
-              <span style={BADGE}>{pagamentos[0].forma_nome}</span>
-            ) : (
-              <span style={BADGE}>{pagamentos.length} formas</span>
-            )}
-          </div>
-
-          {/* ITENS */}
-          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', textAlign: 'right' }}>
-            {venda.total_itens}
-          </span>
-
-          {/* TOTAL */}
-          <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', fontWeight: 600, textAlign: 'right' }}>
-            {fmt(venda.total)}
-          </span>
-
-          {/* CHEVRON */}
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          {/* Right: forma + itens + total + chevron */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <div>
+              {pagamentos.length === 0 ? (
+                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>—</span>
+              ) : pagamentos.length === 1 ? (
+                <span style={BADGE}>{pagamentos[0].forma_nome}</span>
+              ) : (
+                <span style={BADGE}>{pagamentos.length} formas</span>
+              )}
+            </div>
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>{venda.total_itens} it.</span>
+            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(venda.total)}</span>
             <ChevronDown
               size={13}
-              style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.2s', transform: aberto ? 'rotate(180deg)' : 'none' }}
+              style={{ color: 'rgba(255,255,255,0.3)', transition: 'transform 0.2s', transform: aberto ? 'rotate(180deg)' : 'none', flexShrink: 0 }}
             />
           </div>
         </div>
@@ -161,6 +145,14 @@ function VendaRow({
               </div>
             ) : (
               <>
+                {/* Vendedor */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Vendedor</span>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                    {detail.vendedor_nome ?? '—'}
+                  </span>
+                </div>
+
                 {/* Itens — 3-column layout */}
                 <div>
                   {/* Column headers */}
@@ -314,6 +306,7 @@ export default function ResumoCaixaPage() {
   const [vendas,     setVendas]     = useState<VendaHistoricoItem[]>([])
   const [carregando, setCarregando] = useState(true)
   const [details,    setDetails]    = useState<DetailMap>({})
+  const [busca,      setBusca]      = useState('')
 
   // Always refresh caixa status on mount
   useEffect(() => { carregar() }, [])
@@ -377,6 +370,22 @@ export default function ResumoCaixaPage() {
   const totalSuprimentos = Number((turno as any)?.total_suprimentos  ?? 0)
   const esperadoGaveta   = saldoInicial + vendasDinheiro + totalSuprimentos - totalSangrias
 
+  // ── Client-side search filter ──
+  const vendasFiltradas = vendas.filter(v => {
+    if (!busca.trim()) return true
+    const q = busca.toLowerCase()
+    const clienteNome = (v.cliente_nome ?? 'sem cliente').toLowerCase()
+    if (clienteNome.includes(q)) return true
+    if (String(Number(v.total).toFixed(2)).includes(q)) return true
+    const d = details[v.id]
+    if (d?.vendedor_nome?.toLowerCase().includes(q)) return true
+    if ((d?.pagamentos ?? []).some((p: any) => p.forma_nome?.toLowerCase().includes(q))) return true
+    return false
+  })
+
+  const esquerda = vendasFiltradas.filter((_, i) => i % 2 === 0)
+  const direita  = vendasFiltradas.filter((_, i) => i % 2 === 1)
+
   // ── Shared styles ──
   const CARD: React.CSSProperties = {
     background: 'rgba(8,18,30,0.48)',
@@ -391,12 +400,6 @@ export default function ResumoCaixaPage() {
     letterSpacing: '0.12em',
     marginBottom: '8px',
     display: 'block',
-  }
-  const COL_HDR: React.CSSProperties = {
-    fontSize: '9px',
-    color: 'rgba(255,255,255,0.3)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.1em',
   }
   const META_ROW: React.CSSProperties = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
@@ -430,7 +433,7 @@ export default function ResumoCaixaPage() {
     </>
   )
 
-  const nomeOp        = (turno as any)?.usuario_nome || authNome || '—'
+  const nomeOp = (turno as any)?.usuario_nome || authNome || '—'
   // Round to cents before color check — floating-point subtraction can yield -2e-14
   // at zero, which would incorrectly trigger the danger color.
   const gavetaArredondado = Math.round(esperadoGaveta * 100) / 100
@@ -511,28 +514,62 @@ export default function ResumoCaixaPage() {
         </div>
       </div>
 
-      {/* ── Section 2: Column headers ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: GRID, padding: '4px 12px' }}>
-        {(['Hora', 'Cliente', 'Vendedor', 'Forma', 'Itens', 'Total', ''] as const).map((h, i) => (
-          <span key={i} style={COL_HDR}>{h}</span>
-        ))}
+      {/* ── Section 2: Search box ── */}
+      <div style={{ position: 'relative' }}>
+        <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }} />
+        <input
+          type="text"
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar por cliente, vendedor, valor ou forma…"
+          style={{
+            width: '100%',
+            minHeight: '38px',
+            background: 'rgba(8,18,30,0.5)',
+            border: '0.5px solid rgba(255,255,255,0.12)',
+            borderRadius: '8px',
+            color: 'rgba(255,255,255,0.8)',
+            fontSize: '13px',
+            padding: '0 12px 0 36px',
+            outline: 'none',
+            boxSizing: 'border-box',
+          }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+          onBlur={e  => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }}
+        />
       </div>
 
-      {/* ── Section 3: Sale rows ── */}
+      {/* ── Section 3: Two-column parity sale list ── */}
       {vendas.length === 0 ? (
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', padding: '32px 0' }}>
           Nenhuma venda neste turno
         </p>
+      ) : vendasFiltradas.length === 0 ? (
+        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', padding: '32px 0' }}>
+          Nenhuma venda encontrada
+        </p>
       ) : (
-        <div>
-          {vendas.map(v => (
-            <VendaRow
-              key={v.id}
-              venda={v}
-              detail={details[v.id]}
-              onExpand={() => handleExpand(v.id)}
-            />
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '8px', alignItems: 'start' }}>
+          <div>
+            {esquerda.map(v => (
+              <VendaRow
+                key={v.id}
+                venda={v}
+                detail={details[v.id]}
+                onExpand={() => handleExpand(v.id)}
+              />
+            ))}
+          </div>
+          <div>
+            {direita.map(v => (
+              <VendaRow
+                key={v.id}
+                venda={v}
+                detail={details[v.id]}
+                onExpand={() => handleExpand(v.id)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
