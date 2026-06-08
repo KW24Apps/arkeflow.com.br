@@ -41,6 +41,9 @@ export const clientesApi = {
   historico: (id: string) =>
     api.get<VendaHistorico[]>(`/clientes/${id}/historico`).then(r => r.data),
 
+  getCredito: (id: string) =>
+    api.get<{ credito_liberado: boolean; limite: number; ocupado: number; disponivel: number }>(`/clientes/${id}/credito`).then(r => r.data),
+
   create: (data: Partial<Cliente>) =>
     api.post<Cliente>('/clientes', data).then(r => r.data),
 

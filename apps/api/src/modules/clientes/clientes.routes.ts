@@ -31,6 +31,12 @@ export async function clientesRoutes(app: FastifyInstance) {
     return reply.send(await repo.findHistorico(pool, id))
   })
 
+  app.get('/:id/credito', { preHandler: auth }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { id } = req.params as { id: string }
+    return reply.send(await repo.getCreditoSaldo(pool, id))
+  })
+
   app.post('/', { preHandler: dono }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
     const data = createClienteSchema.parse(req.body)

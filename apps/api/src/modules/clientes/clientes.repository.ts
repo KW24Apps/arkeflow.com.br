@@ -82,6 +82,23 @@ export async function upsertCredito(pool: Pool, cliente_id: string, liberado: bo
   )
 }
 
+export async function getCreditoSaldo(pool: Pool, cliente_id: string) {
+  const { rows: [cc] } = await pool.query(
+    `SELECT COALESCE(credito_liberado, false) AS credito_liberado, COALESCE(limite, 0) AS limite
+     FROM clientes_credito WHERE cliente_id = $1`, [cliente_id])
+  const { rows: [oc] } = await pool.query(
+    `SELECT COALESCE(SUM(valor), 0) AS ocupado FROM parcelas_crediario
+     WHERE cliente_id = $1 AND status IN ('pendente','vencido')`, [cliente_id])
+  const limite  = Number(cc?.limite ?? 0)
+  const ocupado = Number(oc?.ocupado ?? 0)
+  return {
+    credito_liberado: cc?.credito_liberado ?? false,
+    limite,
+    ocupado,
+    disponivel: Math.max(0, Math.round((limite - ocupado) * 100) / 100),
+  }
+}
+
 export async function findHistorico(pool: Pool, cliente_id: string) {
   const { rows } = await pool.query(
     `SELECT v.id, v.total, v.cashback_gerado, v.cashback_usado, v.criado_em,

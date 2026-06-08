@@ -146,6 +146,7 @@ export default function ClienteDetalhe() {
   // Credit
   const [creditoLiberado, setCreditoLiberado] = useState(false)
   const [limiteCredito,   setLimiteCredito]   = useState('')
+  const [creditoSaldo,    setCreditoSaldo]    = useState({ ocupado: 0, disponivel: 0 })
 
   // Medidas
   const [medidasDisponiveis, setMedidasDisponiveis] = useState<ItemCatalogo[]>([])
@@ -162,7 +163,8 @@ export default function ClienteDetalhe() {
       cashbackApi.list(),
       catalogosApi.list('medidas'),
       api.get(`/clientes/${id}/contatos`).then(r => r.data).catch(() => []),
-    ]).then(([c, h, rs, meds]) => {
+      clientesApi.getCredito(id).catch(() => ({ ocupado: 0, disponivel: 0 })),
+    ]).then(([c, h, rs, meds, , saldo]) => {
       setCliente(c); setHistorico(h); setRegras(rs)
       setMedidasDisponiveis(meds)
       setMedidasCliente((c as any).medidas_json ?? {})
@@ -190,6 +192,7 @@ export default function ClienteDetalhe() {
       setEstado((c as any).estado ?? '')
       setCreditoLiberado((c as any).credito_liberado ?? false)
       setLimiteCredito(((c as any).limite_credito ?? 0) > 0 ? String((c as any).limite_credito) : '')
+      setCreditoSaldo({ ocupado: Number((saldo as any).ocupado ?? 0), disponivel: Number((saldo as any).disponivel ?? 0) })
     })
     .catch(() => setCliente(null))
     .finally(() => setLoading(false))
@@ -638,23 +641,20 @@ export default function ClienteDetalhe() {
                     </div>
                   )}
 
-                  {/* Saldo do crédito (fase 2) */}
+                  {/* Saldo do crédito */}
                   <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)', paddingTop: '12px' }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Saldo do crédito</p>
-                      <span style={{ fontSize: '8px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '1px 5px', color: 'rgba(255,255,255,0.25)' }}>fase 2</span>
-                    </div>
+                    <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '8px' }}>Saldo do crédito</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '10px 12px' }}>
                         <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)' }}>Ocupado</p>
-                        <p style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>R$ 0,00</p>
+                        <p style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>
+                          R$ {creditoSaldo.ocupado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
                       </div>
                       <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '10px 12px' }}>
                         <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)' }}>Disponível</p>
                         <p style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>
-                          {limiteCredito && parseFloat(limiteCredito) > 0
-                            ? `R$ ${parseFloat(limiteCredito).toFixed(2)}`
-                            : 'R$ 0,00'}
+                          R$ {creditoSaldo.disponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                       </div>
                     </div>
