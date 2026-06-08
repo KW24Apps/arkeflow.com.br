@@ -304,13 +304,24 @@ export default function CaixaPage() {
     try {
       const { data } = await api.get<any>(`/produtos/barcode/${encodeURIComponent(codigo)}`)
       if (data.match === 'produto') {
-        // Product-level barcode → open variation picker
-        setProdutoVariacao({ produto: data.produto, qty })
-        setModalVariacao(true)
+        const p             = data.produto
+        const versoes: any[] = data.versoes ?? []
+        if (versoes.length === 1) {
+          const v     = versoes[0]
+          const preco = v.preco_especifico ? parseFloat(v.preco_especifico) : parseFloat(p.preco_base)
+          const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras ?? null, aceita_desconto: p.aceita_desconto ?? true }
+          qty > 1 ? addItemQtd(item, qty) : addItem(item)
+        } else if (versoes.length > 1) {
+          setProdutoVariacao({ produto: { ...p, versoes }, qty })
+          setModalVariacao(true)
+        } else {
+          setScanErro(`${p.nome} sem variações cadastradas.`)
+          return true
+        }
       } else {
-        // Variation-level barcode → add directly
+        // Variation-level barcode → add directly; data.id is the versao UUID (SELECT v.*)
         const preco = data.preco_especifico ? parseFloat(data.preco_especifico) : parseFloat(data.preco_base)
-        const item  = { versao_id: data.versao_id ?? codigo, produto_id: data.produto_id, nome: data.produto_nome, atributos: data.atributos_json ?? {}, preco_unitario: preco, codigo_barras: data.codigo_barras, aceita_desconto: data.aceita_desconto ?? true }
+        const item  = { versao_id: data.id, produto_id: data.produto_id, nome: data.produto_nome, atributos: data.atributos_json ?? {}, preco_unitario: preco, codigo_barras: data.codigo_barras, aceita_desconto: data.aceita_desconto ?? true }
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
       }
       setScanErro(''); return true
