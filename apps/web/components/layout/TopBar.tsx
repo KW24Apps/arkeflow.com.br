@@ -14,6 +14,8 @@ export function TopBar() {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => { useAuthStore.persist.rehydrate() }, [])
+
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false)

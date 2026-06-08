@@ -17,6 +17,6 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (token, usuario) => set({ token, usuario }),
       clearAuth: () => set({ token: null, usuario: null }),
     }),
-    { name: 'arkeflow_auth' }
+    { name: 'arkeflow_auth', skipHydration: true }
   )
 )
