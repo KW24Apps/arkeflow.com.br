@@ -142,7 +142,7 @@ export function ClienteDadosModal({ open, clienteId, onClose, onSaved }: Props) 
     if (!nome.trim()) { setErro('Nome é obrigatório.'); return }
     setSalvando(true); setErro('')
     try {
-      const c = await clientesApi.update(clienteId, {
+      const c = await clientesApi.update(clienteId!, {
         nome:        nome.trim(),
         cpf:         cpf        || null,
         telefone:    telefones[0]?.trim() || null,
