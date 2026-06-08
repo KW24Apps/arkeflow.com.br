@@ -153,7 +153,7 @@ export default function NovoClientePage() {
     finally { setBuscandoCep(false) }
   }
 
-  async function handleSalvar() {
+  async function handleSalvar(goToList: boolean) {
     setErro('')
     if (!nome.trim()) { setErro('Nome é obrigatório.'); return }
     setLoading(true)
@@ -175,7 +175,11 @@ export default function NovoClientePage() {
         cidade:            cidade || undefined,
         estado:            estado || undefined,
       } as any)
-      router.push(`/painel/clientes/${c.id}`)
+      if (goToList) {
+        router.push('/painel/clientes')
+      } else {
+        router.replace(`/painel/clientes/${c.id}`)
+      }
     } catch (err: any) {
       setErro(err?.response?.data?.error ?? 'Erro ao salvar.')
     } finally { setLoading(false) }
@@ -320,10 +324,15 @@ export default function NovoClientePage() {
             style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>
             Cancelar
           </button>
-          <button onClick={handleSalvar} disabled={loading}
+          <button type="button" onClick={() => handleSalvar(false)} disabled={loading}
+            className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
+            style={{ background: 'rgba(0,239,255,0.12)', border: '0.5px solid rgba(0,239,255,0.35)', borderRadius: '8px', color: 'rgba(0,239,255,0.85)', fontSize: '13px', fontWeight: 600 }}>
+            {loading ? 'Salvando...' : 'Aplicar'}
+          </button>
+          <button type="button" onClick={() => handleSalvar(true)} disabled={loading}
             className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
             style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}>
-            {loading ? 'Salvando...' : 'Salvar Cliente'}
+            {loading ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
 

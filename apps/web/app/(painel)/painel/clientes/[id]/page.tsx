@@ -118,7 +118,8 @@ export default function ClienteDetalhe() {
   const [historico, setHistorico] = useState<VendaHistorico[]>([])
   const [regras,    setRegras]    = useState<RegraCashback[]>([])
   const [loading,   setLoading]   = useState(true)
-  const [salvando,  setSalvando]  = useState(false)
+  const [salvando,     setSalvando]     = useState(false)
+  const [salvoFeedback, setSalvoFeedback] = useState(false)
   const [modal, setModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: '', message: '', onConfirm: () => {} })
 
   // Core fields
@@ -228,7 +229,7 @@ export default function ClienteDetalhe() {
     finally { setBuscandoCep(false) }
   }
 
-  async function handleSalvar() {
+  async function handleSalvar(goToList = false) {
     setSalvando(true)
     try {
       const c = await clientesApi.update(id, {
@@ -249,6 +250,12 @@ export default function ClienteDetalhe() {
         estado:            estado || undefined,
       } as any)
       setCliente(c)
+      if (goToList) {
+        router.push('/painel/clientes')
+      } else {
+        setSalvoFeedback(true)
+        setTimeout(() => setSalvoFeedback(false), 2000)
+      }
     } finally { setSalvando(false) }
   }
 
@@ -636,12 +643,20 @@ export default function ClienteDetalhe() {
               Remover cliente
             </button>
             <button
-              onClick={handleSalvar}
+              onClick={() => handleSalvar(false)}
+              disabled={salvando}
+              className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
+              style={{ background: 'rgba(0,239,255,0.12)', border: '0.5px solid rgba(0,239,255,0.35)', borderRadius: '8px', color: 'rgba(0,239,255,0.85)', fontSize: '13px', fontWeight: 600 }}
+            >
+              {salvando ? 'Salvando...' : salvoFeedback ? 'Salvo ✓' : 'Aplicar'}
+            </button>
+            <button
+              onClick={() => handleSalvar(true)}
               disabled={salvando}
               className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
               style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}
             >
-              {salvando ? 'Salvando...' : 'Salvar alterações'}
+              {salvando ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
         )}

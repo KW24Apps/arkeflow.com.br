@@ -102,8 +102,7 @@ export default function NovoColaboradorPage() {
     setDiasSemana(dias); setHoraInicio(inicio); setHoraFim(fim)
   }
 
-  async function handleSalvar(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSalvar(goToList: boolean) {
     setErro('')
     if (!nome || !email || !senha) { setErro('Preencha nome, email e senha.'); return }
     if (senha.length < 6) { setErro('Senha mínimo 6 caracteres.'); return }
@@ -132,7 +131,11 @@ export default function NovoColaboradorPage() {
           })
         } catch {}
       }
-      router.push(`/painel/colaboradores/${c.id}`)
+      if (goToList) {
+        router.push('/painel/colaboradores')
+      } else {
+        router.replace(`/painel/colaboradores/${c.id}`)
+      }
     } catch (err: any) {
       setErro(err?.response?.data?.error ?? 'Erro ao salvar.')
     } finally { setLoading(false) }
@@ -142,7 +145,7 @@ export default function NovoColaboradorPage() {
     <>
       <TopBar />
       <main className="flex-1 overflow-hidden flex flex-col">
-        <form onSubmit={handleSalvar} className="flex-1 overflow-hidden flex flex-col">
+        <form className="flex-1 overflow-hidden flex flex-col">
 
           <div className="flex-1 overflow-y-auto p-3">
             {erro && <p style={{ fontSize: '12px', color: 'rgba(248,113,113,0.85)', textAlign: 'center', marginBottom: '8px' }}>{erro}</p>}
@@ -218,10 +221,15 @@ export default function NovoColaboradorPage() {
               style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>
               Cancelar
             </button>
-            <button type="submit" disabled={loading}
+            <button type="button" onClick={() => handleSalvar(false)} disabled={loading}
+              className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
+              style={{ background: 'rgba(0,239,255,0.12)', border: '0.5px solid rgba(0,239,255,0.35)', borderRadius: '8px', color: 'rgba(0,239,255,0.85)', fontSize: '13px', fontWeight: 600 }}>
+              {loading ? 'Salvando...' : 'Aplicar'}
+            </button>
+            <button type="button" onClick={() => handleSalvar(true)} disabled={loading}
               className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
               style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}>
-              {loading ? 'Salvando...' : 'Criar Colaborador'}
+              {loading ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
 

@@ -118,8 +118,9 @@ export default function ColaboradorDetalhe() {
   const [logs,     setLogs]     = useState<LogAcesso[]>([])
   const [docs,     setDocs]     = useState<DocItem[]>([])
   const [loading,  setLoading]  = useState(true)
-  const [salvando, setSalvando] = useState(false)
-  const [msg,      setMsg]      = useState('')
+  const [salvando,      setSalvando]      = useState(false)
+  const [salvoFeedback, setSalvoFeedback] = useState(false)
+  const [msg,           setMsg]           = useState('')
 
   const [modelos,  setModelos]  = useState<any[]>([])
   const [modeloId, setModeloId] = useState<string>('')
@@ -232,7 +233,7 @@ export default function ColaboradorDetalhe() {
     finally { setSalvando(false) }
   }
 
-  async function salvarTudo() {
+  async function salvarTudo(goToList = false) {
     setSalvando(true); setMsg('')
     try {
       await colaboradoresApi.updateAcesso(id, {
@@ -258,7 +259,12 @@ export default function ColaboradorDetalhe() {
         pix: pix || null,
       }
       await colaboradoresApi.updatePerfil(id, perfil)
-      setMsg('Salvo com sucesso.')
+      if (goToList) {
+        router.push('/painel/colaboradores')
+      } else {
+        setSalvoFeedback(true)
+        setTimeout(() => setSalvoFeedback(false), 2000)
+      }
     } catch (err: any) { setMsg(err?.response?.data?.error ?? 'Erro.') }
     finally { setSalvando(false) }
   }
@@ -685,12 +691,20 @@ export default function ColaboradorDetalhe() {
                 </button>
               )}
               <button
-                onClick={salvarTudo}
+                onClick={() => salvarTudo(false)}
                 disabled={salvando}
-                className={`min-h-[44px] disabled:opacity-40 transition-opacity ${isDono ? 'w-full' : 'flex-[2]'}`}
+                className={`min-h-[44px] disabled:opacity-40 transition-opacity ${isDono ? 'flex-[2]' : 'flex-[2]'}`}
+                style={{ background: 'rgba(0,239,255,0.12)', border: '0.5px solid rgba(0,239,255,0.35)', borderRadius: '8px', color: 'rgba(0,239,255,0.85)', fontSize: '13px', fontWeight: 600 }}
+              >
+                {salvando ? 'Salvando...' : salvoFeedback ? 'Salvo ✓' : 'Aplicar'}
+              </button>
+              <button
+                onClick={() => salvarTudo(true)}
+                disabled={salvando}
+                className={`min-h-[44px] disabled:opacity-40 transition-opacity ${isDono ? 'flex-[2]' : 'flex-[2]'}`}
                 style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}
               >
-                {salvando ? 'Salvando...' : 'Salvar tudo'}
+                {salvando ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </div>
