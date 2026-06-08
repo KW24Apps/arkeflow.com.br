@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const createProdutoSchema = z.object({
   nome:             z.string().min(1),
   codigo:           z.string().optional().nullable(),   // SKU/referência interna
-  tipo_id:          z.string().uuid().optional().nullable(),
+  tipo_id:          z.string().uuid({ message: 'Tipo é obrigatório' }),
   genero:           z.string().optional().nullable(),
   categoria:        z.string().optional(),
   marca:            z.string().optional(),
@@ -29,7 +29,9 @@ export const createProdutoSchema = z.object({
   cofins:            z.coerce.number().optional().nullable(),
 })
 
-export const updateProdutoSchema = createProdutoSchema.partial()
+export const updateProdutoSchema = createProdutoSchema.partial().extend({
+  tipo_id: z.string().uuid({ message: 'Tipo é obrigatório' }),
+})
 
 export const createVersaoSchema = z.object({
   atributos_json:    z.record(z.string()),

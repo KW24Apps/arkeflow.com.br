@@ -98,6 +98,8 @@ export default function ProdutoPage() {
   const [loading,   setLoading]   = useState(true)
   const [salvandoProduto, setSalvandoProduto] = useState(false)
   const [produtoSalvo,    setProdutoSalvo]    = useState(false)
+  const [erroProduto,     setErroProduto]     = useState('')
+  const [salvoFeedback,   setSalvoFeedback]   = useState(false)
 
   const [nome,            setNome]            = useState('')
   const [tipoId,          setTipoId]          = useState('')
@@ -170,18 +172,20 @@ export default function ProdutoPage() {
   }, [id])
 
   // ─── salvar produto ─────────────────────────────────────────────────────────
-  async function handleSalvarProduto() {
+  async function handleSalvarProduto(goToList = false) {
+    setErroProduto('')
     if (!nome || !preco) return
+    if (!tipoId) { setErroProduto('Selecione o tipo do produto.'); return }
     const totalComp = (composicaoItens ?? []).reduce((s, i) => s + i.percentual, 0)
     if (composicaoItens.length > 0 && totalComp !== 100) {
-      alert(`A composição precisa totalizar 100% (atual: ${totalComp}%).`)
+      setErroProduto(`A composição precisa totalizar 100% (atual: ${totalComp}%).`)
       return
     }
     setSalvandoProduto(true)
     try {
       await produtosApi.update(id, {
         nome,
-        tipo_id:           tipoId || null,
+        tipo_id:           tipoId,
         genero:            genero || null,
         marca:             marca || undefined,
         composicao_itens:  composicaoItens as any,
@@ -202,6 +206,14 @@ export default function ProdutoPage() {
       const atualizado = await produtosApi.get(id)
       setProduto(atualizado)
       setProdutoSalvo(true)
+      if (goToList) {
+        router.push('/painel/produtos')
+      } else {
+        setSalvoFeedback(true)
+        setTimeout(() => setSalvoFeedback(false), 2000)
+      }
+    } catch (err: any) {
+      setErroProduto(err?.response?.data?.error ?? 'Erro ao salvar produto.')
     } finally { setSalvandoProduto(false) }
   }
 
@@ -322,7 +334,7 @@ export default function ProdutoPage() {
               {/* Tipo + Gênero */}
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="flex flex-col">
-                  <Label>Tipo</Label>
+                  <Label>Tipo *</Label>
                   <GlassSelect value={tipoId} onChange={e => setTipoId(e.target.value)}>
                     <option value="">Tipo...</option>
                     {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -776,24 +788,37 @@ export default function ProdutoPage() {
 
         {/* ── Fixed footer ──────────────────────────────────────────────── */}
         <div
-          className="shrink-0 flex gap-3 px-4 py-3"
+          className="shrink-0 flex flex-col gap-2 px-4 py-3"
           style={{ background: 'rgba(8,18,30,0.65)', backdropFilter: 'blur(8px)', borderTop: '0.5px solid rgba(255,255,255,0.07)' }}
         >
-          <button
-            onClick={() => setModal({ open: true, title: 'Remover produto', message: 'O produto e todas as suas variações serão excluídos permanentemente.', confirmLabel: 'Remover', onConfirm: handleDeleteProduto })}
-            className="flex-1 min-h-[44px]"
-            style={{ background: 'rgba(240,100,100,0.08)', border: '0.5px solid rgba(240,100,100,0.25)', borderRadius: '8px', color: 'rgba(240,100,100,0.7)', fontSize: '13px' }}
-          >
-            Remover produto
-          </button>
-          <button
-            onClick={handleSalvarProduto}
-            disabled={salvandoProduto || !nome || !preco}
-            className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
-            style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}
-          >
-            {salvandoProduto ? 'Salvando...' : 'Salvar Alterações'}
-          </button>
+          {erroProduto && (
+            <p style={{ fontSize: '12px', color: 'rgba(248,113,113,0.85)', textAlign: 'center' }}>{erroProduto}</p>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setModal({ open: true, title: 'Remover produto', message: 'O produto e todas as suas variações serão excluídos permanentemente.', confirmLabel: 'Remover', onConfirm: handleDeleteProduto })}
+              className="flex-1 min-h-[44px]"
+              style={{ background: 'rgba(240,100,100,0.08)', border: '0.5px solid rgba(240,100,100,0.25)', borderRadius: '8px', color: 'rgba(240,100,100,0.7)', fontSize: '13px' }}
+            >
+              Remover
+            </button>
+            <button
+              onClick={() => handleSalvarProduto(false)}
+              disabled={salvandoProduto || !nome || !preco}
+              className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
+              style={{ background: 'rgba(0,239,255,0.12)', border: '0.5px solid rgba(0,239,255,0.35)', borderRadius: '8px', color: 'rgba(0,239,255,0.85)', fontSize: '13px', fontWeight: 600 }}
+            >
+              {salvandoProduto ? 'Salvando...' : salvoFeedback ? 'Salvo ✓' : 'Aplicar'}
+            </button>
+            <button
+              onClick={() => handleSalvarProduto(true)}
+              disabled={salvandoProduto || !nome || !preco}
+              className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
+              style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}
+            >
+              {salvandoProduto ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
         </div>
       </main>
       <ConfirmModal

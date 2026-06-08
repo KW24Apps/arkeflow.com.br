@@ -75,19 +75,20 @@ export default function NovoProdutoPage() {
     catalogosApi.list('tipos_produto').then(setTipos)
   }, [])
 
-  async function salvarProduto() {
+  async function salvarProduto(goToList: boolean) {
     setErroProduto('')
-    if (!nome.trim()) { setErroProduto('Informe o nome do produto.'); return null }
-    if (!preco)       { setErroProduto('Informe o preço base.'); return null }
+    if (!nome.trim()) { setErroProduto('Informe o nome do produto.'); return }
+    if (!preco)       { setErroProduto('Informe o preço base.'); return }
+    if (!tipoId)      { setErroProduto('Selecione o tipo do produto.'); return }
     const totalComp = composicaoItens.reduce((s, i) => s + i.percentual, 0)
     if (composicaoItens.length > 0 && totalComp !== 100) {
-      setErroProduto(`A composição precisa totalizar 100% (atual: ${totalComp}%).`); return null
+      setErroProduto(`A composição precisa totalizar 100% (atual: ${totalComp}%).`); return
     }
     setSalvandoProduto(true)
     try {
       if (produtoId) {
         await produtosApi.update(produtoId, {
-          nome, tipo_id: tipoId || null, genero: genero || null, marca: marca || undefined,
+          nome, tipo_id: tipoId, genero: genero || null, marca: marca || undefined,
           descricao: descricao || undefined,
           composicao_itens: composicaoItens as any,
           preco_base: parseCurrency(preco) as any,
@@ -95,10 +96,11 @@ export default function NovoProdutoPage() {
           aceita_desconto: aceitaDesconto,
         } as any)
         const p = await produtosApi.get(produtoId)
-        setProduto(p); return produtoId
+        setProduto(p)
+        if (goToList) router.push('/painel/produtos')
       } else {
         const p = await produtosApi.create({
-          nome, tipo_id: tipoId || undefined, genero: genero || undefined, marca: marca || undefined,
+          nome, tipo_id: tipoId, genero: genero || undefined, marca: marca || undefined,
           descricao: descricao || undefined,
           composicao_itens: composicaoItens.length ? composicaoItens : undefined,
           preco_base: parseCurrency(preco),
@@ -106,12 +108,14 @@ export default function NovoProdutoPage() {
           aceita_desconto: aceitaDesconto,
         } as any)
         setProdutoId(p!.id); setProduto(p!)
-        router.replace(`/painel/produtos/${p!.id}`)
-        return p!.id
+        if (goToList) {
+          router.push('/painel/produtos')
+        } else {
+          router.replace(`/painel/produtos/${p!.id}`)
+        }
       }
     } catch (err: any) {
       setErroProduto(err?.response?.data?.error ?? 'Erro ao salvar produto.')
-      return null
     } finally { setSalvandoProduto(false) }
   }
 
@@ -135,7 +139,7 @@ export default function NovoProdutoPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col">
-                  <Lbl>Tipo</Lbl>
+                  <Lbl>Tipo *</Lbl>
                   <GlassSelect value={tipoId} onChange={e => setTipoId(e.target.value)}>
                     <option value="">Tipo...</option>
                     {tipos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -224,10 +228,15 @@ export default function NovoProdutoPage() {
             style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: 'rgba(255,255,255,0.5)', fontSize: '13px' }}>
             Cancelar
           </button>
-          <button onClick={() => salvarProduto()} disabled={salvandoProduto || !nome || !preco}
+          <button onClick={() => salvarProduto(false)} disabled={salvandoProduto}
+            className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
+            style={{ background: 'rgba(0,239,255,0.12)', border: '0.5px solid rgba(0,239,255,0.35)', borderRadius: '8px', color: 'rgba(0,239,255,0.85)', fontSize: '13px', fontWeight: 600 }}>
+            {salvandoProduto ? 'Salvando...' : 'Aplicar'}
+          </button>
+          <button onClick={() => salvarProduto(true)} disabled={salvandoProduto}
             className="flex-[2] min-h-[44px] disabled:opacity-40 transition-opacity"
             style={{ background: 'rgba(0,239,255,0.85)', borderRadius: '8px', color: '#0a0a1a', fontSize: '13px', fontWeight: 600, border: 'none' }}>
-            {salvandoProduto ? 'Salvando...' : 'Salvar Produto'}
+            {salvandoProduto ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
 
