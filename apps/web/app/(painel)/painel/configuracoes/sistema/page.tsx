@@ -13,7 +13,6 @@ interface SistemaConfig {
   desconto_max_valor: string | number
   promocao_aceita_desconto: boolean
   desconto_restringe_formas: boolean
-  crediario_habilitado: boolean
   crediario_max_parcelas: number
   crediario_entrada_obrigatoria: boolean
   crediario_entrada_min_pct: number
@@ -74,7 +73,6 @@ export default function ConfigSistemaPage() {
   const [formas,                  setFormas]                  = useState<FormaPagamento[]>([])
   const [descontoSaved,           setDescontoSaved]           = useState(false)
 
-  const [crediarioHabilitado,    setCrediarioHabilitado]    = useState(false)
   const [crediarioMaxParcelas,   setCrediarioMaxParcelas]   = useState(1)
   const [crediarioEntradaObrig,  setCrediarioEntradaObrig]  = useState(false)
   const [crediarioEntradaMinPct, setCrediarioEntradaMinPct] = useState(0)
@@ -91,7 +89,7 @@ export default function ConfigSistemaPage() {
   useEffect(() => {
     Promise.all([
       api.get<SistemaConfig>('/dados-loja/sistema'),
-      financeiroApi.formasPagamento(),
+      financeiroApi.formasPagamento(true),
     ]).then(([sysRes, fs]) => {
       setCfg(sysRes.data)
       setControleEstoque(sysRes.data.controle_estoque)
@@ -100,8 +98,7 @@ export default function ConfigSistemaPage() {
       setDescontoMaxValorCents(Math.round(Number(sysRes.data.desconto_max_valor ?? 0) * 100))
       setPromocaoAceitaDesconto(sysRes.data.promocao_aceita_desconto ?? false)
       setDescontoRestringeFormas(sysRes.data.desconto_restringe_formas ?? false)
-      setFormas(fs.filter(f => f.ativo))
-      setCrediarioHabilitado(sysRes.data.crediario_habilitado ?? false)
+      setFormas(fs)
       setCrediarioMaxParcelas(Number(sysRes.data.crediario_max_parcelas ?? 1))
       setCrediarioEntradaObrig(sysRes.data.crediario_entrada_obrigatoria ?? false)
       setCrediarioEntradaMinPct(Number(sysRes.data.crediario_entrada_min_pct ?? 0))
@@ -196,13 +193,17 @@ export default function ConfigSistemaPage() {
   }
 
   async function handleToggleCrediario() {
-    const v = !crediarioHabilitado
-    setCrediarioHabilitado(v)
+    const formaCrediario = formas.find(f => f.tipo === 'crediario')
+    if (!formaCrediario) return
+    const novoValor = !formaCrediario.ativo
+    setFormas(prev => prev.map(f => f.id === formaCrediario.id ? { ...f, ativo: novoValor } : f))
     try {
-      await api.put('/dados-loja/sistema', { crediario_habilitado: v })
+      await financeiroApi.atualizarFormaPagamento(formaCrediario.id, { ativo: novoValor } as any)
       setCrediarioSaved(true)
       setTimeout(() => setCrediarioSaved(false), 2000)
-    } catch { setCrediarioHabilitado(!v) }
+    } catch {
+      setFormas(prev => prev.map(f => f.id === formaCrediario.id ? { ...f, ativo: formaCrediario.ativo } : f))
+    }
   }
 
   async function handleToggleEntradaObrig() {
@@ -238,6 +239,9 @@ export default function ConfigSistemaPage() {
   if (loading) return (
     <><TopBar /><div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" /></div></>
   )
+
+  const formaCrediario = formas.find(f => f.tipo === 'crediario')
+  const crediarioAtivo = formaCrediario?.ativo === true
 
   return (
     <>
@@ -318,15 +322,15 @@ export default function ConfigSistemaPage() {
                   type="button"
                   onClick={handleToggleCrediario}
                   className="relative transition-colors"
-                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: crediarioHabilitado ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: crediarioAtivo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
                 >
-                  <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: crediarioHabilitado ? '21px' : '3px' }} />
+                  <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: crediarioAtivo ? '21px' : '3px' }} />
                 </button>
                 {crediarioSaved && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               </div>
             </div>
 
-            {crediarioHabilitado && (
+            {crediarioAtivo && (
               <>
                 {/* Máximo de parcelas */}
                 <div className="flex flex-col gap-1.5">
@@ -494,13 +498,13 @@ export default function ConfigSistemaPage() {
                 )}
 
                 {/* Formas aceitas na entrada / nas parcelas */}
-                {formas.filter(f => f.tipo !== 'crediario').length > 0 && (
+                {formas.filter(f => f.tipo !== 'crediario' && f.ativo).length > 0 && (
                   <>
                     <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
 
                     <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>Formas aceitas na entrada</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {formas.filter(f => f.tipo !== 'crediario').map(f => {
+                      {formas.filter(f => f.tipo !== 'crediario' && f.ativo).map(f => {
                         const on = crediarioFormasEntrada.includes(f.id)
                         return (
                           <button
@@ -526,7 +530,7 @@ export default function ConfigSistemaPage() {
 
                     <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>Formas aceitas nas parcelas</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {formas.filter(f => f.tipo !== 'crediario').map(f => {
+                      {formas.filter(f => f.tipo !== 'crediario' && f.ativo).map(f => {
                         const on = crediarioFormasParcela.includes(f.id)
                         return (
                           <button
@@ -683,7 +687,7 @@ export default function ConfigSistemaPage() {
               </div>
             </div>
 
-            {formas.length > 0 && (
+            {formas.filter(f => f.ativo).length > 0 && (
               <>
                 <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
                 <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>
@@ -693,7 +697,7 @@ export default function ConfigSistemaPage() {
                   Clique sobre a forma para ativar ou desativar o desconto.
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {formas.map(f => {
+                  {formas.filter(f => f.ativo).map(f => {
                     const aceita = f.aceita_desconto !== false
                     return (
                       <button

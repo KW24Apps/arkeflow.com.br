@@ -167,7 +167,7 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     if (promocao_aceita_desconto !== undefined) { val.push(promocao_aceita_desconto);  upd.push(`promocao_aceita_desconto = $${val.length}`) }
     if (desconto_restringe_formas !== undefined){ val.push(desconto_restringe_formas); upd.push(`desconto_restringe_formas = $${val.length}`) }
     const body = req.body as any
-    const CRED_COLS = ['crediario_habilitado','crediario_max_parcelas','crediario_entrada_obrigatoria','crediario_entrada_min_pct','crediario_juros_habilitado','crediario_juros_sem_ate','crediario_juros_mes','crediario_atraso_habilitado','crediario_atraso_multa','crediario_atraso_mora_mes']
+    const CRED_COLS = ['crediario_max_parcelas','crediario_entrada_obrigatoria','crediario_entrada_min_pct','crediario_juros_habilitado','crediario_juros_sem_ate','crediario_juros_mes','crediario_atraso_habilitado','crediario_atraso_multa','crediario_atraso_mora_mes']
     const CRED_JSON = ['crediario_formas_entrada','crediario_formas_parcela']
     for (const col of CRED_COLS)  { if (body[col] !== undefined) { val.push(body[col]);                       upd.push(`${col} = $${val.length}`) } }
     for (const col of CRED_JSON)  { if (body[col] !== undefined) { val.push(JSON.stringify(body[col] ?? [])); upd.push(`${col} = $${val.length}`) } }
