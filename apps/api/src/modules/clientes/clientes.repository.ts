@@ -48,6 +48,8 @@ export async function update(pool: Pool, id: string, data: Record<string, any>) 
   if (processed.medidas_json !== undefined) {
     processed.medidas_json = JSON.stringify(processed.medidas_json)
   }
+  // No clientes column accepts an array — drop any array values silently
+  Object.keys(processed).forEach(k => { if (Array.isArray(processed[k])) delete processed[k] })
   const keys   = Object.keys(processed)
   const values = Object.values(processed)
   const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')

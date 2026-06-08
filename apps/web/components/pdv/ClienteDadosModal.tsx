@@ -146,9 +146,7 @@ export function ClienteDadosModal({ open, clienteId, onClose, onSaved }: Props) 
         nome:        nome.trim(),
         cpf:         cpf        || null,
         telefone:    telefones[0]?.trim() || null,
-        telefones:   telefones.filter(t => t.trim()),
         email:       emails[0]?.trim()    || null,
-        emails:      emails.filter(e => e.trim()),
         cep:         cep        || null,
         logradouro:  logradouro || null,
         numero:      numero     || null,
@@ -166,7 +164,7 @@ export function ClienteDadosModal({ open, clienteId, onClose, onSaved }: Props) 
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, background: 'rgba(6,14,26,0.92)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(6,14,26,0.92)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
     >
       <div
         style={{ background: 'rgba(8,18,30,0.98)', backdropFilter: 'blur(20px)', border: '0.5px solid rgba(255,255,255,0.13)', borderRadius: '16px', width: '100%', maxWidth: '500px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.7)' }}
