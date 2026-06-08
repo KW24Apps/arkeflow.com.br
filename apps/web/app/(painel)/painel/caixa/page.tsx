@@ -301,9 +301,16 @@ export default function CaixaPage() {
   async function buscarBarcode(codigo: string, qty: number) {
     try {
       const { data } = await api.get<any>(`/produtos/barcode/${encodeURIComponent(codigo)}`)
-      const preco = data.preco_especifico ? parseFloat(data.preco_especifico) : parseFloat(data.preco_base)
-      const item  = { versao_id: data.versao_id ?? codigo, produto_id: data.produto_id, nome: data.produto_nome, atributos: data.atributos_json ?? {}, preco_unitario: preco, codigo_barras: data.codigo_barras, aceita_desconto: data.aceita_desconto ?? true }
-      qty > 1 ? addItemQtd(item, qty) : addItem(item)
+      if (data.match === 'produto') {
+        // Product-level barcode → open variation picker
+        setProdutoVariacao({ produto: data.produto, qty })
+        setModalVariacao(true)
+      } else {
+        // Variation-level barcode → add directly
+        const preco = data.preco_especifico ? parseFloat(data.preco_especifico) : parseFloat(data.preco_base)
+        const item  = { versao_id: data.versao_id ?? codigo, produto_id: data.produto_id, nome: data.produto_nome, atributos: data.atributos_json ?? {}, preco_unitario: preco, codigo_barras: data.codigo_barras, aceita_desconto: data.aceita_desconto ?? true }
+        qty > 1 ? addItemQtd(item, qty) : addItem(item)
+      }
       setScanErro(''); return true
     } catch { return false }
   }

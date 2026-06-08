@@ -108,6 +108,7 @@ export default function ProdutoPage() {
   const [composicaoItens, setComposicaoItens] = useState<ItemComposicao[]>([])
   const [descricao,       setDescricao]       = useState('')
   const [preco,           setPreco]           = useState('')
+  const [codigoBarras,    setCodigoBarras]    = useState('')
   const [controleEstoque, setControleEstoque] = useState(true)
   const [aceitaDesconto,  setAceitaDesconto]  = useState(true)
 
@@ -155,6 +156,7 @@ export default function ProdutoPage() {
       setComposicaoItens((p as any).composicao_itens ?? [])
       setDescricao(p.descricao ?? '')
       setPreco(initCurrency(p.preco_base))
+      setCodigoBarras(p.codigo_barras ?? '')
       setControleEstoque(p.controle_estoque)
       setAceitaDesconto((p as any).aceita_desconto !== false)
       setRegimeTributario(dl.data.regime_tributario ?? '')
@@ -193,6 +195,7 @@ export default function ProdutoPage() {
         preco_base:        parseCurrency(preco) as any,
         controle_estoque:  controleEstoque,
         aceita_desconto:   aceitaDesconto,
+        codigo_barras:     codigoBarras || null,
         ncm:               ncm || null,
         cfop:              cfop || null,
         origem_mercadoria: origemMercadoria !== '' ? parseInt(origemMercadoria, 10) : null,
@@ -376,6 +379,13 @@ export default function ProdutoPage() {
                   onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
                 />
+              </div>
+
+              {/* Código de barras universal */}
+              <div className="flex flex-col mb-3">
+                <Label>Código de barras universal (opcional)</Label>
+                <GlassInput value={codigoBarras} onChange={e => setCodigoBarras(e.target.value)} placeholder="EAN-13, QR, etc." />
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '3px' }}>Código do produto — scan abre seletor de variação. Variações podem ter código próprio.</p>
               </div>
 
               {/* Composição */}

@@ -16,6 +16,7 @@ export const createProdutoSchema = z.object({
   preco_base:       z.coerce.number().positive('Preço deve ser positivo'),
   controle_estoque: z.boolean().default(true),
   aceita_desconto:  z.boolean().default(true),
+  codigo_barras:    z.string().trim().min(1).optional().nullable(),
   atributos:        z.array(z.string().min(1)).optional(),
   // fiscal
   ncm:               z.string().max(10).optional().nullable(),

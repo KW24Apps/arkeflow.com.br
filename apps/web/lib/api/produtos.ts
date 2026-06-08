@@ -11,6 +11,7 @@ export interface Produto {
   ativo: boolean
   total_versoes: number
   estoque_total: number
+  codigo_barras?: string | null
   atributos?: { id: string; nome: string }[]
   versoes?: Versao[]
 }

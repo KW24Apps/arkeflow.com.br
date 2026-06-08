@@ -66,6 +66,7 @@ export default function NovoProdutoPage() {
   const [composicaoItens, setComposicaoItens] = useState<ItemComposicao[]>([])
   const [descricao,       setDescricao]       = useState('')
   const [preco,           setPreco]           = useState('')
+  const [codigoBarras,    setCodigoBarras]    = useState('')
   const [controleEstoque, setControleEstoque] = useState(true)
   const [aceitaDesconto,  setAceitaDesconto]  = useState(true)
 
@@ -94,6 +95,7 @@ export default function NovoProdutoPage() {
           preco_base: parseCurrency(preco) as any,
           controle_estoque: controleEstoque,
           aceita_desconto: aceitaDesconto,
+          codigo_barras: codigoBarras || null,
         } as any)
         const p = await produtosApi.get(produtoId)
         setProduto(p)
@@ -106,6 +108,7 @@ export default function NovoProdutoPage() {
           preco_base: parseCurrency(preco),
           controle_estoque: controleEstoque,
           aceita_desconto: aceitaDesconto,
+          codigo_barras: codigoBarras || null,
         } as any)
         setProdutoId(p!.id); setProduto(p!)
         if (goToList) {
@@ -176,6 +179,12 @@ export default function NovoProdutoPage() {
                   onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
                 />
+              </div>
+
+              <div className="flex flex-col">
+                <Lbl>Código de barras universal (opcional)</Lbl>
+                <GlassInput value={codigoBarras} onChange={e => setCodigoBarras(e.target.value)} placeholder="EAN-13, QR, etc." />
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '3px' }}>Código do produto — scan abre seletor de variação. Variações podem ter código próprio.</p>
               </div>
 
               <ComposicaoForm value={composicaoItens} onChange={setComposicaoItens} />

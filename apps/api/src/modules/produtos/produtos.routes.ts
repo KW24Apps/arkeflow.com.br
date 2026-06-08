@@ -8,10 +8,12 @@ const dono = [authMiddleware, authorize('dono_loja')]
 const loja = [authMiddleware, authorize('dono_loja', 'vendedor')]
 
 export async function produtosRoutes(app: FastifyInstance) {
-  // Busca por código de barras — usada pelo PDV quando scanner lê e pressiona Enter
+  // Busca por código de barras — nível 1: variação exata; nível 2: produto universal
   app.get('/barcode/:codigo', { preHandler: loja }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
     const { codigo } = req.params as { codigo: string }
+
+    // Level 1: variation barcode wins
     const { rows: [versao] } = await pool.query(
       `SELECT v.*, p.nome AS produto_nome, p.preco_base, p.controle_estoque, p.aceita_desconto, p.id AS produto_id
        FROM versoes v
@@ -19,8 +21,20 @@ export async function produtosRoutes(app: FastifyInstance) {
        WHERE v.codigo_barras = $1 AND v.ativo = true AND v.arquivado = false AND p.ativo = true AND p.arquivado = false`,
       [codigo]
     )
-    if (!versao) return reply.status(404).send({ error: 'Código de barras não encontrado' })
-    return reply.send(versao)
+    if (versao) return reply.send({ match: 'versao', ...versao })
+
+    // Level 2: product-level barcode → return product + active variations
+    const { rows: [produto] } = await pool.query(
+      `SELECT * FROM produtos WHERE codigo_barras = $1 AND ativo = true AND arquivado = false`,
+      [codigo]
+    )
+    if (!produto) return reply.status(404).send({ error: 'Código de barras não encontrado' })
+
+    const { rows: versoes } = await pool.query(
+      `SELECT * FROM versoes WHERE produto_id = $1 AND ativo = true AND arquivado = false ORDER BY atributos_json::text`,
+      [produto.id]
+    )
+    return reply.send({ match: 'produto', produto, versoes })
   })
 
   // Listagem e consulta — vendedor também pode ler
