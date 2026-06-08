@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const RAYS = [
   { left: '8%',  height: '220px', width: '2px', dur: '7s', delay: '0s'    },
@@ -14,6 +14,9 @@ const RAYS = [
 
 export function OceanBackground() {
   const ref = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     const stage = ref.current
@@ -81,6 +84,8 @@ export function OceanBackground() {
       stage.querySelectorAll('.ocean-bb, .ocean-ring, .ocean-drop').forEach(e => e.remove())
     }
   }, [])
+
+  if (!mounted) return null
 
   return (
     <div
