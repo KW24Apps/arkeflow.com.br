@@ -1,4 +1,5 @@
 import type { Pool } from 'pg'
+import { AppError } from '../../core/errors/AppError'
 
 export async function findAll(pool: Pool, q?: string) {
   const params: any[] = []
@@ -46,24 +47,51 @@ export async function create(pool: Pool, data: {
 }
 
 export async function update(pool: Pool, id: string, data: Record<string, any>) {
-  const { credito_liberado, limite_credito, ...rest } = data
-  const processed = { ...rest }
+  const processed: Record<string, any> = { ...data }
+
+  // Credit lives in clientes_credito — pull these OUT before touching clientes
+  const creditoLiberado = processed.credito_liberado
+  const limiteCredito   = processed.limite_credito
+  delete processed.credito_liberado
+  delete processed.limite_credito
+
+  // medidas_json needs JSONB serialization
   if (processed.medidas_json !== undefined) {
     processed.medidas_json = JSON.stringify(processed.medidas_json)
   }
   // No clientes column accepts an array — drop any array values silently
   Object.keys(processed).forEach(k => { if (Array.isArray(processed[k])) delete processed[k] })
-  const keys   = Object.keys(processed)
-  const values = Object.values(processed)
-  const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
-  const { rows: [c] } = await pool.query(
-    `UPDATE clientes SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`,
-    [id, ...values]
-  )
-  if (credito_liberado !== undefined || limite_credito !== undefined) {
-    await upsertCredito(pool, id, credito_liberado ?? false, limite_credito ?? 0)
+
+  let row: any
+  const keys = Object.keys(processed)
+  if (keys.length > 0) {
+    const values = Object.values(processed)
+    const set = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
+    try {
+      const { rows: [r] } = await pool.query(
+        `UPDATE clientes SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`,
+        [id, ...values]
+      )
+      row = r
+    } catch (e: any) {
+      if (e.code === '23505' && e.constraint === 'clientes_cpf_key') {
+        throw new AppError('Este CPF já está cadastrado em outro cliente.', 409)
+      }
+      throw e
+    }
+  } else {
+    const { rows: [r] } = await pool.query(`SELECT * FROM clientes WHERE id = $1`, [id])
+    row = r
   }
-  return { ...c, credito_liberado: credito_liberado ?? false, limite_credito: limite_credito ?? 0 }
+
+  // Upsert credit account when either credit field was sent
+  if (creditoLiberado !== undefined || limiteCredito !== undefined) {
+    await upsertCredito(pool, id, creditoLiberado ?? false, Number(limiteCredito ?? 0))
+  }
+
+  // Return the client merged with current credit so the UI reflects it
+  const saldo = await getCreditoSaldo(pool, id)
+  return { ...row, credito_liberado: saldo.credito_liberado, limite_credito: saldo.limite }
 }
 
 export async function softDelete(pool: Pool, id: string) {
