@@ -96,9 +96,11 @@ export function CheckoutModal({
         promoAceita: !!sysRes.data.promocao_aceita_desconto,
         restringe:  !!sysRes.data.desconto_restringe_formas,
       }
-      setFormas(sorted)
+      const crediarioOn = !!sysRes.data.crediario_habilitado
+      const visiveis = sorted.filter(f => f.tipo !== 'crediario' || crediarioOn)
+      setFormas(visiveis)
       setDescontoCfg(cfg)
-      setFormaAtual(sorted.find(f => f.ativo) ?? null)
+      setFormaAtual(visiveis.find(f => f.ativo) ?? null)
       setCarregando(false)
       setTimeout(() => valorRef.current?.focus(), 100)
     }).catch(() => setCarregando(false))

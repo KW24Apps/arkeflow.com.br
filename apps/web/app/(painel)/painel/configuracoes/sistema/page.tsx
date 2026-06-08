@@ -245,6 +245,8 @@ export default function ConfigSistemaPage() {
       <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
 
+          <div className="flex flex-col gap-3">
+
           {/* ── LEFT: Logo ──────────────────────────────────────────── */}
           <div style={CARD} className="flex flex-col gap-3">
             <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Logo da Loja</p>
@@ -305,169 +307,6 @@ export default function ConfigSistemaPage() {
                 </p>
               )}
             </div>
-          </div>
-
-          {/* ── RIGHT: Estoque ──────────────────────────────────────── */}
-          <div style={CARD} className="flex flex-col gap-3">
-            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Estoque</p>
-
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Controle de estoque global</p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
-                  Desativado: nenhum produto controla quantidade. Produtos individuais ainda podem sobrescrever.
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleToggleEstoque}
-                  className="relative transition-colors"
-                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: controleEstoque ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-                >
-                  <span
-                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                    style={{ left: controleEstoque ? '21px' : '3px' }}
-                  />
-                </button>
-                {toggleSaved && (
-                  <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>
-                )}
-              </div>
-            </div>
-
-            {!controleEstoque && (
-              <div style={{ background: 'rgba(234,179,8,0.08)', border: '0.5px solid rgba(234,179,8,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
-                <p style={{ fontSize: '11px', color: 'rgba(234,179,8,0.8)' }}>⚠️ Alertas e validações de quantidade ficam desabilitados.</p>
-              </div>
-            )}
-          </div>
-
-          {/* ── Desconto ────────────────────────────────────────────── */}
-          <div style={CARD} className="flex flex-col gap-3">
-            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Desconto</p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Percentual máximo</label>
-                <div className="relative">
-                  <input
-                    type="number" min="0" max="100" step="0.1"
-                    value={descontoMaxPct}
-                    onChange={e => setDescontoMaxPct(parseFloat(e.target.value) || 0)}
-                    onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
-                    onBlur={e => {
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
-                      handleSaveDesconto({ desconto_max_percentual: descontoMaxPct })
-                    }}
-                    className="w-full min-h-[38px] px-3 pr-7 outline-none"
-                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
-                  />
-                  <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Teto em R$</label>
-                <CurrencyInput
-                  value={descontoMaxValorCents}
-                  onChange={setDescontoMaxValorCents}
-                  onBlur={() => handleSaveDesconto({ desconto_max_valor: descontoMaxValorCents / 100 })}
-                  className="w-full min-h-[38px] px-3 outline-none"
-                  style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
-                />
-              </div>
-            </div>
-
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '-4px' }}>
-              Trava no primeiro limite atingido. 0 = sem limite.
-            </p>
-
-            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
-
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Produtos em promoção aceitam desconto adicional</p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
-                  Desativado: itens já em promoção não recebem o desconto do caixa por cima.
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleTogglePromocao}
-                  className="relative transition-colors"
-                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: promocaoAceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-                >
-                  <span
-                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                    style={{ left: promocaoAceitaDesconto ? '21px' : '3px' }}
-                  />
-                </button>
-                {descontoSaved && (
-                  <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>
-                )}
-              </div>
-            </div>
-
-            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
-
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Restringir formas quando há desconto</p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
-                  Ativado: somente formas marcadas abaixo ficam disponíveis no checkout com desconto.
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleToggleRestringeFormas}
-                  className="relative transition-colors"
-                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: descontoRestringeFormas ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-                >
-                  <span
-                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                    style={{ left: descontoRestringeFormas ? '21px' : '3px' }}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {formas.length > 0 && (
-              <>
-                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
-                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>
-                  Formas que aceitam desconto
-                </p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '-6px' }}>
-                  Clique sobre a forma para ativar ou desativar o desconto.
-                </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {formas.map(f => {
-                    const aceita = f.aceita_desconto !== false
-                    return (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => handleToggleFormaDesconto(f)}
-                        style={{
-                          minHeight: '38px',
-                          padding: '8px 15px',
-                          borderRadius: '9px',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          border: aceita ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
-                          background: aceita ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
-                          color: aceita ? '#0ef' : 'rgba(255,255,255,0.35)',
-                        }}
-                      >
-                        {f.nome}{aceita ? ' ✓' : ''}
-                      </button>
-                    )
-                  })}
-                </div>
-              </>
-            )}
           </div>
 
           {/* ── Crediário ────────────────────────────────────────────── */}
@@ -712,6 +551,171 @@ export default function ConfigSistemaPage() {
                     </div>
                   </>
                 )}
+              </>
+            )}
+          </div>
+
+          </div>
+
+          {/* ── RIGHT: Estoque ──────────────────────────────────────── */}
+          <div style={CARD} className="flex flex-col gap-3">
+            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Estoque</p>
+
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Controle de estoque global</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                  Desativado: nenhum produto controla quantidade. Produtos individuais ainda podem sobrescrever.
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleToggleEstoque}
+                  className="relative transition-colors"
+                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: controleEstoque ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                >
+                  <span
+                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                    style={{ left: controleEstoque ? '21px' : '3px' }}
+                  />
+                </button>
+                {toggleSaved && (
+                  <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>
+                )}
+              </div>
+            </div>
+
+            {!controleEstoque && (
+              <div style={{ background: 'rgba(234,179,8,0.08)', border: '0.5px solid rgba(234,179,8,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
+                <p style={{ fontSize: '11px', color: 'rgba(234,179,8,0.8)' }}>⚠️ Alertas e validações de quantidade ficam desabilitados.</p>
+              </div>
+            )}
+          </div>
+
+          {/* ── Desconto ────────────────────────────────────────────── */}
+          <div style={CARD} className="flex flex-col gap-3">
+            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Desconto</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Percentual máximo</label>
+                <div className="relative">
+                  <input
+                    type="number" min="0" max="100" step="0.1"
+                    value={descontoMaxPct}
+                    onChange={e => setDescontoMaxPct(parseFloat(e.target.value) || 0)}
+                    onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                    onBlur={e => {
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                      handleSaveDesconto({ desconto_max_percentual: descontoMaxPct })
+                    }}
+                    className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                  />
+                  <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Teto em R$</label>
+                <CurrencyInput
+                  value={descontoMaxValorCents}
+                  onChange={setDescontoMaxValorCents}
+                  onBlur={() => handleSaveDesconto({ desconto_max_valor: descontoMaxValorCents / 100 })}
+                  className="w-full min-h-[38px] px-3 outline-none"
+                  style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                />
+              </div>
+            </div>
+
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '-4px' }}>
+              Trava no primeiro limite atingido. 0 = sem limite.
+            </p>
+
+            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Produtos em promoção aceitam desconto adicional</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                  Desativado: itens já em promoção não recebem o desconto do caixa por cima.
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleTogglePromocao}
+                  className="relative transition-colors"
+                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: promocaoAceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                >
+                  <span
+                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                    style={{ left: promocaoAceitaDesconto ? '21px' : '3px' }}
+                  />
+                </button>
+                {descontoSaved && (
+                  <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Restringir formas quando há desconto</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                  Ativado: somente formas marcadas abaixo ficam disponíveis no checkout com desconto.
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleToggleRestringeFormas}
+                  className="relative transition-colors"
+                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: descontoRestringeFormas ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                >
+                  <span
+                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                    style={{ left: descontoRestringeFormas ? '21px' : '3px' }}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {formas.length > 0 && (
+              <>
+                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>
+                  Formas que aceitam desconto
+                </p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '-6px' }}>
+                  Clique sobre a forma para ativar ou desativar o desconto.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {formas.map(f => {
+                    const aceita = f.aceita_desconto !== false
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => handleToggleFormaDesconto(f)}
+                        style={{
+                          minHeight: '38px',
+                          padding: '8px 15px',
+                          borderRadius: '9px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          border: aceita ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
+                          background: aceita ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
+                          color: aceita ? '#0ef' : 'rgba(255,255,255,0.35)',
+                        }}
+                      >
+                        {f.nome}{aceita ? ' ✓' : ''}
+                      </button>
+                    )
+                  })}
+                </div>
               </>
             )}
           </div>
