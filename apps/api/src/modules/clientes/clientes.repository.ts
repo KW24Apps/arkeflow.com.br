@@ -17,9 +17,12 @@ export async function findAll(pool: Pool, q?: string) {
 
 export async function findById(pool: Pool, id: string) {
   const { rows: [c] } = await pool.query(
-    `SELECT c.*, rc.nome AS regra_cashback_nome, rc.percentual AS regra_cashback_percentual
+    `SELECT c.*, rc.nome AS regra_cashback_nome, rc.percentual AS regra_cashback_percentual,
+            COALESCE(cc.credito_liberado, false) AS credito_liberado,
+            COALESCE(cc.limite, 0)               AS limite_credito
      FROM clientes c
      LEFT JOIN regras_cashback rc ON rc.id = c.regra_cashback_id
+     LEFT JOIN clientes_credito cc ON cc.cliente_id = c.id
      WHERE c.id = $1 AND c.ativo = true AND c.arquivado = false`,
     [id]
   )
@@ -43,8 +46,8 @@ export async function create(pool: Pool, data: {
 }
 
 export async function update(pool: Pool, id: string, data: Record<string, any>) {
-  // medidas_json precisa de serialização JSONB
-  const processed = { ...data }
+  const { credito_liberado, limite_credito, ...rest } = data
+  const processed = { ...rest }
   if (processed.medidas_json !== undefined) {
     processed.medidas_json = JSON.stringify(processed.medidas_json)
   }
@@ -57,11 +60,26 @@ export async function update(pool: Pool, id: string, data: Record<string, any>) 
     `UPDATE clientes SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`,
     [id, ...values]
   )
-  return c
+  if (credito_liberado !== undefined || limite_credito !== undefined) {
+    await upsertCredito(pool, id, credito_liberado ?? false, limite_credito ?? 0)
+  }
+  return { ...c, credito_liberado: credito_liberado ?? false, limite_credito: limite_credito ?? 0 }
 }
 
 export async function softDelete(pool: Pool, id: string) {
   await pool.query(`UPDATE clientes SET arquivado = true WHERE id = $1`, [id])
+}
+
+export async function upsertCredito(pool: Pool, cliente_id: string, liberado: boolean, limite: number) {
+  await pool.query(
+    `INSERT INTO clientes_credito (cliente_id, credito_liberado, limite, atualizado_em)
+     VALUES ($1, $2, $3, now())
+     ON CONFLICT (cliente_id) DO UPDATE
+       SET credito_liberado = EXCLUDED.credito_liberado,
+           limite = EXCLUDED.limite,
+           atualizado_em = now()`,
+    [cliente_id, liberado, limite]
+  )
 }
 
 export async function findHistorico(pool: Pool, cliente_id: string) {

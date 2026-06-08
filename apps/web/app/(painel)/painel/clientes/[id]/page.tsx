@@ -143,6 +143,10 @@ export default function ClienteDetalhe() {
   const [buscandoCep,  setBuscandoCep]  = useState(false)
   const [buscandoCnpj, setBuscandoCnpj] = useState(false)
 
+  // Credit
+  const [creditoLiberado, setCreditoLiberado] = useState(false)
+  const [limiteCredito,   setLimiteCredito]   = useState('')
+
   // Medidas
   const [medidasDisponiveis, setMedidasDisponiveis] = useState<ItemCatalogo[]>([])
   const [medidasCliente,     setMedidasCliente]     = useState<Record<string,string>>({})
@@ -184,6 +188,8 @@ export default function ClienteDetalhe() {
       setBairro((c as any).bairro ?? '')
       setCidade((c as any).cidade ?? '')
       setEstado((c as any).estado ?? '')
+      setCreditoLiberado((c as any).credito_liberado ?? false)
+      setLimiteCredito(((c as any).limite_credito ?? 0) > 0 ? String((c as any).limite_credito) : '')
     })
     .catch(() => setCliente(null))
     .finally(() => setLoading(false))
@@ -230,6 +236,10 @@ export default function ClienteDetalhe() {
   }
 
   async function handleSalvar(goToList = false) {
+    if (creditoLiberado && (!cpf || !logradouro || !numero || !bairro || !cidade || !estado)) {
+      alert('Para liberar crédito, preencha CPF e endereço completo (logradouro, número, bairro, cidade, estado).')
+      return
+    }
     setSalvando(true)
     try {
       const c = await clientesApi.update(id, {
@@ -248,6 +258,8 @@ export default function ClienteDetalhe() {
         bairro:            bairro || undefined,
         cidade:            cidade || undefined,
         estado:            estado || undefined,
+        credito_liberado:  creditoLiberado,
+        limite_credito:    creditoLiberado ? (parseFloat(limiteCredito) || 0) : 0,
       } as any)
       setCliente(c)
       if (goToList) {
@@ -549,42 +561,106 @@ export default function ClienteDetalhe() {
 
               </div>
 
-              {/* ── RIGHT column: Endereço ───────────────────────────── */}
-              <div style={CARD} className="flex flex-col gap-3">
-                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Endereço</p>
+              {/* ── RIGHT column ──────────────────────────────────────── */}
+              <div className="flex flex-col gap-2">
 
-                {/* CEP + Buscar */}
-                <div className="flex gap-2">
-                  <GInput
-                    value={cep}
-                    onChange={e => setCep(fmtCEP(e.target.value))}
-                    onBlur={() => buscarCep()}
-                    placeholder="00000-000"
-                    style={{ flex: 1 }}
-                  />
-                  <button onClick={buscarCep} disabled={buscandoCep}
-                    style={{ background: 'rgba(0,239,255,0.15)', border: '0.5px solid rgba(0,239,255,0.3)', borderRadius: '8px', padding: '9px 14px', fontSize: '12px', color: '#0ef', flexShrink: 0 }}>
-                    {buscandoCep ? '...' : 'Buscar'}
-                  </button>
+                {/* Endereço card */}
+                <div style={CARD} className="flex flex-col gap-3">
+                  <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Endereço</p>
+
+                  {/* CEP + Buscar */}
+                  <div className="flex gap-2">
+                    <GInput
+                      value={cep}
+                      onChange={e => setCep(fmtCEP(e.target.value))}
+                      onBlur={() => buscarCep()}
+                      placeholder="00000-000"
+                      style={{ flex: 1 }}
+                    />
+                    <button onClick={buscarCep} disabled={buscandoCep}
+                      style={{ background: 'rgba(0,239,255,0.15)', border: '0.5px solid rgba(0,239,255,0.3)', borderRadius: '8px', padding: '9px 14px', fontSize: '12px', color: '#0ef', flexShrink: 0 }}>
+                      {buscandoCep ? '...' : 'Buscar'}
+                    </button>
+                  </div>
+
+                  {/* Logradouro */}
+                  <GInput value={logradouro} onChange={e => setLogradouro(e.target.value)} placeholder="Logradouro" />
+
+                  {/* Número + Complemento */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <GInput value={numero}      onChange={e => setNumero(e.target.value)}      placeholder="Número" />
+                    <GInput value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Complemento" />
+                  </div>
+
+                  {/* Bairro */}
+                  <GInput value={bairro} onChange={e => setBairro(e.target.value)} placeholder="Bairro" />
+
+                  {/* Cidade + Estado */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <GInput value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Cidade" />
+                    <GInput value={estado} onChange={e => setEstado(e.target.value)} placeholder="Estado (UF)" />
+                  </div>
                 </div>
 
-                {/* Logradouro */}
-                <GInput value={logradouro} onChange={e => setLogradouro(e.target.value)} placeholder="Logradouro" />
+                {/* Crédito card */}
+                <div style={CARD} className="flex flex-col gap-3">
+                  <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Crédito</p>
 
-                {/* Número + Complemento */}
-                <div className="grid grid-cols-2 gap-2">
-                  <GInput value={numero}      onChange={e => setNumero(e.target.value)}      placeholder="Número" />
-                  <GInput value={complemento} onChange={e => setComplemento(e.target.value)} placeholder="Complemento" />
+                  {/* Toggle */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Crédito liberado</p>
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>Exige CPF e endereço completos para liberar.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCreditoLiberado(v => !v)}
+                      style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', flexShrink: 0, position: 'relative', cursor: 'pointer', transition: 'background 0.15s',
+                        background: creditoLiberado ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                    >
+                      <span style={{ position: 'absolute', top: '3px', width: '16px', height: '16px', background: '#fff', borderRadius: '50%', transition: 'left 0.15s',
+                        left: creditoLiberado ? '21px' : '3px' }} />
+                    </button>
+                  </div>
+
+                  {/* Limite field — only when liberado */}
+                  {creditoLiberado && (
+                    <div className="flex flex-col">
+                      <Lbl>Limite de crédito (R$)</Lbl>
+                      <GInput
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={limiteCredito}
+                        onChange={e => setLimiteCredito(e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  )}
+
+                  {/* Saldo do crédito (fase 2) */}
+                  <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)', paddingTop: '12px' }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Saldo do crédito</p>
+                      <span style={{ fontSize: '8px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '1px 5px', color: 'rgba(255,255,255,0.25)' }}>fase 2</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '10px 12px' }}>
+                        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)' }}>Ocupado</p>
+                        <p style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>R$ 0,00</p>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '10px 12px' }}>
+                        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.3)' }}>Disponível</p>
+                        <p style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginTop: '3px' }}>
+                          {limiteCredito && parseFloat(limiteCredito) > 0
+                            ? `R$ ${parseFloat(limiteCredito).toFixed(2)}`
+                            : 'R$ 0,00'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Bairro */}
-                <GInput value={bairro} onChange={e => setBairro(e.target.value)} placeholder="Bairro" />
-
-                {/* Cidade + Estado */}
-                <div className="grid grid-cols-2 gap-2">
-                  <GInput value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Cidade" />
-                  <GInput value={estado} onChange={e => setEstado(e.target.value)} placeholder="Estado (UF)" />
-                </div>
               </div>
 
             </div>

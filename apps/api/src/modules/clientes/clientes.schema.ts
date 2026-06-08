@@ -18,6 +18,8 @@ export const updateClienteSchema = createClienteSchema.partial().extend({
   bairro:       z.string().optional().nullable(),
   cidade:       z.string().optional().nullable(),
   estado:       z.string().max(2).optional().nullable(),
+  credito_liberado: z.boolean().optional(),
+  limite_credito:   z.number().nonnegative().optional(),
 })
 
 export type CreateClienteInput = z.infer<typeof createClienteSchema>

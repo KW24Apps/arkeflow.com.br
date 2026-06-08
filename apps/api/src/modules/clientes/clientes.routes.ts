@@ -41,6 +41,10 @@ export async function clientesRoutes(app: FastifyInstance) {
     const pool = getTenantPoolFromRequest(req)
     const { id } = req.params as { id: string }
     const data = updateClienteSchema.parse(req.body)
+    if (data.credito_liberado === true) {
+      const miss = !data.cpf || !data.logradouro || !data.numero || !data.bairro || !data.cidade || !data.estado
+      if (miss) throw new AppError('Para liberar crédito, preencha CPF e endereço completo (logradouro, número, bairro, cidade, estado).', 400)
+    }
     return reply.send(await repo.update(pool, id, data))
   })
 
