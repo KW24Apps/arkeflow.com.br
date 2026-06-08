@@ -159,18 +159,19 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     const { logo_url, link_loja, controle_estoque, desconto_max_percentual, desconto_max_valor, promocao_aceita_desconto, desconto_restringe_formas } = req.body as any
 
     // Atualiza configuracoes_loja no banco da loja
-    if (controle_estoque !== undefined || link_loja !== undefined ||
-        desconto_max_percentual !== undefined || desconto_max_valor !== undefined || promocao_aceita_desconto !== undefined ||
-        desconto_restringe_formas !== undefined) {
-      const upd: string[] = []; const val: any[] = []
-      if (controle_estoque !== undefined)         { val.push(controle_estoque);          upd.push(`controle_estoque = $${val.length}`) }
-      if (link_loja !== undefined)                { val.push(link_loja ?? null);         upd.push(`link_loja = $${val.length}`) }
-      if (desconto_max_percentual !== undefined)  { val.push(desconto_max_percentual);   upd.push(`desconto_max_percentual = $${val.length}`) }
-      if (desconto_max_valor !== undefined)       { val.push(desconto_max_valor);        upd.push(`desconto_max_valor = $${val.length}`) }
-      if (promocao_aceita_desconto !== undefined) { val.push(promocao_aceita_desconto);  upd.push(`promocao_aceita_desconto = $${val.length}`) }
-      if (desconto_restringe_formas !== undefined){ val.push(desconto_restringe_formas); upd.push(`desconto_restringe_formas = $${val.length}`) }
-      if (upd.length) await pool.query(`UPDATE configuracoes_loja SET ${upd.join(', ')}`, val)
-    }
+    const upd: string[] = []; const val: any[] = []
+    if (controle_estoque !== undefined)         { val.push(controle_estoque);          upd.push(`controle_estoque = $${val.length}`) }
+    if (link_loja !== undefined)                { val.push(link_loja ?? null);         upd.push(`link_loja = $${val.length}`) }
+    if (desconto_max_percentual !== undefined)  { val.push(desconto_max_percentual);   upd.push(`desconto_max_percentual = $${val.length}`) }
+    if (desconto_max_valor !== undefined)       { val.push(desconto_max_valor);        upd.push(`desconto_max_valor = $${val.length}`) }
+    if (promocao_aceita_desconto !== undefined) { val.push(promocao_aceita_desconto);  upd.push(`promocao_aceita_desconto = $${val.length}`) }
+    if (desconto_restringe_formas !== undefined){ val.push(desconto_restringe_formas); upd.push(`desconto_restringe_formas = $${val.length}`) }
+    const body = req.body as any
+    const CRED_COLS = ['crediario_habilitado','crediario_max_parcelas','crediario_entrada_obrigatoria','crediario_entrada_min_pct','crediario_juros_habilitado','crediario_juros_sem_ate','crediario_juros_mes','crediario_atraso_habilitado','crediario_atraso_multa','crediario_atraso_mora_mes']
+    const CRED_JSON = ['crediario_formas_entrada','crediario_formas_parcela']
+    for (const col of CRED_COLS)  { if (body[col] !== undefined) { val.push(body[col]);                       upd.push(`${col} = $${val.length}`) } }
+    for (const col of CRED_JSON)  { if (body[col] !== undefined) { val.push(JSON.stringify(body[col] ?? [])); upd.push(`${col} = $${val.length}`) } }
+    if (upd.length) await pool.query(`UPDATE configuracoes_loja SET ${upd.join(', ')}`, val)
 
     // Atualiza logo_url na tabela lojas (plataforma)
     if (logo_url !== undefined) {

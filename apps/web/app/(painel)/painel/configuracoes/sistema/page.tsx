@@ -13,6 +13,18 @@ interface SistemaConfig {
   desconto_max_valor: string | number
   promocao_aceita_desconto: boolean
   desconto_restringe_formas: boolean
+  crediario_habilitado: boolean
+  crediario_max_parcelas: number
+  crediario_entrada_obrigatoria: boolean
+  crediario_entrada_min_pct: number
+  crediario_juros_habilitado: boolean
+  crediario_juros_sem_ate: number
+  crediario_juros_mes: number
+  crediario_atraso_habilitado: boolean
+  crediario_atraso_multa: number
+  crediario_atraso_mora_mes: number
+  crediario_formas_entrada: string[]
+  crediario_formas_parcela: string[]
 }
 
 async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
@@ -62,6 +74,20 @@ export default function ConfigSistemaPage() {
   const [formas,                  setFormas]                  = useState<FormaPagamento[]>([])
   const [descontoSaved,           setDescontoSaved]           = useState(false)
 
+  const [crediarioHabilitado,    setCrediarioHabilitado]    = useState(false)
+  const [crediarioMaxParcelas,   setCrediarioMaxParcelas]   = useState(1)
+  const [crediarioEntradaObrig,  setCrediarioEntradaObrig]  = useState(false)
+  const [crediarioEntradaMinPct, setCrediarioEntradaMinPct] = useState(0)
+  const [crediarioJurosHab,      setCrediarioJurosHab]      = useState(false)
+  const [crediarioJurosSemAte,   setCrediarioJurosSemAte]   = useState(0)
+  const [crediarioJurosMes,      setCrediarioJurosMes]      = useState(0)
+  const [crediarioAtrasoHab,     setCrediarioAtrasoHab]     = useState(false)
+  const [crediarioAtrasoMulta,   setCrediarioAtrasoMulta]   = useState(0)
+  const [crediarioAtrasoMoraMes, setCrediarioAtrasoMoraMes] = useState(0)
+  const [crediarioFormasEntrada, setCrediarioFormasEntrada] = useState<string[]>([])
+  const [crediarioFormasParcela, setCrediarioFormasParcela] = useState<string[]>([])
+  const [crediarioSaved,         setCrediarioSaved]         = useState(false)
+
   useEffect(() => {
     Promise.all([
       api.get<SistemaConfig>('/dados-loja/sistema'),
@@ -75,6 +101,18 @@ export default function ConfigSistemaPage() {
       setPromocaoAceitaDesconto(sysRes.data.promocao_aceita_desconto ?? false)
       setDescontoRestringeFormas(sysRes.data.desconto_restringe_formas ?? false)
       setFormas(fs.filter(f => f.ativo))
+      setCrediarioHabilitado(sysRes.data.crediario_habilitado ?? false)
+      setCrediarioMaxParcelas(Number(sysRes.data.crediario_max_parcelas ?? 1))
+      setCrediarioEntradaObrig(sysRes.data.crediario_entrada_obrigatoria ?? false)
+      setCrediarioEntradaMinPct(Number(sysRes.data.crediario_entrada_min_pct ?? 0))
+      setCrediarioJurosHab(sysRes.data.crediario_juros_habilitado ?? false)
+      setCrediarioJurosSemAte(Number(sysRes.data.crediario_juros_sem_ate ?? 0))
+      setCrediarioJurosMes(Number(sysRes.data.crediario_juros_mes ?? 0))
+      setCrediarioAtrasoHab(sysRes.data.crediario_atraso_habilitado ?? false)
+      setCrediarioAtrasoMulta(Number(sysRes.data.crediario_atraso_multa ?? 0))
+      setCrediarioAtrasoMoraMes(Number(sysRes.data.crediario_atraso_mora_mes ?? 0))
+      setCrediarioFormasEntrada((sysRes.data.crediario_formas_entrada as any) ?? [])
+      setCrediarioFormasParcela((sysRes.data.crediario_formas_parcela as any) ?? [])
     }).finally(() => setLoading(false))
   }, [])
 
@@ -147,6 +185,54 @@ export default function ConfigSistemaPage() {
     } catch {
       setFormas(prev => prev.map(f => f.id === forma.id ? { ...f, aceita_desconto: forma.aceita_desconto } : f))
     }
+  }
+
+  async function handleSaveCrediario(fields: Record<string, any>) {
+    try {
+      await api.put('/dados-loja/sistema', fields)
+      setCrediarioSaved(true)
+      setTimeout(() => setCrediarioSaved(false), 2000)
+    } catch {}
+  }
+
+  async function handleToggleCrediario() {
+    const v = !crediarioHabilitado
+    setCrediarioHabilitado(v)
+    try {
+      await api.put('/dados-loja/sistema', { crediario_habilitado: v })
+      setCrediarioSaved(true)
+      setTimeout(() => setCrediarioSaved(false), 2000)
+    } catch { setCrediarioHabilitado(!v) }
+  }
+
+  async function handleToggleEntradaObrig() {
+    const v = !crediarioEntradaObrig
+    setCrediarioEntradaObrig(v)
+    try {
+      await api.put('/dados-loja/sistema', { crediario_entrada_obrigatoria: v })
+      setCrediarioSaved(true)
+      setTimeout(() => setCrediarioSaved(false), 2000)
+    } catch { setCrediarioEntradaObrig(!v) }
+  }
+
+  async function handleToggleJurosHab() {
+    const v = !crediarioJurosHab
+    setCrediarioJurosHab(v)
+    try {
+      await api.put('/dados-loja/sistema', { crediario_juros_habilitado: v })
+      setCrediarioSaved(true)
+      setTimeout(() => setCrediarioSaved(false), 2000)
+    } catch { setCrediarioJurosHab(!v) }
+  }
+
+  async function handleToggleAtrasoHab() {
+    const v = !crediarioAtrasoHab
+    setCrediarioAtrasoHab(v)
+    try {
+      await api.put('/dados-loja/sistema', { crediario_atraso_habilitado: v })
+      setCrediarioSaved(true)
+      setTimeout(() => setCrediarioSaved(false), 2000)
+    } catch { setCrediarioAtrasoHab(!v) }
   }
 
   if (loading) return (
@@ -380,6 +466,252 @@ export default function ConfigSistemaPage() {
                     )
                   })}
                 </div>
+              </>
+            )}
+          </div>
+
+          {/* ── Crediário ────────────────────────────────────────────── */}
+          <div style={CARD} className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Crediário</p>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleToggleCrediario}
+                  className="relative transition-colors"
+                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: crediarioHabilitado ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                >
+                  <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: crediarioHabilitado ? '21px' : '3px' }} />
+                </button>
+                {crediarioSaved && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
+              </div>
+            </div>
+
+            {crediarioHabilitado && (
+              <>
+                {/* Máximo de parcelas */}
+                <div className="flex flex-col gap-1.5">
+                  <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Máximo de parcelas</label>
+                  <input
+                    type="number" min="1" step="1"
+                    value={crediarioMaxParcelas}
+                    onChange={e => setCrediarioMaxParcelas(parseInt(e.target.value) || 1)}
+                    onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                    onBlur={e => {
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                      handleSaveCrediario({ crediario_max_parcelas: crediarioMaxParcelas })
+                    }}
+                    className="w-full min-h-[38px] px-3 outline-none"
+                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                  />
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '-2px' }}>
+                    A data da 1ª parcela é definida na venda; as seguintes caem todo mês no mesmo dia.
+                  </p>
+                </div>
+
+                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                {/* Exigir entrada mínima */}
+                <div className="flex items-start justify-between gap-4">
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)', flex: 1 }}>Exigir entrada mínima</p>
+                  <button
+                    type="button"
+                    onClick={handleToggleEntradaObrig}
+                    className="relative transition-colors shrink-0"
+                    style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: crediarioEntradaObrig ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                  >
+                    <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: crediarioEntradaObrig ? '21px' : '3px' }} />
+                  </button>
+                </div>
+
+                {crediarioEntradaObrig && (
+                  <div className="flex flex-col gap-1.5">
+                    <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Percentual mínimo da entrada %</label>
+                    <div className="relative">
+                      <input
+                        type="number" min="0" max="100" step="0.1"
+                        value={crediarioEntradaMinPct}
+                        onChange={e => setCrediarioEntradaMinPct(parseFloat(e.target.value) || 0)}
+                        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                        onBlur={e => {
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                          handleSaveCrediario({ crediario_entrada_min_pct: crediarioEntradaMinPct })
+                        }}
+                        className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                        style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                      />
+                      <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                {/* Cobrar juros de parcelamento */}
+                <div className="flex items-start justify-between gap-4">
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)', flex: 1 }}>Cobrar juros de parcelamento</p>
+                  <button
+                    type="button"
+                    onClick={handleToggleJurosHab}
+                    className="relative transition-colors shrink-0"
+                    style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: crediarioJurosHab ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                  >
+                    <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: crediarioJurosHab ? '21px' : '3px' }} />
+                  </button>
+                </div>
+
+                {crediarioJurosHab && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Sem juros até (parcelas)</label>
+                      <input
+                        type="number" min="0" step="1"
+                        value={crediarioJurosSemAte}
+                        onChange={e => setCrediarioJurosSemAte(parseInt(e.target.value) || 0)}
+                        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                        onBlur={e => {
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                          handleSaveCrediario({ crediario_juros_sem_ate: crediarioJurosSemAte })
+                        }}
+                        className="w-full min-h-[38px] px-3 outline-none"
+                        style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Juros ao mês acima %</label>
+                      <div className="relative">
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={crediarioJurosMes}
+                          onChange={e => setCrediarioJurosMes(parseFloat(e.target.value) || 0)}
+                          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                          onBlur={e => {
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                            handleSaveCrediario({ crediario_juros_mes: crediarioJurosMes })
+                          }}
+                          className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                          style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                {/* Cobrar juros por atraso */}
+                <div className="flex items-start justify-between gap-4">
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)', flex: 1 }}>Cobrar juros por atraso</p>
+                  <button
+                    type="button"
+                    onClick={handleToggleAtrasoHab}
+                    className="relative transition-colors shrink-0"
+                    style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: crediarioAtrasoHab ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                  >
+                    <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: crediarioAtrasoHab ? '21px' : '3px' }} />
+                  </button>
+                </div>
+
+                {crediarioAtrasoHab && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Multa por atraso %</label>
+                      <div className="relative">
+                        <input
+                          type="number" min="0" step="0.1"
+                          value={crediarioAtrasoMulta}
+                          onChange={e => setCrediarioAtrasoMulta(parseFloat(e.target.value) || 0)}
+                          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                          onBlur={e => {
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                            handleSaveCrediario({ crediario_atraso_multa: crediarioAtrasoMulta })
+                          }}
+                          className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                          style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Juros de mora ao mês %</label>
+                      <div className="relative">
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={crediarioAtrasoMoraMes}
+                          onChange={e => setCrediarioAtrasoMoraMes(parseFloat(e.target.value) || 0)}
+                          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                          onBlur={e => {
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                            handleSaveCrediario({ crediario_atraso_mora_mes: crediarioAtrasoMoraMes })
+                          }}
+                          className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                          style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Formas aceitas na entrada / nas parcelas */}
+                {formas.filter(f => f.tipo !== 'crediario').length > 0 && (
+                  <>
+                    <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                    <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>Formas aceitas na entrada</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {formas.filter(f => f.tipo !== 'crediario').map(f => {
+                        const on = crediarioFormasEntrada.includes(f.id)
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => {
+                              const next = on ? crediarioFormasEntrada.filter(id => id !== f.id) : [...crediarioFormasEntrada, f.id]
+                              setCrediarioFormasEntrada(next)
+                              handleSaveCrediario({ crediario_formas_entrada: next })
+                            }}
+                            style={{
+                              minHeight: '38px', padding: '8px 15px', borderRadius: '9px', fontSize: '13px', cursor: 'pointer',
+                              border: on ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
+                              background: on ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
+                              color: on ? '#0ef' : 'rgba(255,255,255,0.35)',
+                            }}
+                          >
+                            {f.nome}{on ? ' ✓' : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>Formas aceitas nas parcelas</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {formas.filter(f => f.tipo !== 'crediario').map(f => {
+                        const on = crediarioFormasParcela.includes(f.id)
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => {
+                              const next = on ? crediarioFormasParcela.filter(id => id !== f.id) : [...crediarioFormasParcela, f.id]
+                              setCrediarioFormasParcela(next)
+                              handleSaveCrediario({ crediario_formas_parcela: next })
+                            }}
+                            style={{
+                              minHeight: '38px', padding: '8px 15px', borderRadius: '9px', fontSize: '13px', cursor: 'pointer',
+                              border: on ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
+                              background: on ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
+                              color: on ? '#0ef' : 'rgba(255,255,255,0.35)',
+                            }}
+                          >
+                            {f.nome}{on ? ' ✓' : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
