@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { User, Briefcase, X } from 'lucide-react'
 import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 import { vendasApi } from '@/lib/api/vendas'
 import { usePDVStore } from '@/store/pdv.store'
@@ -41,6 +42,15 @@ interface Props {
   totalDesconto:     number
   cashbackUsar:      number
   clienteId:         string | null
+  // Atribuição
+  clienteNome:         string | null
+  vendedorNome:        string | null
+  vendedorRemovivel:   boolean
+  onAbrirCliente:      () => void
+  onAbrirVendedor:     () => void
+  onAbrirDadosCliente: () => void
+  onRemoverCliente:    () => void
+  onRemoverVendedor:   () => void
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -48,6 +58,8 @@ interface Props {
 export function CheckoutModal({
   open, onClose, onSuccess,
   itensComDesconto, baseTotal, totalDesconto, cashbackUsar, clienteId,
+  clienteNome, vendedorNome, vendedorRemovivel,
+  onAbrirCliente, onAbrirVendedor, onAbrirDadosCliente, onRemoverCliente, onRemoverVendedor,
 }: Props) {
   const valorRef = useRef<HTMLInputElement>(null)
 
@@ -258,29 +270,69 @@ export function CheckoutModal({
 
         {/* ── Header ────────────────────────────────────────────────────────── */}
         <div className="px-6 py-5 border-b border-ocean-depth">
-          <div className="flex items-start justify-between">
+
+          {/* Title */}
+          <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-sea-foam font-bold text-lg">Finalizar Compra</h3>
               <p className="text-steel text-xs mt-0.5">
                 {itensComDesconto.reduce((s, i) => s + i.quantidade, 0)} item(ns)
               </p>
             </div>
-            {/* Single total when no discount available */}
-            {descontoCaixa === 0 && (
-              <div className="text-right">
-                <p className="text-electric-cyan font-black text-3xl">{fmt(baseTotal)}</p>
-                {(totalDesconto > 0 || cashbackUsar > 0) && (
-                  <p className="text-steel text-xs">
-                    subtotal {fmt(itensComDesconto.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0))}
-                  </p>
+          </div>
+
+          {/* ── Atribuição ── */}
+          <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: '8px' }}>Atribuição</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {/* Cliente chip */}
+            {clienteNome ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minHeight: '32px', padding: '4px 10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '20px', fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>
+                <User size={12} style={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                <button type="button" onClick={onAbrirDadosCliente} style={{ background: 'none', border: 'none', color: 'inherit', fontSize: 'inherit', cursor: 'pointer', padding: 0 }}>{clienteNome}</button>
+                <button type="button" onClick={onRemoverCliente} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', padding: 0, marginLeft: '2px' }}><X size={11} /></button>
+              </div>
+            ) : (
+              <button type="button" onClick={onAbrirCliente} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minHeight: '32px', padding: '4px 12px', background: 'none', border: '1px dashed rgba(0,239,255,0.35)', borderRadius: '20px', fontSize: '12px', color: 'rgba(0,239,255,0.65)', cursor: 'pointer' }}>
+                <User size={12} style={{ flexShrink: 0 }} />
+                <span>Adicionar cliente</span>
+              </button>
+            )}
+            {/* Vendedor chip */}
+            {vendedorNome ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minHeight: '32px', padding: '4px 10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '20px', fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>
+                <Briefcase size={12} style={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                <span>{vendedorNome}</span>
+                {vendedorRemovivel && (
+                  <button type="button" onClick={onRemoverVendedor} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', padding: 0, marginLeft: '2px' }}><X size={11} /></button>
                 )}
               </div>
+            ) : (
+              <button type="button" onClick={onAbrirVendedor} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', minHeight: '32px', padding: '4px 12px', background: 'none', border: '1px dashed rgba(0,239,255,0.35)', borderRadius: '20px', fontSize: '12px', color: 'rgba(0,239,255,0.65)', cursor: 'pointer' }}>
+                <Briefcase size={12} style={{ flexShrink: 0 }} />
+                <span>Adicionar vendedor</span>
+              </button>
             )}
           </div>
 
+          <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.1)', margin: '12px 0' }} />
+
+          {/* ── Total da venda ── */}
+          <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: '8px' }}>Total da venda</p>
+          {/* Single total when no discount available */}
+          {descontoCaixa === 0 && (
+            <div>
+              <p className="text-electric-cyan font-black text-3xl">{fmt(baseTotal)}</p>
+              {(totalDesconto > 0 || cashbackUsar > 0) && (
+                <p className="text-steel text-xs">
+                  subtotal {fmt(itensComDesconto.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0))}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Selector cards — only when a discount is applicable */}
           {descontoCaixa > 0 && (
-            <div className="grid grid-cols-2 gap-2 mt-3">
+            <div className="grid grid-cols-2 gap-2">
               {/* Sem desconto */}
               <button
                 type="button"
@@ -322,6 +374,7 @@ export function CheckoutModal({
 
         {/* ── Body ─────────────────────────────────────────────────────────── */}
         <div className="p-6 flex flex-col gap-4">
+          <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)' }}>Forma de pagamento</p>
 
           {/* Partial payments already registered */}
           {pagamentos.length > 0 && (
@@ -352,7 +405,6 @@ export function CheckoutModal({
             <>
               {/* Payment method selector */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-steel text-xs">Forma de pagamento</label>
                 <select
                   value={formaAtual?.id ?? ''}
                   onChange={e => {

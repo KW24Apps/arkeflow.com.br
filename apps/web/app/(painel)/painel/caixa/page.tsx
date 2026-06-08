@@ -106,7 +106,7 @@ function getMensagem(nome: string): string {
 export default function CaixaPage() {
   const router = useRouter()
   const { status, turno, erro: cxErro, carregar, abrir, fechar, registrarMovimento, limparErro } = useCaixaStore()
-  const { itens, cliente_id, cliente_nome, addItem, addItemQtd, removeItem, setQtd, setCliente, limpar, clientePerguntado, setClientePerguntado } = usePDVStore()
+  const { itens, cliente_id, cliente_nome, vendedor_nome, vendedorDaSacola, addItem, addItemQtd, removeItem, setQtd, setCliente, setVendedor: setVendedorStore, limpar, clientePerguntado, setClientePerguntado } = usePDVStore()
   const usuario = useAuthStore(s => s.usuario)
 
   // ── Abertura ──────────────────────────────────────────────────────────────
@@ -810,7 +810,10 @@ export default function CaixaPage() {
                 {/* Cliente */}
                 <div
                   role="button"
-                  onClick={() => { setClienteAutoAberto(false); setModalCliente(true) }}
+                  onClick={() => {
+                    if (cliente_id) { window.open(`/painel/clientes/${cliente_id}`, '_blank') }
+                    else { setClienteAutoAberto(false); setModalCliente(true) }
+                  }}
                   style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
                 >
                   <User size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
@@ -835,7 +838,7 @@ export default function CaixaPage() {
                     {vendedor ? vendedor.nome : 'Adicionar vendedor'}
                   </span>
                   {vendedor && (
-                    <button onClick={e => { e.stopPropagation(); setVendedor(null) }}
+                    <button onClick={e => { e.stopPropagation(); setVendedor(null); setVendedorStore(null, null) }}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
                       <X size={12} />
                     </button>
@@ -887,6 +890,25 @@ export default function CaixaPage() {
 
       {/* ── Modais ────────────────────────────────────────────────────────── */}
 
+      <CheckoutModal
+        open={modalCheckout}
+        onClose={() => { setModalCheckout(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onSuccess={handleVendaOK}
+        itensComDesconto={itensComDesconto}
+        baseTotal={baseTotal}
+        totalDesconto={totalDesconto}
+        cashbackUsar={cashbackUsar}
+        clienteId={cliente_id}
+        clienteNome={cliente_nome}
+        vendedorNome={vendedor ? vendedor.nome : (vendedor_nome ?? null)}
+        vendedorRemovivel={!vendedorDaSacola}
+        onAbrirCliente={() => { setClienteAutoAberto(false); setModalCliente(true) }}
+        onAbrirVendedor={() => setModalVendedor(true)}
+        onAbrirDadosCliente={() => { if (cliente_id) window.open(`/painel/clientes/${cliente_id}`, '_blank') }}
+        onRemoverCliente={() => setCliente(null, null)}
+        onRemoverVendedor={() => { setVendedor(null); setVendedorStore(null, null) }}
+      />
+
       <AdvancedSearchModal
         open={modalBusca}
         onClose={() => { setModalBusca(false); setTimeout(() => scanRef.current?.focus(), 100) }}
@@ -903,24 +925,13 @@ export default function CaixaPage() {
       <SalespersonSearchModal
         open={modalVendedor}
         onClose={() => { setModalVendedor(false); setTimeout(() => scanRef.current?.focus(), 100) }}
-        onSelect={c => { setVendedor(c); setModalVendedor(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onSelect={c => { setVendedor(c); setVendedorStore(c.id, c.nome); setModalVendedor(false); setTimeout(() => scanRef.current?.focus(), 100) }}
       />
 
       <SacolasModal
         open={modalSacolas}
         onClose={() => { setModalSacolas(false); setTimeout(() => scanRef.current?.focus(), 100) }}
         onCarregada={() => setTimeout(() => scanRef.current?.focus(), 100)}
-      />
-
-      <CheckoutModal
-        open={modalCheckout}
-        onClose={() => { setModalCheckout(false); setTimeout(() => scanRef.current?.focus(), 100) }}
-        onSuccess={handleVendaOK}
-        itensComDesconto={itensComDesconto}
-        baseTotal={baseTotal}
-        totalDesconto={totalDesconto}
-        cashbackUsar={cashbackUsar}
-        clienteId={cliente_id}
       />
 
       {/* Modal Boas-vindas */}

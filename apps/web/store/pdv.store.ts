@@ -21,6 +21,7 @@ interface PDVStore {
   vendedor_id:        string | null
   vendedor_nome:      string | null
   clientePerguntado:  boolean        // persisted: modal asked once per sale
+  vendedorDaSacola:   boolean        // true when vendedor came from carregarSacola
 
   addItem:               (item: Omit<SacolaItem, 'quantidade'>) => void
   addItemQtd:            (item: Omit<SacolaItem, 'quantidade'>, qtd: number) => void
@@ -44,6 +45,7 @@ export const usePDVStore = create<PDVStore>()(
       vendedor_id:       null,
       vendedor_nome:     null,
       clientePerguntado: false,
+      vendedorDaSacola:  false,
 
       addItem: (item) => set(state => {
         const existente = state.itens.find(i => i.versao_id === item.versao_id)
@@ -77,7 +79,7 @@ export const usePDVStore = create<PDVStore>()(
 
       setCliente: (id, nome) => set({ cliente_id: id, cliente_nome: nome }),
 
-      setVendedor: (id, nome) => set({ vendedor_id: id, vendedor_nome: nome }),
+      setVendedor: (id, nome) => set({ vendedor_id: id, vendedor_nome: nome, vendedorDaSacola: false }),
 
       setClientePerguntado: (v) => set({ clientePerguntado: v }),
 
@@ -87,6 +89,7 @@ export const usePDVStore = create<PDVStore>()(
         cliente_nome,
         vendedor_id,
         vendedor_nome,
+        vendedorDaSacola: vendedor_id != null,
         itens: itens.map(i => ({
           versao_id:      i.versao_id,
           produto_id:     i.produto_id,
@@ -98,7 +101,7 @@ export const usePDVStore = create<PDVStore>()(
         })),
       }),
 
-      limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null, vendedor_id: null, vendedor_nome: null, clientePerguntado: false }),
+      limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null, vendedor_id: null, vendedor_nome: null, clientePerguntado: false, vendedorDaSacola: false }),
     }),
     {
       name: 'pdv-store',
