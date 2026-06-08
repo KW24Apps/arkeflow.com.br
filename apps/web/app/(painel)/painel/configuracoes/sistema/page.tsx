@@ -353,24 +353,30 @@ export default function ConfigSistemaPage() {
                 <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>
                   Formas que aceitam desconto
                 </p>
-                <div className="flex flex-col gap-2">
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '-6px' }}>
+                  Clique sobre a forma para ativar ou desativar o desconto.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {formas.map(f => {
                     const aceita = f.aceita_desconto !== false
                     return (
-                      <div key={f.id} className="flex items-center justify-between">
-                        <p style={{ fontSize: '12px', color: aceita ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)' }}>{f.nome}</p>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleFormaDesconto(f)}
-                          className="relative shrink-0 transition-colors"
-                          style={{ width: '36px', height: '20px', borderRadius: '9999px', border: 'none', background: aceita ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-                        >
-                          <span
-                            className="absolute top-[3px] w-[14px] h-[14px] bg-white rounded-full transition-all"
-                            style={{ left: aceita ? '19px' : '3px' }}
-                          />
-                        </button>
-                      </div>
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => handleToggleFormaDesconto(f)}
+                        style={{
+                          minHeight: '38px',
+                          padding: '8px 15px',
+                          borderRadius: '9px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          border: aceita ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
+                          background: aceita ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
+                          color: aceita ? '#0ef' : 'rgba(255,255,255,0.35)',
+                        }}
+                      >
+                        {f.nome}{aceita ? ' ✓' : ''}
+                      </button>
                     )
                   })}
                 </div>
