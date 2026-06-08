@@ -120,6 +120,7 @@ export default function ClienteDetalhe() {
   const [loading,   setLoading]   = useState(true)
   const [salvando,     setSalvando]     = useState(false)
   const [salvoFeedback, setSalvoFeedback] = useState(false)
+  const [erroSalvar,    setErroSalvar]    = useState<string | null>(null)
   const [modal, setModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: '', message: '', onConfirm: () => {} })
 
   // Core fields
@@ -243,7 +244,7 @@ export default function ClienteDetalhe() {
       alert('Para liberar crédito, preencha CPF e endereço completo (logradouro, número, bairro, cidade, estado).')
       return
     }
-    setSalvando(true)
+    setSalvando(true); setErroSalvar(null)
     try {
       const c = await clientesApi.update(id, {
         nome,
@@ -271,6 +272,10 @@ export default function ClienteDetalhe() {
         setSalvoFeedback(true)
         setTimeout(() => setSalvoFeedback(false), 2000)
       }
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.response?.data?.message || 'Não foi possível salvar. Tente novamente.'
+      setErroSalvar(msg)
+      setTimeout(() => setErroSalvar(null), 5000)
     } finally { setSalvando(false) }
   }
 
@@ -281,12 +286,16 @@ export default function ClienteDetalhe() {
 
   async function handleSalvarMedida() {
     if (!novaMedNome || !novaMedValor) return
-    setSalvandoMed(true)
+    setSalvandoMed(true); setErroSalvar(null)
     try {
       const novas = { ...medidasCliente, [novaMedNome]: novaMedValor }
       await clientesApi.update(id, { medidas_json: novas } as any)
       setMedidasCliente(novas)
       setAddingMedida(false); setNovaMedNome(''); setNovaMedValor('')
+    } catch (e: any) {
+      const msg = e?.response?.data?.error || e?.response?.data?.message || 'Não foi possível salvar. Tente novamente.'
+      setErroSalvar(msg)
+      setTimeout(() => setErroSalvar(null), 5000)
     } finally { setSalvandoMed(false) }
   }
 
@@ -708,9 +717,13 @@ export default function ClienteDetalhe() {
         {/* ── Fixed footer ───────────────────────────────────────────────── */}
         {aba === 'main' && (
           <div
-            className="shrink-0 flex gap-3 px-4 py-3"
+            className="shrink-0 flex flex-col px-4 py-3"
             style={{ background: 'rgba(8,18,30,0.65)', backdropFilter: 'blur(8px)', borderTop: '0.5px solid rgba(255,255,255,0.07)' }}
           >
+            {erroSalvar && (
+              <p style={{ fontSize: '12px', color: 'rgba(240,100,100,0.95)', textAlign: 'center', marginBottom: '8px' }}>{erroSalvar}</p>
+            )}
+            <div className="flex gap-3">
             <button
               onClick={() => setModal({ open: true, title: 'Remover cliente', message: 'Esta ação não pode ser desfeita.', onConfirm: handleDelete })}
               className="flex-1 min-h-[44px]"
@@ -734,6 +747,7 @@ export default function ClienteDetalhe() {
             >
               {salvando ? 'Salvando...' : 'Salvar'}
             </button>
+            </div>
           </div>
         )}
 
