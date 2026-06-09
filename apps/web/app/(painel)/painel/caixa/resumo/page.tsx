@@ -110,9 +110,7 @@ function VendaRow({
               <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 500, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {venda.cliente_nome ?? 'Sem cliente'}
               </p>
-              {venda.cliente_telefone && (
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', margin: 0 }}>{venda.cliente_telefone}</p>
-              )}
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', margin: 0 }}>{venda.cliente_telefone || ' '}</p>
             </div>
           </div>
 
