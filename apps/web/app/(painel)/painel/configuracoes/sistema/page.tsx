@@ -49,7 +49,7 @@ const LBL9: React.CSSProperties = {
 
 const DIV_HR: React.CSSProperties = { height: '0.5px', background: 'rgba(255,255,255,0.07)' }
 
-type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao'
+type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | null
 
 export default function ConfigSistemaPage() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -85,7 +85,7 @@ export default function ConfigSistemaPage() {
   const [supervisoresQ,         setSupervisoresQ]         = useState('')
 
   // ── Layout state ──────────────────────────────────────────────────────────
-  const [secao, setSecao] = useState<Secao>('logo')
+  const [secao, setSecao] = useState<Secao>(null)
 
   useEffect(() => {
     Promise.all([
@@ -258,13 +258,14 @@ export default function ConfigSistemaPage() {
   const supervisores = colaboradores.filter(c => c.is_supervisor)
   const semMetodoAuth = supervisaoHabilitada && !senhaMestraDefinida && supervisores.length === 0
 
-  const PANEL_ICON: Record<Secao, React.ReactNode> = {
+  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao'
+  const PANEL_ICON: Record<SecaoNonNull, React.ReactNode> = {
     logo:       <ImageIcon   size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     estoque:    <Package     size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     desconto:   <Tag         size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     supervisao: <ShieldCheck size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
   }
-  const PANEL_LABEL: Record<Secao, string> = {
+  const PANEL_LABEL: Record<SecaoNonNull, string> = {
     logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão',
   }
 
@@ -275,7 +276,7 @@ export default function ConfigSistemaPage() {
         <div className="flex flex-col gap-4">
 
           {/* ── Full-width config panel ──────────────────────────────────── */}
-          <div style={{
+          {secao !== null && <div style={{
             background: 'rgba(8,18,30,0.55)',
             backdropFilter: 'blur(12px)',
             border: '0.5px solid rgba(255,255,255,0.09)',
@@ -285,9 +286,9 @@ export default function ConfigSistemaPage() {
             {/* Panel header */}
             <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
               <div className="flex items-center gap-2.5">
-                {PANEL_ICON[secao]}
+                {PANEL_ICON[secao as SecaoNonNull]}
                 <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>
-                  {PANEL_LABEL[secao]}
+                  {PANEL_LABEL[secao as SecaoNonNull]}
                 </span>
               </div>
               {secao === 'estoque'    && toggleSaved     && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
@@ -717,7 +718,7 @@ export default function ConfigSistemaPage() {
               )}
 
             </div>
-          </div>
+          </div>}
 
           {/* ── Section nav squares ──────────────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
@@ -733,7 +734,7 @@ export default function ConfigSistemaPage() {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setSecao(key)}
+                  onClick={() => setSecao(secao === key ? null : key)}
                   className="flex flex-col items-center justify-center gap-2.5 active:scale-[0.97] transition-all"
                   style={{
                     padding: '20px 12px',
