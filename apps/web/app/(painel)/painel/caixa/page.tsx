@@ -120,7 +120,8 @@ export default function CaixaPage() {
   const obsFechRef     = useRef<HTMLInputElement>(null)
 
   // ── Scanner / busca ───────────────────────────────────────────────────────
-  const scanRef      = useRef<HTMLInputElement>(null)
+  const scanRef        = useRef<HTMLInputElement>(null)
+  const modalAbertoRef = useRef(false)
   const [scan,            setScan]           = useState('')
   const [resultados,      setResultados]     = useState<ProdutoSearch[]>([])
   const [highlightedIndex,setHighlightedIndex] = useState(-1)
@@ -184,7 +185,7 @@ export default function CaixaPage() {
       setFormasPagamento(fs)
       setFormasDesc(fs.filter(f => f.ativo && f.aceita_desconto !== false).map(f => f.nome))
     }).catch(() => {})
-    setTimeout(() => scanRef.current?.focus(), 150)
+    setTimeout(() => focusScanSafe(), 150)
   }, [status])
 
   useEffect(() => {
@@ -222,7 +223,7 @@ export default function CaixaPage() {
         .filter(({ v }) => !(produtoVariacao!.produto.controle_estoque && v.estoque_atual <= 0))
       if (e.key === 'Escape') {
         setModalVariacao(false)
-        setTimeout(() => scanRef.current?.focus(), 100)
+        setTimeout(() => focusScanSafe(), 100)
         return
       }
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
@@ -242,7 +243,7 @@ export default function CaixaPage() {
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
         setModalVariacao(false); setProdutoVariacao(null); setFocadoIdx(0)
         setResultados([]); setScan('')
-        setTimeout(() => scanRef.current?.focus(), 100)
+        setTimeout(() => focusScanSafe(), 100)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -263,7 +264,7 @@ export default function CaixaPage() {
   function handleClienteSelecionado(c: Cliente) {
     setCliente(c.id, c.nome)
     setModalCliente(false)
-    setTimeout(() => scanRef.current?.focus(), 100)
+    setTimeout(() => focusScanSafe(), 100)
   }
 
   // ── Cálculos ──────────────────────────────────────────────────────────────
@@ -299,7 +300,7 @@ export default function CaixaPage() {
     qty > 1 ? addItemQtd(item, qty) : addItem(item)
     setModalVariacao(false); setProdutoVariacao(null); setFocadoIdx(0)
     setResultados([]); setScan('')
-    setTimeout(() => scanRef.current?.focus(), 100)
+    setTimeout(() => focusScanSafe(), 100)
   }
 
   // ── Scanner ───────────────────────────────────────────────────────────────
@@ -380,7 +381,7 @@ export default function CaixaPage() {
     const found = await buscarBarcode(query, qty)
     if (found) {
       // Barcode hit — clear input and refocus for next scan
-      setScan(''); scanRef.current?.focus()
+      setScan(''); focusScanSafe()
     } else {
       // Fall back to text search — results from onChange already in dropdown
       // Re-run search to ensure dropdown is fresh, show error only if truly no results
@@ -401,7 +402,7 @@ export default function CaixaPage() {
         const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras, aceita_desconto: data.aceita_desconto ?? true, tipo_nome: data.tipo_nome ?? null }
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
         setResultados([]); setScan('')
-        scanRef.current?.focus()
+        focusScanSafe()
       } else if ((data.versoes?.length ?? 0) > 1) {
         setResultados([])
         setProdutoVariacao({ produto: data, qty })
@@ -409,11 +410,11 @@ export default function CaixaPage() {
       } else {
         setScanErro(`${p.nome} sem variações cadastradas.`)
         setResultados([])
-        scanRef.current?.focus()
+        focusScanSafe()
       }
     } catch (err: any) {
       setScanErro(err?.response?.data?.error ?? 'Erro ao carregar produto.')
-      scanRef.current?.focus()
+      focusScanSafe()
     }
   }
 
@@ -456,7 +457,7 @@ export default function CaixaPage() {
 
   function novaVenda() {
     setVendaOK(null)
-    setTimeout(() => scanRef.current?.focus(), 100)
+    setTimeout(() => focusScanSafe(), 100)
   }
 
   function handleFecharCaixa() {
@@ -481,6 +482,13 @@ export default function CaixaPage() {
 
   const MOD: React.CSSProperties = { background: 'rgba(8,18,30,0.52)', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: '10px', padding: '12px', flexShrink: 0 }
   const MOD_LABEL: React.CSSProperties = { fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '10px' }
+
+  // Keep modalAbertoRef current on every render so setTimeout callbacks read live state
+  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente
+
+  function focusScanSafe() {
+    if (!modalAbertoRef.current) scanRef.current?.focus()
+  }
 
   // ── LOADING ───────────────────────────────────────────────────────────────
   if (status === 'desconhecido' && !cxErro) return (
@@ -690,8 +698,7 @@ export default function CaixaPage() {
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
                     const next = e.relatedTarget as HTMLElement | null
                     if (next && (next.tagName === 'SELECT' || next.tagName === 'BUTTON' || next.tagName === 'INPUT' || next.closest('[data-no-refocus]'))) return
-                    const algumModalAberto = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente
-                    if (!algumModalAberto) setTimeout(() => scanRef.current?.focus(), 250)
+                    setTimeout(() => focusScanSafe(), 250)
                   }}
                   placeholder='Código de barras, nome... ou "3-código" para qty 3'
                   autoComplete="off"
@@ -1008,7 +1015,7 @@ export default function CaixaPage() {
 
       <CheckoutModal
         open={modalCheckout}
-        onClose={() => { setModalCheckout(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onClose={() => { setModalCheckout(false); setTimeout(() => focusScanSafe(), 100) }}
         onSuccess={handleVendaOK}
         itensComDesconto={itensComDesconto}
         baseTotal={baseTotal}
@@ -1028,27 +1035,27 @@ export default function CaixaPage() {
 
       <AdvancedSearchModal
         open={modalBusca}
-        onClose={() => { setModalBusca(false); setTimeout(() => scanRef.current?.focus(), 100) }}
-        onAddItem={item => { addItem(item); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onClose={() => { setModalBusca(false); setTimeout(() => focusScanSafe(), 100) }}
+        onAddItem={item => { addItem(item); setTimeout(() => focusScanSafe(), 100) }}
       />
 
       <CustomerSearchModal
         open={modalCliente}
         autoAberto={clienteAutoAberto}
-        onClose={() => { setModalCliente(false); setClienteAutoAberto(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onClose={() => { setModalCliente(false); setClienteAutoAberto(false); setTimeout(() => focusScanSafe(), 100) }}
         onSelect={handleClienteSelecionado}
       />
 
       <SalespersonSearchModal
         open={modalVendedor}
-        onClose={() => { setModalVendedor(false); setTimeout(() => scanRef.current?.focus(), 100) }}
-        onSelect={c => { setVendedor(c); setVendedorStore(c.id, c.nome); setModalVendedor(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+        onClose={() => { setModalVendedor(false); setTimeout(() => focusScanSafe(), 100) }}
+        onSelect={c => { setVendedor(c); setVendedorStore(c.id, c.nome); setModalVendedor(false); setTimeout(() => focusScanSafe(), 100) }}
       />
 
       <SacolasModal
         open={modalSacolas}
-        onClose={() => { setModalSacolas(false); setTimeout(() => scanRef.current?.focus(), 100) }}
-        onCarregada={() => setTimeout(() => scanRef.current?.focus(), 100)}
+        onClose={() => { setModalSacolas(false); setTimeout(() => focusScanSafe(), 100) }}
+        onCarregada={() => setTimeout(() => focusScanSafe(), 100)}
       />
 
       <ClienteDadosModal
@@ -1105,7 +1112,7 @@ export default function CaixaPage() {
         return (
           <div
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            onClick={() => { setModalVariacao(false); setTimeout(() => scanRef.current?.focus(), 100) }}
+            onClick={() => { setModalVariacao(false); setTimeout(() => focusScanSafe(), 100) }}
           >
             <div
               style={{ background: 'rgba(12,25,45,0.99)', border: '0.5px solid rgba(255,255,255,0.14)', borderRadius: '14px', padding: '24px 20px 20px', width: '460px', maxWidth: '90vw', maxHeight: '88vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0' }}
