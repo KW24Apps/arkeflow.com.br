@@ -282,7 +282,7 @@ export async function vendasRoutes(app: FastifyInstance) {
     )
     if (!v) throw new AppError('Venda não encontrada', 404)
 
-    const { rows: itens }     = await pool.query(`SELECT iv.*, vr.atributos_json, p.nome AS produto_nome, p.aceita_desconto FROM itens_venda iv JOIN versoes vr ON vr.id = iv.versao_id JOIN produtos p ON p.id = vr.produto_id WHERE iv.venda_id = $1`, [id])
+    const { rows: itens }     = await pool.query(`SELECT iv.*, vr.atributos_json, p.nome AS produto_nome, p.aceita_desconto, tp.nome AS tipo_nome FROM itens_venda iv JOIN versoes vr ON vr.id = iv.versao_id JOIN produtos p ON p.id = vr.produto_id LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id WHERE iv.venda_id = $1`, [id])
     const { rows: pagamentos } = await pool.query(`SELECT pv.*, fp.nome AS forma_nome, fp.tipo FROM pagamentos_venda pv JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id WHERE pv.venda_id = $1`, [id])
 
     return reply.send({ ...v, itens, pagamentos })

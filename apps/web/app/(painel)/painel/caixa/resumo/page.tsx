@@ -176,6 +176,7 @@ function VendaRow({
                               const CHIP: React.CSSProperties = { fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.65)', marginRight: '4px', display: 'inline-block' }
                               return (
                                 <span style={{ marginLeft: '4px' }}>
+                                  {item.tipo_nome && <span style={CHIP}>{item.tipo_nome}</span>}
                                   {inline.map((v, i) => <span key={i} style={CHIP}>{v}</span>)}
                                   {temMais && (
                                     <span style={{ position: 'relative', display: 'inline-block' }}
