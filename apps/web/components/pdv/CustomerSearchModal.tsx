@@ -65,7 +65,10 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
     if (!open) return
     setView('search'); setQ(''); setClientes([])
     setNovoNome(''); setNovoTels(['']); setNovoCPF(''); setNovoEmails(['']); setErroNovo('')
-    setTimeout(() => searchRef.current?.focus(), 80)
+    // rAF fires before paint (catches auto-open race); 160ms retry wins any late focus steal
+    const raf = requestAnimationFrame(() => searchRef.current?.focus())
+    const tid = setTimeout(() => searchRef.current?.focus(), 160)
+    return () => { cancelAnimationFrame(raf); clearTimeout(tid) }
   }, [open])
 
   // ── Focus nome when switching to form ─────────────────────────────────────

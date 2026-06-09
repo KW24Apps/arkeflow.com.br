@@ -22,10 +22,12 @@ export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
     if (!open) return
     setQ('')
     setFiltrados([])
-    setTimeout(() => inputRef.current?.focus(), 80)
+    const raf = requestAnimationFrame(() => inputRef.current?.focus())
+    const tid = setTimeout(() => inputRef.current?.focus(), 160)
     colaboradoresApi.list()
       .then(cs => { todosRef.current = cs.filter(c => c.ativo) })
       .catch(() => {})
+    return () => { cancelAnimationFrame(raf); clearTimeout(tid) }
   }, [open])
 
   // ── Debounced client-side filter ──────────────────────────────────────────
