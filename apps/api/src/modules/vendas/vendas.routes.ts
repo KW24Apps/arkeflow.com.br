@@ -22,6 +22,7 @@ const pagamentoSchema = z.object({
   detalhe:        z.string().optional().nullable(),
   valor_recebido: z.coerce.number().min(0).optional().nullable(),
   troco:          z.coerce.number().min(0).optional().nullable(),
+  primeira_parcela: z.string().optional().nullable(),
 })
 
 const vendaSchema = z.object({
@@ -44,8 +45,13 @@ export async function vendasRoutes(app: FastifyInstance) {
     const data = vendaSchema.parse(req.body)
 
     // Verifica configuração global de estoque
-    const { rows: [cfg] } = await pool.query(`SELECT controle_estoque FROM configuracoes_loja LIMIT 1`)
+    const { rows: [cfg] } = await pool.query(
+      `SELECT controle_estoque, crediario_juros_habilitado, crediario_juros_sem_ate, crediario_juros_mes FROM configuracoes_loja LIMIT 1`
+    )
     const controleGlobal = cfg?.controle_estoque ?? true
+    const crediario_juros_habilitado: boolean = cfg?.crediario_juros_habilitado ?? false
+    const crediario_juros_sem_ate: number = Number(cfg?.crediario_juros_sem_ate ?? 0)
+    const crediario_juros_mes: number = Number(cfg?.crediario_juros_mes ?? 0)
 
     // Calcula totais
     const subtotal = data.itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
@@ -98,6 +104,27 @@ export async function vendasRoutes(app: FastifyInstance) {
         }
       }
 
+      // Guarda de crédito para crediário
+      for (const pag of data.pagamentos) {
+        const { rows: [fpCheck] } = await client.query(
+          `SELECT tipo FROM formas_pagamento WHERE id = $1`, [pag.forma_pagamento_id]
+        )
+        if (fpCheck?.tipo === 'crediario') {
+          if (!data.cliente_id) throw new AppError('Crediário exige cliente.', 400)
+          const { rows: [cc] } = await client.query(
+            `SELECT COALESCE(cc.limite,0) AS limite,
+                    COALESCE((SELECT SUM(valor) FROM parcelas_crediario WHERE cliente_id = $1 AND status != 'pago'),0) AS ocupado
+             FROM clientes_credito cc WHERE cc.cliente_id = $1`,
+            [data.cliente_id]
+          )
+          const disponivel = Number(cc?.limite ?? 0) - Number(cc?.ocupado ?? 0)
+          if (Number(pag.valor) > disponivel + 0.01) {
+            throw new AppError('Crédito insuficiente para o valor financiado.', 400)
+          }
+          break
+        }
+      }
+
       // Cria venda
       const { rows: [venda] } = await client.query(
         `INSERT INTO vendas (cliente_id, usuario_id, subtotal, desconto_promocao,
@@ -131,15 +158,25 @@ export async function vendasRoutes(app: FastifyInstance) {
         )
         const pv_id = pv.id
 
-        if (fp?.tipo === 'crediario' && pag.parcelas > 1) {
-          const valorParcela = pag.valor / pag.parcelas
-          for (let n = 1; n <= pag.parcelas; n++) {
-            const venc = new Date()
-            venc.setMonth(venc.getMonth() + n)
+        if (fp?.tipo === 'crediario') {
+          const N = pag.parcelas
+          const financiado = Number(pag.valor)
+          let totalParcelado = financiado
+          if (crediario_juros_habilitado && N > crediario_juros_sem_ate) {
+            totalParcelado = Math.round(financiado * (1 + (crediario_juros_mes / 100) * N) * 100) / 100
+          }
+          const base = Math.floor((totalParcelado / N) * 100) / 100
+          const baseDate = pag.primeira_parcela
+            ? new Date(pag.primeira_parcela + 'T00:00:00')
+            : (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d })()
+          for (let n = 1; n <= N; n++) {
+            const valor = n < N ? base : Math.round((totalParcelado - base * (N - 1)) * 100) / 100
+            const venc = new Date(baseDate.getTime())
+            venc.setMonth(baseDate.getMonth() + (n - 1))
             await client.query(
-              `INSERT INTO parcelas_crediario (pagamento_venda_id, numero_parcela, valor, vencimento)
-               VALUES ($1,$2,$3,$4)`,
-              [pv_id, n, valorParcela.toFixed(2), venc.toISOString().split('T')[0]]
+              `INSERT INTO parcelas_crediario (pagamento_venda_id, cliente_id, numero_parcela, valor, vencimento, status)
+               VALUES ($1,$2,$3,$4,$5,'pendente')`,
+              [pv_id, data.cliente_id, n, valor.toFixed(2), venc.toISOString().split('T')[0]]
             )
           }
         }
