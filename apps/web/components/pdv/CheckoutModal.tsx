@@ -8,6 +8,7 @@ import { clientesApi } from '@/lib/api/clientes'
 import { usePDVStore } from '@/store/pdv.store'
 import { api } from '@/lib/api/client'
 import type { ItemComDesconto } from '@/lib/calcularDesconto'
+import { CurrencyInput } from '@/components/ui/CurrencyInput'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -440,22 +441,22 @@ export function CheckoutModal({
           </div>
 
           {/* Right: total card(s) */}
-          <div style={{ width: '236px', flexShrink: 0 }}>
+          <div style={{ minWidth: '260px', flexShrink: 0 }}>
             {descontoCaixa === 0 ? (
               <div style={{ padding: '8px 12px', background: 'rgba(0,239,255,0.06)', border: '0.5px solid rgba(0,239,255,0.25)', borderRadius: '12px' }}>
-                <p style={{ fontSize: '20px', fontWeight: 800, color: '#0ef', lineHeight: 1, margin: 0 }}>{fmt(baseTotal)}</p>
+                <p style={{ fontSize: '20px', fontWeight: 800, color: '#0ef', lineHeight: 1, margin: 0, whiteSpace: 'nowrap' }}>{fmt(baseTotal)}</p>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <button type="button" onClick={() => comDesconto && handleComDesconto(false)}
                   style={{ padding: '6px 10px', borderRadius: '10px', textAlign: 'left', cursor: comDesconto ? 'pointer' : 'default', background: !comDesconto ? 'rgba(0,239,255,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${!comDesconto ? 'rgba(0,239,255,0.5)' : 'rgba(255,255,255,0.08)'}` }}>
                   <p style={{ ...labelStyle, marginBottom: '3px', color: !comDesconto ? '#0ef' : 'rgba(255,255,255,0.3)' }}>Sem desconto</p>
-                  <p style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1, color: !comDesconto ? '#0ef' : 'rgba(255,255,255,0.4)', margin: 0 }}>{fmt(baseTotal)}</p>
+                  <p style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1, color: !comDesconto ? '#0ef' : 'rgba(255,255,255,0.4)', margin: 0, whiteSpace: 'nowrap' }}>{fmt(baseTotal)}</p>
                 </button>
                 <button type="button" onClick={() => !comDesconto && handleComDesconto(true)}
                   style={{ padding: '6px 10px', borderRadius: '10px', textAlign: 'left', cursor: !comDesconto ? 'pointer' : 'default', background: comDesconto ? 'rgba(100,220,160,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${comDesconto ? 'rgba(100,220,160,0.4)' : 'rgba(255,255,255,0.08)'}` }}>
                   <p style={{ ...labelStyle, marginBottom: '3px', color: comDesconto ? 'rgba(100,220,160,0.9)' : 'rgba(255,255,255,0.3)' }}>Com desconto</p>
-                  <p style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1, color: comDesconto ? 'rgba(100,220,160,0.9)' : 'rgba(255,255,255,0.4)', margin: 0 }}>{fmt(baseTotal - descontoCaixa)}</p>
+                  <p style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1, color: comDesconto ? 'rgba(100,220,160,0.9)' : 'rgba(255,255,255,0.4)', margin: 0, whiteSpace: 'nowrap' }}>{fmt(baseTotal - descontoCaixa)}</p>
                   <p style={{ fontSize: '10px', marginTop: '2px', color: comDesconto ? 'rgba(100,220,160,0.7)' : 'rgba(255,255,255,0.2)' }}>Desconto {fmt(descontoCaixa)}</p>
                 </button>
               </div>
@@ -501,15 +502,11 @@ export function CheckoutModal({
                       <p style={labelStyle}>
                         Entrada{crediarioCfg.entrada_obrigatoria ? ` (mín. ${fmt(entradaMinima)})` : ' (opcional)'}
                       </p>
-                      <input
-                        type="number" min="0" step="0.01"
-                        value={entrada || ''}
-                        onChange={e => {
-                          const v = Math.max(0, parseFloat(e.target.value) || 0)
-                          setEntrada(Math.min(v, totalEfetivo - 0.01))
-                        }}
-                        placeholder={fmt(entradaMinima)}
-                        style={{ ...inputStyle, minHeight: '48px', fontSize: '18px', fontWeight: 600, borderColor: crediarioCfg.entrada_obrigatoria && entrada < entradaMinima - 0.005 ? 'rgba(240,100,100,0.55)' : 'rgba(255,255,255,0.12)' }}
+                      <CurrencyInput
+                        value={Math.round(entrada * 100)}
+                        onChange={cents => setEntrada(Math.min(cents / 100, totalEfetivo - 0.01))}
+                        style={{ ...inputStyle, minHeight: '48px', fontSize: '18px', fontWeight: 600,
+                          border: `0.5px solid ${crediarioCfg.entrada_obrigatoria && entrada < entradaMinima - 0.005 ? 'rgba(240,100,100,0.55)' : 'rgba(255,255,255,0.12)'}` }}
                       />
                     </div>
 
@@ -531,30 +528,32 @@ export function CheckoutModal({
                       </div>
                     )}
 
-                    {/* Parcelas typeable input */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <p style={labelStyle}>Parcelas</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          type="number" min="1" max={crediarioCfg.max_parcelas}
-                          value={crediarioParcelas}
-                          onChange={e => {
-                            const raw = parseInt(e.target.value)
-                            setCrediarioParcelas(isNaN(raw) || raw < 1 ? 1 : Math.min(raw, crediarioCfg.max_parcelas))
-                          }}
-                          style={{ ...inputStyle, width: '80px', minHeight: '44px', fontSize: '22px', fontWeight: 700, textAlign: 'center', color: '#0ef', flexShrink: 0 }}
-                        />
-                        <span style={{ fontSize: '22px', fontWeight: 700, color: '#0ef' }}>×</span>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      {/* Parcelas typeable input */}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <p style={labelStyle}>Parcelas</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="text" inputMode="numeric"
+                            value={crediarioParcelas}
+                            onChange={e => {
+                              const raw = parseInt(e.target.value.replace(/\D/g, ''))
+                              setCrediarioParcelas(isNaN(raw) || raw < 1 ? 1 : Math.min(raw, crediarioCfg.max_parcelas))
+                            }}
+                            style={{ ...inputStyle, width: '80px', minHeight: '44px', fontSize: '22px', fontWeight: 700, textAlign: 'center', color: '#0ef', flexShrink: 0 }}
+                          />
+                          <span style={{ fontSize: '22px', fontWeight: 700, color: '#0ef' }}>×</span>
+                        </div>
+                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>máx. {crediarioCfg.max_parcelas}×</p>
                       </div>
-                      <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>máx. {crediarioCfg.max_parcelas}×</p>
-                    </div>
 
-                    {/* First due date */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <p style={labelStyle}>Vencimento da 1ª parcela</p>
-                      <input type="date" value={primeiraParcela} onChange={e => setPrimeiraParcela(e.target.value)}
-                        style={{ ...inputStyle, minHeight: '44px', fontSize: '13px', colorScheme: 'dark' }}
-                      />
+                      {/* First due date */}
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <p style={labelStyle}>Vencimento da 1ª parcela</p>
+                        <input type="date" value={primeiraParcela} onChange={e => setPrimeiraParcela(e.target.value)}
+                          style={{ ...inputStyle, minHeight: '44px', fontSize: '13px', colorScheme: 'dark' }}
+                        />
+                      </div>
                     </div>
 
                     {erro && <p style={{ color: 'rgba(240,100,100,0.85)', fontSize: '12px', textAlign: 'center', margin: 0 }}>{erro}</p>}
