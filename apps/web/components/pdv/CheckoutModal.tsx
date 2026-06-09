@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { User, Briefcase, X, Minus, Plus } from 'lucide-react'
+import { User, Briefcase, X } from 'lucide-react'
 import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 import { vendasApi, type PagamentoVenda } from '@/lib/api/vendas'
 import { clientesApi } from '@/lib/api/clientes'
@@ -223,7 +223,8 @@ export function CheckoutModal({
     return formas.filter(f => f.ativo && f.tipo !== 'crediario')
   })()
 
-  const isCrediario = formaAtual?.tipo === 'crediario'
+  const isCrediario      = formaAtual?.tipo === 'crediario'
+  const nomeFormaEntrada = formasEntrada.find(f => f.id === (formaEntradaId ?? formasEntrada[0]?.id))?.nome ?? ''
 
   // ── Discount toggle ──────────────────────────────────────────────────────
   function handleComDesconto(novoValor: boolean) {
@@ -398,7 +399,7 @@ export function CheckoutModal({
       <div style={{ background: 'rgba(8,18,30,0.97)', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: '20px', width: '100%', maxWidth: '720px', maxHeight: '95vh', display: 'flex', flexDirection: 'column', boxShadow: '0 28px 80px rgba(0,0,0,0.75)', backdropFilter: 'blur(24px)' }}>
 
         {/* ── HEADER ─────────────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', padding: '20px 24px', borderBottom: '0.5px solid rgba(255,255,255,0.09)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '20px 24px', borderBottom: '0.5px solid rgba(255,255,255,0.09)', flexShrink: 0 }}>
 
           {/* Left: title + attribution chips */}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -441,21 +442,20 @@ export function CheckoutModal({
           {/* Right: total card(s) */}
           <div style={{ width: '236px', flexShrink: 0 }}>
             {descontoCaixa === 0 ? (
-              <div style={{ padding: '12px 14px', background: 'rgba(0,239,255,0.06)', border: '0.5px solid rgba(0,239,255,0.25)', borderRadius: '12px' }}>
-                <p style={{ ...labelStyle, marginBottom: '4px' }}>Total</p>
-                <p style={{ fontSize: '28px', fontWeight: 800, color: '#0ef', lineHeight: 1, margin: 0 }}>{fmt(baseTotal)}</p>
+              <div style={{ padding: '8px 12px', background: 'rgba(0,239,255,0.06)', border: '0.5px solid rgba(0,239,255,0.25)', borderRadius: '12px' }}>
+                <p style={{ fontSize: '20px', fontWeight: 800, color: '#0ef', lineHeight: 1, margin: 0 }}>{fmt(baseTotal)}</p>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <button type="button" onClick={() => comDesconto && handleComDesconto(false)}
-                  style={{ padding: '10px 12px', borderRadius: '10px', textAlign: 'left', cursor: comDesconto ? 'pointer' : 'default', background: !comDesconto ? 'rgba(0,239,255,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${!comDesconto ? 'rgba(0,239,255,0.5)' : 'rgba(255,255,255,0.08)'}` }}>
+                  style={{ padding: '6px 10px', borderRadius: '10px', textAlign: 'left', cursor: comDesconto ? 'pointer' : 'default', background: !comDesconto ? 'rgba(0,239,255,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${!comDesconto ? 'rgba(0,239,255,0.5)' : 'rgba(255,255,255,0.08)'}` }}>
                   <p style={{ ...labelStyle, marginBottom: '3px', color: !comDesconto ? '#0ef' : 'rgba(255,255,255,0.3)' }}>Sem desconto</p>
-                  <p style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1, color: !comDesconto ? '#0ef' : 'rgba(255,255,255,0.4)', margin: 0 }}>{fmt(baseTotal)}</p>
+                  <p style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1, color: !comDesconto ? '#0ef' : 'rgba(255,255,255,0.4)', margin: 0 }}>{fmt(baseTotal)}</p>
                 </button>
                 <button type="button" onClick={() => !comDesconto && handleComDesconto(true)}
-                  style={{ padding: '10px 12px', borderRadius: '10px', textAlign: 'left', cursor: !comDesconto ? 'pointer' : 'default', background: comDesconto ? 'rgba(100,220,160,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${comDesconto ? 'rgba(100,220,160,0.4)' : 'rgba(255,255,255,0.08)'}` }}>
+                  style={{ padding: '6px 10px', borderRadius: '10px', textAlign: 'left', cursor: !comDesconto ? 'pointer' : 'default', background: comDesconto ? 'rgba(100,220,160,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${comDesconto ? 'rgba(100,220,160,0.4)' : 'rgba(255,255,255,0.08)'}` }}>
                   <p style={{ ...labelStyle, marginBottom: '3px', color: comDesconto ? 'rgba(100,220,160,0.9)' : 'rgba(255,255,255,0.3)' }}>Com desconto</p>
-                  <p style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1, color: comDesconto ? 'rgba(100,220,160,0.9)' : 'rgba(255,255,255,0.4)', margin: 0 }}>{fmt(baseTotal - descontoCaixa)}</p>
+                  <p style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1, color: comDesconto ? 'rgba(100,220,160,0.9)' : 'rgba(255,255,255,0.4)', margin: 0 }}>{fmt(baseTotal - descontoCaixa)}</p>
                   <p style={{ fontSize: '10px', marginTop: '2px', color: comDesconto ? 'rgba(100,220,160,0.7)' : 'rgba(255,255,255,0.2)' }}>Desconto {fmt(descontoCaixa)}</p>
                 </button>
               </div>
@@ -531,20 +531,22 @@ export function CheckoutModal({
                       </div>
                     )}
 
-                    {/* Parcelas stepper */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {/* Parcelas typeable input */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <p style={labelStyle}>Parcelas</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <button type="button" onClick={() => setCrediarioParcelas(p => Math.max(1, p - 1))}
-                          style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Minus size={14} />
-                        </button>
-                        <span style={{ flex: 1, textAlign: 'center', fontSize: '24px', fontWeight: 700, color: '#0ef' }}>{N}×</span>
-                        <button type="button" onClick={() => setCrediarioParcelas(p => Math.min(crediarioCfg.max_parcelas, p + 1))}
-                          style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Plus size={14} />
-                        </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="number" min="1" max={crediarioCfg.max_parcelas}
+                          value={crediarioParcelas}
+                          onChange={e => {
+                            const raw = parseInt(e.target.value)
+                            setCrediarioParcelas(isNaN(raw) || raw < 1 ? 1 : Math.min(raw, crediarioCfg.max_parcelas))
+                          }}
+                          style={{ ...inputStyle, width: '80px', minHeight: '44px', fontSize: '22px', fontWeight: 700, textAlign: 'center', color: '#0ef', flexShrink: 0 }}
+                        />
+                        <span style={{ fontSize: '22px', fontWeight: 700, color: '#0ef' }}>×</span>
                       </div>
+                      <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>máx. {crediarioCfg.max_parcelas}×</p>
                     </div>
 
                     {/* First due date */}
@@ -735,13 +737,23 @@ export function CheckoutModal({
             disabled={btnDisabled}
             style={{ flex: 2, minHeight: '48px', background: '#0ef', border: 'none', borderRadius: '14px', fontSize: '14px', fontWeight: 700, color: 'rgba(2,8,16,0.95)', cursor: btnDisabled ? 'default' : 'pointer', opacity: btnDisabled ? 0.4 : 1, transition: 'opacity 0.15s' }}
           >
-            {processando
-              ? 'Registrando...'
-              : isCrediario
-                ? `Finalizar — ${fmt(totalEfetivo)}`
-                : (restante <= 0.01 || valAtual >= restante)
-                  ? `Finalizar — ${fmt(totalEfetivo)}`
-                  : `Confirmar ${fmt(valAtual)} →`
+            {processando ? 'Registrando...' : isCrediario ? (
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.35 }}>
+                {entrada > 0.005 ? (
+                  <>
+                    <span style={{ fontSize: '15px', fontWeight: 500 }}>Receber {fmt(entrada)} em {nomeFormaEntrada}</span>
+                    <span style={{ fontSize: '12px', opacity: 0.75 }}>+ {N}× de {fmt(valorPorParcela)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '15px', fontWeight: 500 }}>Finalizar no crediário</span>
+                    <span style={{ fontSize: '12px', opacity: 0.75 }}>{N}× de {fmt(valorPorParcela)}</span>
+                  </>
+                )}
+              </span>
+            ) : (restante <= 0.01 || valAtual >= restante)
+              ? `Finalizar — ${fmt(totalEfetivo)}`
+              : `Confirmar ${fmt(valAtual)} →`
             }
           </button>
         </div>
