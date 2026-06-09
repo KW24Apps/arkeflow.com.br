@@ -46,7 +46,17 @@ export interface CheckoutResult {
   venda_id:           string
   total:              number
   cashback_gerado:    number
-  pagamentos:         { nome: string; valor: number; troco: number }[]
+  pagamentos:         { nome: string; tipo: string; valor: number; troco: number; parcelas?: number; juros?: number }[]
+  crediario?: {
+    entrada:          number
+    entrada_forma?:   string
+    financiado:       number
+    juros:            number
+    total_parcelado:  number
+    parcelas:         number
+    valor_parcela:    number
+    primeira_parcela: string
+  }
   desconto_promocao:  number
   desconto_pagamento: number
   cashback_usado:     number
@@ -64,6 +74,7 @@ interface Props {
   clienteNome:         string | null
   vendedorNome:        string | null
   vendedorRemovivel:   boolean
+  formasPagamento?:    FormaPagamento[]
   onAbrirCliente:      () => void
   onAbrirVendedor:     () => void
   onAbrirDadosCliente: () => void
@@ -82,7 +93,7 @@ function defaultPrimeiraParcela(): string {
 export function CheckoutModal({
   open, onClose, onSuccess,
   itensComDesconto, baseTotal, totalDesconto, cashbackUsar, clienteId,
-  clienteNome, vendedorNome, vendedorRemovivel,
+  clienteNome, vendedorNome, vendedorRemovivel, formasPagamento,
   onAbrirCliente, onAbrirVendedor, onAbrirDadosCliente, onRemoverCliente, onRemoverVendedor,
 }: Props) {
   const valorRef = useRef<HTMLInputElement>(null)
@@ -115,25 +126,14 @@ export function CheckoutModal({
     setCreditoLiberado(false); setCreditoInfo({ limite: 0, ocupado: 0, disponivel: 0 })
     setCrediarioParcelas(1); setPrimeiraParcela(defaultPrimeiraParcela())
     setEntrada(0); setFormaEntradaId(null)
-    setCarregando(true)
 
-    Promise.all([
-      financeiroApi.formasPagamento(),
-      api.get<any>('/dados-loja/sistema'),
-    ]).then(([fs, sysRes]) => {
-      const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario']
+    const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario']
+    function applyForms(fs: FormaPagamento[]) {
       const sorted = [...fs].sort((a: FormaPagamento, b: FormaPagamento) => {
         const ia = TIPOS.indexOf(a.tipo); const ib = TIPOS.indexOf(b.tipo)
         if (ia !== ib) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
         return a.nome.localeCompare(b.nome)
       })
-      const cfg: DescontoCfg = {
-        pct:         Number(sysRes.data.desconto_max_percentual ?? 0),
-        valor:       Number(sysRes.data.desconto_max_valor ?? 0),
-        promoAceita: !!sysRes.data.promocao_aceita_desconto,
-        restringe:   !!sysRes.data.desconto_restringe_formas,
-      }
-      // Crediário config comes from the crediário forma's config object
       const crediarioForma = fs.find((f: FormaPagamento) => f.tipo === 'crediario')
       const cCfg = crediarioForma?.config ?? {}
       const ccfg: CrediarioCfg = {
@@ -146,12 +146,39 @@ export function CheckoutModal({
         formas_entrada_ids:  Array.isArray(cCfg.formas_entrada) ? cCfg.formas_entrada : [],
       }
       setFormas(sorted)
-      setDescontoCfg(cfg)
       setCrediarioCfg(ccfg)
       setFormaAtual(sorted.find((f: FormaPagamento) => f.ativo && f.tipo !== 'crediario') ?? null)
-      setCarregando(false)
+    }
+
+    if (formasPagamento && formasPagamento.length > 0) {
+      // Forms pre-loaded by parent — render immediately (no spinner), fetch discount config in background
+      applyForms(formasPagamento)
       setTimeout(() => valorRef.current?.focus(), 100)
-    }).catch(() => setCarregando(false))
+      api.get<any>('/dados-loja/sistema').then(sysRes => {
+        setDescontoCfg({
+          pct:         Number(sysRes.data.desconto_max_percentual ?? 0),
+          valor:       Number(sysRes.data.desconto_max_valor ?? 0),
+          promoAceita: !!sysRes.data.promocao_aceita_desconto,
+          restringe:   !!sysRes.data.desconto_restringe_formas,
+        })
+      }).catch(() => {})
+    } else {
+      setCarregando(true)
+      Promise.all([
+        financeiroApi.formasPagamento(),
+        api.get<any>('/dados-loja/sistema'),
+      ]).then(([fs, sysRes]) => {
+        applyForms(fs)
+        setDescontoCfg({
+          pct:         Number(sysRes.data.desconto_max_percentual ?? 0),
+          valor:       Number(sysRes.data.desconto_max_valor ?? 0),
+          promoAceita: !!sysRes.data.promocao_aceita_desconto,
+          restringe:   !!sysRes.data.desconto_restringe_formas,
+        })
+        setCarregando(false)
+        setTimeout(() => valorRef.current?.focus(), 100)
+      }).catch(() => setCarregando(false))
+    }
   }, [open])
 
   // ── Re-fetch credit whenever clienteId changes while modal is open ───────
@@ -363,7 +390,7 @@ export function CheckoutModal({
       })
       const pagamentosRecap = pagamentosParaAPI.map(p => {
         const original = lista.find(l => l.forma.id === p.forma_pagamento_id)
-        return { nome: original?.forma.nome ?? '', valor: p.valor, troco: p.troco ?? 0 }
+        return { nome: original?.forma.nome ?? '', tipo: original?.forma.tipo ?? '', valor: p.valor, troco: p.troco ?? 0, parcelas: p.parcelas, juros: original?.juros ?? 0 }
       })
       resetState()
       onSuccess({ ...r, pagamentos: pagamentosRecap, desconto_promocao: totalDesconto, desconto_pagamento: D, cashback_usado: cashbackUsar })
@@ -395,9 +422,22 @@ export function CheckoutModal({
         vendedor_id:        vendedor_id ?? null,
         vendedor_nome:      vendedor_nome ?? null,
       })
-      const pagamentosRecap = pags.map(p => ({ nome: '', valor: p.valor, troco: 0 }))
+      const pagamentosRecap: CheckoutResult['pagamentos'] = []
+      if (entrada > 0.005 && formaEnt) {
+        pagamentosRecap.push({ nome: formaEnt.nome, tipo: formaEnt.tipo, valor: Math.round(entrada * 100) / 100, troco: 0, parcelas: 1, juros: 0 })
+      }
+      const crediario: CheckoutResult['crediario'] = {
+        entrada:          Math.round(entrada * 100) / 100,
+        entrada_forma:    formaEnt?.nome,
+        financiado,
+        juros:            Math.round((jurosParcelado - financiado) * 100) / 100,
+        total_parcelado:  jurosParcelado,
+        parcelas:         N,
+        valor_parcela:    valorPorParcela,
+        primeira_parcela: primeiraParcela,
+      }
       resetState()
-      onSuccess({ ...r, pagamentos: pagamentosRecap, desconto_promocao: totalDesconto, desconto_pagamento: D, cashback_usado: cashbackUsar })
+      onSuccess({ ...r, pagamentos: pagamentosRecap, crediario, desconto_promocao: totalDesconto, desconto_pagamento: D, cashback_usado: cashbackUsar })
     } catch (e: any) {
       setErro(e?.response?.data?.error ?? 'Erro ao registrar venda.')
       setProcessando(false)
@@ -411,14 +451,8 @@ export function CheckoutModal({
     setFormaEntradaId(null)
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key !== 'Enter') return
-    e.preventDefault(); registrarEtapa()
-  }
-
   function autoFill() {
     setValorAtual(restante.toFixed(2))
-    setTimeout(() => valorRef.current?.select(), 30)
   }
 
   // ── Derived button state ─────────────────────────────────────────────────
@@ -632,24 +666,14 @@ export function CheckoutModal({
                           </button>
                         )}
                       </div>
-                      <input
-                        ref={valorRef}
-                        type="number" min="0" step="0.01"
-                        value={valorAtual}
-                        onChange={e => { setValorAtual(e.target.value); setErro('') }}
-                        onKeyDown={handleKeyDown}
-                        placeholder="0,00"
+                      <CurrencyInput
+                        value={Math.round(valAtual * 100)}
+                        onChange={cents => { setValorAtual(cents > 0 ? (cents / 100).toFixed(2) : ''); setErro('') }}
+                        onEnter={registrarEtapa}
                         style={{ ...inputStyle, minHeight: '56px', fontSize: '22px', fontWeight: 600, textAlign: 'center', borderColor: erro ? 'rgba(240,100,100,0.55)' : 'rgba(255,255,255,0.12)' }}
                       />
                       {formaAtual?.tipo === 'dinheiro' && troco > 0 && (
                         <p style={{ textAlign: 'center', color: 'rgba(100,220,160,0.9)', fontSize: '13px', fontWeight: 500, margin: 0 }}>Troco: {fmt(troco)}</p>
-                      )}
-                      {/* Cartão interest preview */}
-                      {isCartao && valAtual > 0 && parcelas > 1 && (
-                        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '12px', margin: 0 }}>
-                          {parcelas}× de {fmt(cartaoParcelaValor)}
-                          {cartaoJurosValor > 0 && <span style={{ color: 'rgba(240,160,100,0.8)' }}> · juros {fmt(cartaoJurosValor)}</span>}
-                        </p>
                       )}
                     </div>
                     {erro && <p style={{ color: 'rgba(240,100,100,0.85)', fontSize: '12px', textAlign: 'center', margin: 0 }}>{erro}</p>}
@@ -779,6 +803,23 @@ export function CheckoutModal({
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>Restante</span>
                         <span style={{ fontSize: '14px', fontWeight: 700, color: '#0ef' }}>{fmt(restante)}</span>
                       </div>
+                    </div>
+                  </>
+                )}
+
+                {isCartao && parcelas > 1 && valAtual > 0 && (
+                  <>
+                    <div style={dividerStyle} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <p style={{ ...labelStyle, marginBottom: '4px' }}>Parcelamento</p>
+                      <p style={{ fontSize: '20px', fontWeight: 700, color: '#0ef', lineHeight: 1, margin: 0 }}>
+                        {parcelas}× {fmt(cartaoParcelaValor)}
+                      </p>
+                      {cartaoJurosValor > 0 && (
+                        <p style={{ fontSize: '11px', color: 'rgba(240,160,100,0.75)', margin: 0 }}>
+                          Juros {fmt(cartaoJurosValor)}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}

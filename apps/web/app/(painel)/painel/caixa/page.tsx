@@ -11,7 +11,7 @@ import { usePDVStore } from '@/store/pdv.store'
 import { useAuthStore } from '@/store/auth.store'
 import { api } from '@/lib/api/client'
 import { clientesApi } from '@/lib/api/clientes'
-import { financeiroApi } from '@/lib/api/financeiro'
+import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 import { promocoesApi } from '@/lib/api/promocoes'
 import { calcularDescontos } from '@/lib/calcularDesconto'
 import { atributosInline, atributosCompletos } from '@/lib/utils/atributos'
@@ -160,7 +160,8 @@ export default function CaixaPage() {
 
   // ── Desconto do caixa ─────────────────────────────────────────────────────
   const [descontoCfg, setDescontoCfg] = useState<{ pct: number; valor: number; promoAceita: boolean } | null>(null)
-  const [formasDesc,  setFormasDesc]  = useState<string[]>([])
+  const [formasDesc,       setFormasDesc]       = useState<string[]>([])
+  const [formasPagamento,  setFormasPagamento]  = useState<FormaPagamento[]>([])
 
   // ── Boas-vindas ───────────────────────────────────────────────────────────
   const [modalBoasVindas,  setModalBoasVindas]  = useState(false)
@@ -179,6 +180,7 @@ export default function CaixaPage() {
       setDescontoCfg({ pct: Number(d.desconto_max_percentual ?? 0), valor: Number(d.desconto_max_valor ?? 0), promoAceita: !!d.promocao_aceita_desconto })
     }).catch(() => {})
     financeiroApi.formasPagamento().then(fs => {
+      setFormasPagamento(fs)
       setFormasDesc(fs.filter(f => f.ativo && f.aceita_desconto !== false).map(f => f.nome))
     }).catch(() => {})
     setTimeout(() => scanRef.current?.focus(), 150)
@@ -729,9 +731,53 @@ export default function CaixaPage() {
                     {p.troco > 0 && (
                       <p style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)', marginLeft: '8px' }}>↳ troco {fmt(p.troco)}</p>
                     )}
+                    {p.tipo === 'credito' && (p.parcelas ?? 1) > 1 && (
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginLeft: '8px' }}>
+                        {p.parcelas}× de {fmt((p.valor + (p.juros ?? 0)) / p.parcelas!)}
+                        {(p.juros ?? 0) > 0 && <span style={{ color: 'rgba(240,160,100,0.7)' }}> · juros {fmt(p.juros!)}</span>}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
+
+              {/* Crediário detail */}
+              {vendaOK.crediario && (() => {
+                const c = vendaOK.crediario!
+                const fmtDate = (iso: string) => iso.split('-').reverse().join('/')
+                return (
+                  <>
+                    <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+                    <div className="flex flex-col gap-1.5">
+                      <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', margin: '0 0 2px' }}>Crediário</p>
+                      {c.entrada > 0.005 && (
+                        <div className="flex items-center justify-between">
+                          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Entrada{c.entrada_forma ? ` (${c.entrada_forma})` : ''}</span>
+                          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)' }}>{fmt(c.entrada)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Financiado</span>
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)' }}>{fmt(c.financiado)}</span>
+                      </div>
+                      {c.juros > 0.005 && (
+                        <div className="flex items-center justify-between">
+                          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Juros</span>
+                          <span style={{ fontSize: '11px', color: 'rgba(240,160,100,0.75)' }}>{fmt(c.juros)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>Parcelamento</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#0ef' }}>{c.parcelas}× {fmt(c.valor_parcela)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>1ª parcela</span>
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)' }}>{fmtDate(c.primeira_parcela)}</span>
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
 
               {/* Financial adjustments */}
               {(vendaOK.desconto_promocao + vendaOK.desconto_pagamento > 0 || vendaOK.cashback_gerado > 0 || vendaOK.cashback_usado > 0) && (
@@ -922,6 +968,7 @@ export default function CaixaPage() {
         clienteNome={cliente_nome}
         vendedorNome={vendedor ? vendedor.nome : (vendedor_nome ?? null)}
         vendedorRemovivel={!vendedorDaSacola}
+        formasPagamento={formasPagamento}
         onAbrirCliente={() => { setClienteAutoAberto(false); setModalCliente(true) }}
         onAbrirVendedor={() => setModalVendedor(true)}
         onAbrirDadosCliente={() => setModalDadosCliente(true)}
