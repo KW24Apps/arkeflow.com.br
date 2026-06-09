@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, X, Search, Check, Clock, DollarSign } from 'lucide-react'
+import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, Ban, X, Search, Check, Clock, DollarSign } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
 import { caixaApi, type VendaTurno } from '@/lib/api/caixa'
@@ -468,6 +468,12 @@ export default function CaixaPage() {
     setModalFechar(true)
   }
 
+  function closeModalMov() {
+    setModalMov(null)
+    setValorMov(0)
+    setMotivoMov('')
+  }
+
   const fmt    = (v?: number | string | null) => `R$ ${Number(v ?? 0).toFixed(2)}`
   const nomeOp = (usuario as any)?.nome || (usuario as any)?.username || 'Operador'
   const primeiroNome = nomeOp.split(' ')[0]
@@ -545,9 +551,9 @@ export default function CaixaPage() {
         .atrib-row:active { transform: scale(0.99); background: rgba(255,255,255,0.11) !important; }
         .atrib-row-x { transition: color 0.12s; }
         .atrib-row-x:hover { color: rgba(255,255,255,0.6) !important; }
-        .fechar-venda-btn { transition: background 0.15s, transform 0.08s; }
-        .fechar-venda-btn:hover { background: rgba(0,239,255,1) !important; }
-        .fechar-venda-btn:active { transform: scale(0.98); }
+        .fechar-venda-btn { transition: background 0.15s, box-shadow 0.15s, transform 0.08s; }
+        .fechar-venda-btn:hover { background: #0ef !important; box-shadow: 0 0 0 2px rgba(0,239,255,0.35); transform: scale(1.01); }
+        .fechar-venda-btn:active { transform: scale(0.98) !important; box-shadow: none !important; }
       `}</style>
       <TopBar />
       <div className="flex flex-col flex-1 overflow-hidden min-h-0">
@@ -945,21 +951,22 @@ export default function CaixaPage() {
                 {/* Module 3 — Gestão do caixa */}
                 <div style={MOD}>
                   <span style={MOD_LABEL}>Gestão do caixa</span>
-                  <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                  <div style={{ display: 'flex' }}>
                     {[
-                      { key: 'sacolas',    icon: <ShoppingBag size={18} />, label: 'Sacolas',    onClick: () => setModalSacolas(true),               danger: false },
-                      { key: 'provas',     icon: <Home        size={18} />, label: 'Provas',     onClick: () => router.push('/painel/prova-em-casa'), danger: false },
-                      { key: 'sangria',    icon: <ArrowUp     size={18} />, label: 'Sangria',    onClick: () => setModalMov('sangria'),               danger: false },
-                      { key: 'suprimento', icon: <ArrowDown   size={18} />, label: 'Suprimento', onClick: () => setModalMov('suprimento'),            danger: false },
-                      { key: 'fechar',     icon: <Lock        size={18} />, label: 'Fechar',     onClick: () => handleFecharCaixa(),                  danger: true  },
+                      { key: 'sacolas',    icon: <ShoppingBag size={18} />,                                               label: 'Sacolas',  title: 'Sacolas',     onClick: () => setModalSacolas(true),                                              danger: false },
+                      { key: 'provas',     icon: <Home        size={18} />,                                               label: 'Provas',   title: 'Provas',      onClick: () => router.push('/painel/prova-em-casa'),                               danger: false },
+                      { key: 'sangria',    icon: <ArrowUp     size={18} />,                                               label: 'Sangria',  title: 'Sangria',     onClick: () => { setValorMov(0); setMotivoMov(''); setModalMov('sangria') },       danger: false },
+                      { key: 'suprimento', icon: <ArrowDown   size={18} />,                                               label: 'Suprim…',  title: 'Suprimento',  onClick: () => { setValorMov(0); setMotivoMov(''); setModalMov('suprimento') },    danger: false },
+                      { key: 'fechar',     icon: itens.length > 0 ? <Ban size={18} /> : <Lock size={18} />,               label: 'Fechar',   title: 'Fechar caixa', onClick: () => handleFecharCaixa(),                                               danger: true  },
                     ].map(btn => (
                       <button
                         key={btn.key}
                         onClick={btn.onClick}
+                        title={btn.title}
                         className={btn.danger ? 'gestao-btn gestao-btn-danger' : 'gestao-btn'}
                         style={{
                           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-                          width: '44px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
+                          flex: 1, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px',
                           opacity: btn.danger && itens.length > 0 ? 0.5 : 1,
                           color: btn.danger ? 'rgba(240,130,130,0.7)' : 'rgba(0,239,255,0.7)',
                         }}
@@ -1169,7 +1176,7 @@ export default function CaixaPage() {
 
       {/* Modal Sangria / Suprimento */}
       {modalMov && (
-        <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4" onClick={() => setModalMov(null)}>
+        <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4" onClick={closeModalMov}>
           <div className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg p-6 flex flex-col gap-4" style={{ maxHeight: '88vh' }} onClick={e => e.stopPropagation()}>
             <h3 className="text-sea-foam font-semibold capitalize">{modalMov}</h3>
             <p className="text-steel text-xs -mt-2">{modalMov === 'sangria' ? 'Retirada de dinheiro do caixa.' : 'Reforço de dinheiro no caixa.'}</p>
@@ -1186,7 +1193,7 @@ export default function CaixaPage() {
                 className="w-full min-h-[44px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setModalMov(null)} className="flex-1 min-h-[44px] border border-ocean-depth text-steel rounded-xl text-sm">Cancelar</button>
+              <button onClick={closeModalMov} className="flex-1 min-h-[44px] border border-ocean-depth text-steel rounded-xl text-sm">Cancelar</button>
               <button onClick={handleMovimento} disabled={salvMov || !valorMov}
                 className="flex-1 min-h-[44px] bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40">
                 {salvMov ? '...' : 'Confirmar'}
