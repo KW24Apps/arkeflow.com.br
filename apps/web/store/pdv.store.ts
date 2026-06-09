@@ -11,6 +11,7 @@ export interface SacolaItem {
   quantidade:     number
   codigo_barras?:   string | null
   aceita_desconto?: boolean
+  tipo_nome?:       string | null
 }
 
 interface PDVStore {

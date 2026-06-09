@@ -10,12 +10,14 @@ export async function findAll(pool: Pool, q?: string, incluirInativos = false) {
 
   const { rows } = await pool.query(
     `SELECT p.*,
+       tp.nome AS tipo_nome,
        COUNT(v.id) FILTER (WHERE v.ativo)::int          AS total_versoes,
        COALESCE(SUM(v.estoque_atual) FILTER (WHERE v.ativo), 0)::int AS estoque_total
      FROM produtos p
+     LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id
      LEFT JOIN versoes v ON v.produto_id = p.id
      ${where}
-     GROUP BY p.id
+     GROUP BY p.id, tp.nome
      ORDER BY p.nome`,
     params
   )
@@ -24,7 +26,7 @@ export async function findAll(pool: Pool, q?: string, incluirInativos = false) {
 
 export async function findById(pool: Pool, id: string) {
   const { rows: [produto] } = await pool.query(
-    `SELECT * FROM produtos WHERE id = $1 AND ativo = true AND arquivado = false`, [id]
+    `SELECT p.*, tp.nome AS tipo_nome FROM produtos p LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id WHERE p.id = $1 AND p.ativo = true AND p.arquivado = false`, [id]
   )
   if (!produto) return null
 

@@ -238,7 +238,7 @@ export default function CaixaPage() {
         if (!versao || (produtoVariacao!.produto.controle_estoque && versao.estoque_atual <= 0)) return
         const { produto, qty } = produtoVariacao!
         const preco = versao.preco_especifico ? parseFloat(versao.preco_especifico) : parseFloat(produto.preco_base)
-        const item  = { versao_id: versao.id, produto_id: produto.id, nome: produto.nome, atributos: versao.atributos_json, preco_unitario: preco, codigo_barras: versao.codigo_barras ?? null, aceita_desconto: produto.aceita_desconto ?? true }
+        const item  = { versao_id: versao.id, produto_id: produto.id, nome: produto.nome, atributos: versao.atributos_json, preco_unitario: preco, codigo_barras: versao.codigo_barras ?? null, aceita_desconto: produto.aceita_desconto ?? true, tipo_nome: produto.tipo_nome ?? null }
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
         setModalVariacao(false); setProdutoVariacao(null); setFocadoIdx(0)
         setResultados([]); setScan('')
@@ -295,7 +295,7 @@ export default function CaixaPage() {
     if (!produtoVariacao) return
     const { produto, qty } = produtoVariacao
     const preco = versao.preco_especifico ? parseFloat(versao.preco_especifico) : parseFloat(produto.preco_base)
-    const item  = { versao_id: versao.id, produto_id: produto.id, nome: produto.nome, atributos: versao.atributos_json, preco_unitario: preco, codigo_barras: versao.codigo_barras ?? null }
+    const item  = { versao_id: versao.id, produto_id: produto.id, nome: produto.nome, atributos: versao.atributos_json, preco_unitario: preco, codigo_barras: versao.codigo_barras ?? null, tipo_nome: produto.tipo_nome ?? null }
     qty > 1 ? addItemQtd(item, qty) : addItem(item)
     setModalVariacao(false); setProdutoVariacao(null); setFocadoIdx(0)
     setResultados([]); setScan('')
@@ -312,7 +312,7 @@ export default function CaixaPage() {
         if (versoes.length === 1) {
           const v     = versoes[0]
           const preco = v.preco_especifico ? parseFloat(v.preco_especifico) : parseFloat(p.preco_base)
-          const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras ?? null, aceita_desconto: p.aceita_desconto ?? true }
+          const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras ?? null, aceita_desconto: p.aceita_desconto ?? true, tipo_nome: p.tipo_nome ?? null }
           qty > 1 ? addItemQtd(item, qty) : addItem(item)
         } else if (versoes.length > 1) {
           setProdutoVariacao({ produto: { ...p, versoes }, qty })
@@ -324,7 +324,7 @@ export default function CaixaPage() {
       } else {
         // Variation-level barcode → add directly; data.id is the versao UUID (SELECT v.*)
         const preco = data.preco_especifico ? parseFloat(data.preco_especifico) : parseFloat(data.preco_base)
-        const item  = { versao_id: data.id, produto_id: data.produto_id, nome: data.produto_nome, atributos: data.atributos_json ?? {}, preco_unitario: preco, codigo_barras: data.codigo_barras, aceita_desconto: data.aceita_desconto ?? true }
+        const item  = { versao_id: data.id, produto_id: data.produto_id, nome: data.produto_nome, atributos: data.atributos_json ?? {}, preco_unitario: preco, codigo_barras: data.codigo_barras, aceita_desconto: data.aceita_desconto ?? true, tipo_nome: data.tipo_nome ?? null }
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
       }
       setScanErro(''); return true
@@ -398,7 +398,7 @@ export default function CaixaPage() {
       if (data.versoes?.length === 1) {
         const v = data.versoes[0]
         const preco = v.preco_especifico ? parseFloat(v.preco_especifico) : parseFloat(data.preco_base)
-        const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras, aceita_desconto: data.aceita_desconto ?? true }
+        const item  = { versao_id: v.id, produto_id: p.id, nome: p.nome, atributos: v.atributos_json, preco_unitario: preco, codigo_barras: v.codigo_barras, aceita_desconto: data.aceita_desconto ?? true, tipo_nome: data.tipo_nome ?? null }
         qty > 1 ? addItemQtd(item, qty) : addItem(item)
         setResultados([]); setScan('')
         scanRef.current?.focus()
@@ -602,6 +602,7 @@ export default function CaixaPage() {
                               const CHIP: React.CSSProperties = { fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.65)', marginRight: '4px', display: 'inline-block' }
                               return (
                                 <>
+                                  {item.tipo_nome && <span style={CHIP}>{item.tipo_nome}</span>}
                                   {inline.length === 0
                                     ? <span style={{ ...CHIP, color: 'rgba(255,255,255,0.3)' }}>Versão única</span>
                                     : inline.map((v, i) => <span key={i} style={CHIP}>{v}</span>)
