@@ -112,6 +112,8 @@ export function CheckoutModal({
   const crediarioParcelasRef = useRef<HTMLInputElement>(null)
   const primeiraParcelaRef   = useRef<HTMLInputElement>(null)
   const finalizarRef         = useRef<HTMLButtonElement>(null)
+  // True from the moment Valor is focus-filled with restante until the first keystroke
+  const valorPrefillActive   = useRef(false)
 
   // ── Core state ───────────────────────────────────────────────────────────
   const [formas,          setFormas]          = useState<FormaPagamento[]>([])
@@ -391,6 +393,7 @@ export function CheckoutModal({
     setValorAtual('')
     setParcelasStr('1')
     setParcelasErro('')
+    valorPrefillActive.current = false
 
     if (novoRestante <= 0.01) {
       // All paid — move focus to the finalize button; a second Enter finalizes
@@ -485,11 +488,7 @@ export function CheckoutModal({
     setPagamentos([]); setValorAtual(''); setParcelasStr('1'); setParcelasErro(''); setErro('')
     setProcessando(false); setFormaAtual(null); setComDesconto(false)
     setEntrada(0); setCrediarioParcelasStr('1'); setCrediarioParcelasErro(''); setPrimeiraParcela(defaultPrimeiraParcela())
-    setFormaEntradaId(null)
-  }
-
-  function autoFill() {
-    setValorAtual(restante.toFixed(2))
+    setFormaEntradaId(null); valorPrefillActive.current = false
   }
 
   // ── Derived button state ─────────────────────────────────────────────────
@@ -746,18 +745,36 @@ export function CheckoutModal({
 
                     {/* Valor input */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <p style={labelStyle}>Valor</p>
-                        {restante > 0 && !todoPago && (
-                          <button onClick={autoFill} style={{ fontSize: '11px', color: '#0ef', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                            preencher restante ({fmt(restante)})
-                          </button>
-                        )}
-                      </div>
+                      <p style={labelStyle}>Valor</p>
                       <CurrencyInput
                         ref={valorRef}
                         value={Math.round(valAtual * 100)}
-                        onChange={cents => { setValorAtual(cents > 0 ? (cents / 100).toFixed(2) : ''); setErro('') }}
+                        onFocus={() => {
+                          // Pre-fill with remaining when field is empty — Enter accepts, first digit replaces
+                          if (valAtual === 0 && restante > 0.005) {
+                            setValorAtual(restante.toFixed(2))
+                            valorPrefillActive.current = true
+                          }
+                        }}
+                        onChange={cents => {
+                          if (valorPrefillActive.current) {
+                            // Type-to-replace: first keystroke clears the prefilled amount
+                            valorPrefillActive.current = false
+                            const oldCents = Math.round(valAtual * 100)
+                            if (cents < oldCents) {
+                              // Backspace on prefill → clear field
+                              setValorAtual('')
+                            } else {
+                              // Digit typed → start fresh with just that digit
+                              const digit = cents % 10
+                              setValorAtual(digit > 0 ? (digit / 100).toFixed(2) : '')
+                            }
+                            setErro('')
+                            return
+                          }
+                          setValorAtual(cents > 0 ? (cents / 100).toFixed(2) : '')
+                          setErro('')
+                        }}
                         onEnter={registrarEtapa}
                         style={{ ...inputStyle, minHeight: '56px', fontSize: '22px', fontWeight: 600, textAlign: 'center', borderColor: erro ? 'rgba(240,100,100,0.55)' : 'rgba(255,255,255,0.12)' }}
                       />

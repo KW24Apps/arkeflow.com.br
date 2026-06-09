@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 
 export interface GlassSelectOption {
@@ -14,42 +15,57 @@ export interface GlassSelectHandle {
 }
 
 interface GlassSelectProps {
-  value:       string
-  onChange:    (value: string) => void
-  options:     GlassSelectOption[]
+  value:        string
+  onChange:     (value: string) => void
+  options:      GlassSelectOption[]
   placeholder?: string
-  className?:  string
-  style?:      React.CSSProperties
-  // Fires when user presses Enter to confirm a selection (keyboard nav).
-  // Receives the confirmed value so the parent can route focus without
-  // relying on stale state from React's async batched updates.
-  onConfirm?:  (value: string) => void
+  className?:   string
+  style?:       React.CSSProperties
+  // Fires when user presses Enter to confirm; receives confirmed value so parent
+  // can route focus without relying on stale formaAtual state.
+  onConfirm?:   (value: string) => void
+}
+
+const MENU_MAX_H = 280
+
+interface DropdownPos {
+  top:    number   // rect.bottom + 4 — used when opening downward
+  bottom: number   // window.innerHeight - rect.top + 4 — used when opening upward
+  left:   number
+  width:  number
+  openUp: boolean
 }
 
 export const GlassSelect = forwardRef<GlassSelectHandle, GlassSelectProps>(
   function GlassSelect({ value, onChange, options, placeholder = 'Selecione...', className = '', style, onConfirm }, ref) {
     const [open,           setOpen]           = useState(false)
     const [highlightedIdx, setHighlightedIdx] = useState(-1)
-    const [dropdownPos,    setDropdownPos]    = useState({ top: 0, left: 0, width: 0 })
+    const [pos,            setPos]            = useState<DropdownPos>({ top: 0, bottom: 0, left: 0, width: 0, openUp: false })
+    const [mounted,        setMounted]        = useState(false)
+
     const containerRef = useRef<HTMLDivElement>(null)
     const triggerRef   = useRef<HTMLButtonElement>(null)
+    const dropdownRef  = useRef<HTMLDivElement>(null)
+
+    // Needed for portal — document is unavailable during SSR
+    useEffect(() => setMounted(true), [])
 
     useImperativeHandle(ref, () => ({
       focus: () => triggerRef.current?.focus(),
     }))
 
-    // Close on click outside
+    // Close on click outside — must also allow clicks inside the portalled dropdown
     useEffect(() => {
       function onMouseDown(e: MouseEvent) {
-        if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-          setOpen(false)
-        }
+        const inTrigger  = containerRef.current?.contains(e.target as Node)
+        const inDropdown = dropdownRef.current?.contains(e.target as Node)
+        if (!inTrigger && !inDropdown) setOpen(false)
       }
       document.addEventListener('mousedown', onMouseDown)
       return () => document.removeEventListener('mousedown', onMouseDown)
     }, [])
 
-    // Close on scroll / resize (dropdown is fixed-position, would drift)
+    // Close on scroll / resize (would drift otherwise)
     useEffect(() => {
       if (!open) return
       function close() { setOpen(false) }
@@ -77,11 +93,23 @@ export const GlassSelect = forwardRef<GlassSelectHandle, GlassSelectProps>(
       return from
     }
 
-    function openDropdown() {
-      if (triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect()
-        setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+    function computePos(): DropdownPos | null {
+      if (!triggerRef.current) return null
+      const rect       = triggerRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const openUp     = spaceBelow < MENU_MAX_H + 8
+      return {
+        top:    rect.bottom + 4,
+        bottom: window.innerHeight - rect.top + 4,
+        left:   rect.left,
+        width:  rect.width,
+        openUp,
       }
+    }
+
+    function openDropdown() {
+      const p = computePos()
+      if (p) setPos(p)
       const idx = options.findIndex(o => o.value === value && !o.disabled)
       setHighlightedIdx(idx >= 0 ? idx : firstEnabled())
       setOpen(true)
@@ -108,7 +136,7 @@ export const GlassSelect = forwardRef<GlassSelectHandle, GlassSelectProps>(
             onConfirm?.(opt.value)
           }
         } else {
-          // Closed: confirm current value without navigating
+          // Already closed: confirm current value without opening
           onConfirm?.(value)
         }
         return
@@ -126,21 +154,21 @@ export const GlassSelect = forwardRef<GlassSelectHandle, GlassSelectProps>(
           onClick={() => open ? setOpen(false) : openDropdown()}
           onKeyDown={handleKeyDown}
           style={{
-            background:   'rgba(2,8,16,0.8)',
-            border:       `0.5px solid ${open ? 'rgba(0,239,255,0.4)' : 'rgba(255,255,255,0.12)'}`,
-            borderRadius: '12px',
-            padding:      '0 14px',
-            minHeight:    '44px',
-            fontSize:     '13px',
-            color:        value ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.3)',
-            width:        '100%',
-            textAlign:    'left',
-            display:      'flex',
+            background:     'rgba(2,8,16,0.8)',
+            border:         `0.5px solid ${open ? 'rgba(0,239,255,0.4)' : 'rgba(255,255,255,0.12)'}`,
+            borderRadius:   '12px',
+            padding:        '0 14px',
+            minHeight:      '44px',
+            fontSize:       '13px',
+            color:          value ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.3)',
+            width:          '100%',
+            textAlign:      'left',
+            display:        'flex',
             justifyContent: 'space-between',
-            alignItems:   'center',
-            outline:      'none',
-            cursor:       'pointer',
-            boxSizing:    'border-box',
+            alignItems:     'center',
+            outline:        'none',
+            cursor:         'pointer',
+            boxSizing:      'border-box',
           }}
         >
           <span>{selectedLabel ?? placeholder}</span>
@@ -155,20 +183,24 @@ export const GlassSelect = forwardRef<GlassSelectHandle, GlassSelectProps>(
           />
         </button>
 
-        {open && (
+        {/* Portal: escapes any backdropFilter / transform ancestor so position:fixed
+            is always relative to the viewport, not the modal container.            */}
+        {mounted && open && createPortal(
           <div
+            ref={dropdownRef}
             style={{
               position:       'fixed',
-              top:            `${dropdownPos.top}px`,
-              left:           `${dropdownPos.left}px`,
-              width:          `${dropdownPos.width}px`,
+              top:            pos.openUp ? 'auto' : `${pos.top}px`,
+              bottom:         pos.openUp ? `${pos.bottom}px` : 'auto',
+              left:           `${pos.left}px`,
+              width:          `${pos.width}px`,
               background:     'rgba(8,18,30,0.97)',
               border:         '0.5px solid rgba(255,255,255,0.12)',
               borderRadius:   '10px',
               backdropFilter: 'blur(12px)',
               zIndex:         9999,
               overflow:       'hidden',
-              maxHeight:      '280px',
+              maxHeight:      `${MENU_MAX_H}px`,
               overflowY:      'auto',
             }}
           >
@@ -187,7 +219,8 @@ export const GlassSelect = forwardRef<GlassSelectHandle, GlassSelectProps>(
                 onHover={() => { if (!opt.disabled) setHighlightedIdx(idx) }}
               />
             ))}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     )
