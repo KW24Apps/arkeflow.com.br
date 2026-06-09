@@ -711,7 +711,7 @@ export default function CaixaPage() {
         {/* ── DIREITA: Glass Sidebar ──────────────────────────────────────── */}
         <div
           className="relative z-[1] hidden md:flex flex-col shrink-0"
-          style={{ width: '240px', gap: '8px', padding: '10px', borderLeft: '0.5px solid rgba(255,255,255,0.06)' }}
+          style={{ width: '280px', gap: '8px', padding: '10px', borderLeft: '0.5px solid rgba(255,255,255,0.06)' }}
           data-no-refocus
         >
           {vendaOK ? (
