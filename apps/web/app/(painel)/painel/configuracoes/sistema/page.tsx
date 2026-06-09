@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { ImageIcon, Package, Tag, ShieldCheck } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -42,19 +43,13 @@ async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
 
 // ── Glass constants ───────────────────────────────────────────────────────────
 
-const CARD: React.CSSProperties = {
-  background: 'rgba(8,18,30,0.48)',
-  backdropFilter: 'blur(8px)',
-  border: '0.5px solid rgba(255,255,255,0.09)',
-  borderRadius: '10px',
-  padding: '16px',
-}
-
 const LBL9: React.CSSProperties = {
   fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)',
 }
 
 const DIV_HR: React.CSSProperties = { height: '0.5px', background: 'rgba(255,255,255,0.07)' }
+
+type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao'
 
 export default function ConfigSistemaPage() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -88,6 +83,9 @@ export default function ConfigSistemaPage() {
   const [supervisaoSaved,       setSupervisaoSaved]       = useState(false)
   const [modalSupervisores,     setModalSupervisores]     = useState(false)
   const [supervisoresQ,         setSupervisoresQ]         = useState('')
+
+  // ── Layout state ──────────────────────────────────────────────────────────
+  const [secao, setSecao] = useState<Secao>('logo')
 
   useEffect(() => {
     Promise.all([
@@ -260,432 +258,501 @@ export default function ConfigSistemaPage() {
   const supervisores = colaboradores.filter(c => c.is_supervisor)
   const semMetodoAuth = supervisaoHabilitada && !senhaMestraDefinida && supervisores.length === 0
 
+  const PANEL_ICON: Record<Secao, React.ReactNode> = {
+    logo:       <ImageIcon   size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    estoque:    <Package     size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    desconto:   <Tag         size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    supervisao: <ShieldCheck size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+  }
+  const PANEL_LABEL: Record<Secao, string> = {
+    logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão',
+  }
+
   return (
     <>
       <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+        <div className="flex flex-col gap-4">
 
-          {/* ── Logo ──────────────────────────────────────────── */}
-          <div style={CARD} className="flex flex-col gap-3">
-            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Logo da Loja</p>
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
-              Substitui o logotipo ARKEflow. PNG, JPG, SVG ou WebP — redimensionado para 400×200px.
-            </p>
-
-            <div className="flex flex-col items-center gap-2">
-              <div
-                className="flex items-center justify-center overflow-hidden"
-                style={{ width: '100%', height: '52px', background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px' }}
-              >
-                {preview ? (
-                  <img
-                    src={preview.startsWith('blob:') ? preview : preview + '?t=' + Date.now()}
-                    alt="Logo da loja"
-                    style={{ maxHeight: '52px', maxWidth: '100%', objectFit: 'contain', mixBlendMode: 'screen' }}
-                    onError={() => setPreview(null)}
-                  />
-                ) : (
-                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>Sem logo</span>
-                )}
+          {/* ── Full-width config panel ──────────────────────────────────── */}
+          <div style={{
+            background: 'rgba(8,18,30,0.55)',
+            backdropFilter: 'blur(12px)',
+            border: '0.5px solid rgba(255,255,255,0.09)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+          }}>
+            {/* Panel header */}
+            <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
+              <div className="flex items-center gap-2.5">
+                {PANEL_ICON[secao]}
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>
+                  {PANEL_LABEL[secao]}
+                </span>
               </div>
-
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                className="hidden"
-                onChange={handleLogoChange}
-              />
-
-              <button
-                onClick={() => fileRef.current?.click()}
-                disabled={enviandoLogo}
-                className="w-full min-h-[36px] disabled:opacity-40 transition-opacity"
-                style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', color: '#0ef', borderRadius: '8px', fontSize: '13px', fontWeight: 500 }}
-              >
-                {enviandoLogo ? 'Enviando...' : preview ? 'Trocar logo' : 'Enviar logo'}
-              </button>
-
-              {preview && (
-                <button
-                  onClick={async () => {
-                    await api.put('/dados-loja/sistema', { logo_url: null })
-                    setPreview(null); setLogoMsg('Logo removida.')
-                  }}
-                  style={{ fontSize: '12px', color: 'rgba(240,100,100,0.6)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
-                >
-                  Remover logo
-                </button>
-              )}
-
-              {logoMsg && (
-                <p style={{ fontSize: '11px', color: logoMsg.includes('sucesso') ? 'rgba(100,220,160,0.85)' : 'rgba(248,113,113,0.85)', textAlign: 'center' }}>
-                  {logoMsg}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* ── Estoque ──────────────────────────────────────────── */}
-          <div style={CARD} className="flex flex-col gap-3">
-            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Estoque</p>
-
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Controle de estoque global</p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
-                  Desativado: nenhum produto controla quantidade. Produtos individuais ainda podem sobrescrever.
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleToggleEstoque}
-                  className="relative transition-colors"
-                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: controleEstoque ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-                >
-                  <span
-                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                    style={{ left: controleEstoque ? '21px' : '3px' }}
-                  />
-                </button>
-                {toggleSaved && (
-                  <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>
-                )}
-              </div>
+              {secao === 'estoque'    && toggleSaved     && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
+              {secao === 'desconto'   && descontoSaved   && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
+              {secao === 'supervisao' && supervisaoSaved && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
             </div>
 
-            {!controleEstoque && (
-              <div style={{ background: 'rgba(234,179,8,0.08)', border: '0.5px solid rgba(234,179,8,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
-                <p style={{ fontSize: '11px', color: 'rgba(234,179,8,0.8)' }}>⚠️ Alertas e validações de quantidade ficam desabilitados.</p>
-              </div>
-            )}
-          </div>
+            {/* Panel body */}
+            <div className="p-5">
 
-          {/* ── Desconto ────────────────────────────────────────────── */}
-          <div style={CARD} className="flex flex-col gap-3">
-            <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Desconto</p>
+              {/* ── Logo ─────────────────────────────────────────────── */}
+              {secao === 'logo' && (
+                <div className="max-w-xs mx-auto flex flex-col gap-3">
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
+                    Substitui o logotipo ARKEflow. PNG, JPG, SVG ou WebP — redimensionado para 400×200px.
+                  </p>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Percentual máximo</label>
-                <div className="relative">
-                  <input
-                    type="number" min="0" max="100" step="0.1"
-                    value={descontoMaxPct}
-                    onChange={e => setDescontoMaxPct(parseFloat(e.target.value) || 0)}
-                    onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
-                    onBlur={e => {
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
-                      handleSaveDesconto({ desconto_max_percentual: descontoMaxPct })
-                    }}
-                    className="w-full min-h-[38px] px-3 pr-7 outline-none"
-                    style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
-                  />
-                  <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Teto em R$</label>
-                <CurrencyInput
-                  value={descontoMaxValorCents}
-                  onChange={setDescontoMaxValorCents}
-                  onBlur={() => handleSaveDesconto({ desconto_max_valor: descontoMaxValorCents / 100 })}
-                  className="w-full min-h-[38px] px-3 outline-none"
-                  style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
-                />
-              </div>
-            </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div
+                      className="flex items-center justify-center overflow-hidden"
+                      style={{ width: '100%', height: '52px', background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '8px' }}
+                    >
+                      {preview ? (
+                        <img
+                          src={preview.startsWith('blob:') ? preview : preview + '?t=' + Date.now()}
+                          alt="Logo da loja"
+                          style={{ maxHeight: '52px', maxWidth: '100%', objectFit: 'contain', mixBlendMode: 'screen' }}
+                          onError={() => setPreview(null)}
+                        />
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>Sem logo</span>
+                      )}
+                    </div>
 
-            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '-4px' }}>
-              Trava no primeiro limite atingido. 0 = sem limite.
-            </p>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      className="hidden"
+                      onChange={handleLogoChange}
+                    />
 
-            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+                    <button
+                      onClick={() => fileRef.current?.click()}
+                      disabled={enviandoLogo}
+                      className="w-full min-h-[36px] disabled:opacity-40 transition-opacity"
+                      style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', color: '#0ef', borderRadius: '8px', fontSize: '13px', fontWeight: 500 }}
+                    >
+                      {enviandoLogo ? 'Enviando...' : preview ? 'Trocar logo' : 'Enviar logo'}
+                    </button>
 
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Produtos em promoção aceitam desconto adicional</p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
-                  Desativado: itens já em promoção não recebem o desconto do caixa por cima.
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleTogglePromocao}
-                  className="relative transition-colors"
-                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: promocaoAceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-                >
-                  <span
-                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                    style={{ left: promocaoAceitaDesconto ? '21px' : '3px' }}
-                  />
-                </button>
-                {descontoSaved && (
-                  <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>
-                )}
-              </div>
-            </div>
-
-            <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
-
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Restringir formas quando há desconto</p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
-                  Ativado: somente formas marcadas abaixo ficam disponíveis no checkout com desconto.
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleToggleRestringeFormas}
-                  className="relative transition-colors"
-                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: descontoRestringeFormas ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-                >
-                  <span
-                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                    style={{ left: descontoRestringeFormas ? '21px' : '3px' }}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {formas.filter(f => f.ativo).length > 0 && (
-              <>
-                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
-                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>
-                  Formas que aceitam desconto
-                </p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '-6px' }}>
-                  Clique sobre a forma para ativar ou desativar o desconto.
-                </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {formas.filter(f => f.ativo).map(f => {
-                    const aceita = f.aceita_desconto !== false
-                    return (
+                    {preview && (
                       <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => handleToggleFormaDesconto(f)}
-                        style={{
-                          minHeight: '38px',
-                          padding: '8px 15px',
-                          borderRadius: '9px',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          border: aceita ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
-                          background: aceita ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
-                          color: aceita ? '#0ef' : 'rgba(255,255,255,0.35)',
+                        onClick={async () => {
+                          await api.put('/dados-loja/sistema', { logo_url: null })
+                          setPreview(null); setLogoMsg('Logo removida.')
                         }}
+                        style={{ fontSize: '12px', color: 'rgba(240,100,100,0.6)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
                       >
-                        {f.nome}{aceita ? ' ✓' : ''}
+                        Remover logo
                       </button>
-                    )
-                  })}
+                    )}
+
+                    {logoMsg && (
+                      <p style={{ fontSize: '11px', color: logoMsg.includes('sucesso') ? 'rgba(100,220,160,0.85)' : 'rgba(248,113,113,0.85)', textAlign: 'center' }}>
+                        {logoMsg}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
+              )}
 
-          {/* ── Supervisão ───────────────────────────────────────────── */}
-          <div style={CARD} className="flex flex-col gap-3">
-            <p style={LBL9}>Supervisão</p>
+              {/* ── Estoque ──────────────────────────────────────────── */}
+              {secao === 'estoque' && (
+                <div className="max-w-sm mx-auto flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Controle de estoque global</p>
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                        Desativado: nenhum produto controla quantidade. Produtos individuais ainda podem sobrescrever.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleToggleEstoque}
+                      className="relative transition-colors shrink-0"
+                      style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: controleEstoque ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                    >
+                      <span
+                        className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                        style={{ left: controleEstoque ? '21px' : '3px' }}
+                      />
+                    </button>
+                  </div>
 
-            {/* a) Toggle-mãe */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <p style={{ fontSize: '13px', fontWeight: 600, color: supervisaoHabilitada ? 'rgba(0,239,255,0.9)' : 'rgba(255,255,255,0.75)' }}>
-                  Habilitar supervisão
-                </p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
-                  Exige autorização de supervisor ou senha mestra em ações sensíveis.
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleToggleSupervisao}
-                  className="relative transition-colors"
-                  style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: supervisaoHabilitada ? 'rgba(0,212,212,0.85)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
-                >
-                  <span
-                    className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                    style={{ left: supervisaoHabilitada ? '21px' : '3px' }}
-                  />
-                </button>
-                {supervisaoSaved && (
-                  <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>
-                )}
-              </div>
-            </div>
+                  {!controleEstoque && (
+                    <div style={{ background: 'rgba(234,179,8,0.08)', border: '0.5px solid rgba(234,179,8,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
+                      <p style={{ fontSize: '11px', color: 'rgba(234,179,8,0.8)' }}>⚠️ Alertas e validações de quantidade ficam desabilitados.</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {/* Sub-controls — dimmed when supervision off */}
-            <div style={{ opacity: supervisaoHabilitada ? 1 : 0.38, pointerEvents: supervisaoHabilitada ? 'auto' : 'none', transition: 'opacity 0.2s', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* ── Desconto ─────────────────────────────────────────── */}
+              {secao === 'desconto' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
 
-              <div style={DIV_HR} />
-
-              {/* b) Senha mestra */}
-              <div className="flex flex-col gap-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Senha mestra da loja</p>
-                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
-                      Opcional — autoriza sem escolher supervisor.
+                  {/* LEFT: Limits */}
+                  <div className="flex flex-col gap-3">
+                    <p style={LBL9}>Limites</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1.5">
+                        <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Percentual máximo</label>
+                        <div className="relative">
+                          <input
+                            type="number" min="0" max="100" step="0.1"
+                            value={descontoMaxPct}
+                            onChange={e => setDescontoMaxPct(parseFloat(e.target.value) || 0)}
+                            onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                            onBlur={e => {
+                              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                              handleSaveDesconto({ desconto_max_percentual: descontoMaxPct })
+                            }}
+                            className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                            style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                          />
+                          <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Teto em R$</label>
+                        <CurrencyInput
+                          value={descontoMaxValorCents}
+                          onChange={setDescontoMaxValorCents}
+                          onBlur={() => handleSaveDesconto({ desconto_max_valor: descontoMaxValorCents / 100 })}
+                          className="w-full min-h-[38px] px-3 outline-none"
+                          style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                        />
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
+                      Trava no primeiro limite atingido. 0 = sem limite.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleToggleSenhaMestra}
-                    className="relative transition-colors shrink-0"
-                    style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: senhaMestraHabilitada ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer', marginTop: '2px' }}
-                  >
-                    <span
-                      className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                      style={{ left: senhaMestraHabilitada ? '21px' : '3px' }}
-                    />
-                  </button>
-                </div>
 
-                {senhaMestraHabilitada && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="password"
-                      value={senhaMestraInput}
-                      onChange={e => setSenhaMestraInput(e.target.value)}
-                      onBlur={handleSenhaMestraBlur}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur() } }}
-                      placeholder={senhaMestraDefinida ? '••••••••' : 'Definir senha mestra...'}
-                      className="flex-1 outline-none"
-                      style={{ background: 'rgba(2,8,16,0.6)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}
-                      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
-                      onBlurCapture={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }}
-                    />
-                    {senhaMestraSalva && (
-                      <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)', whiteSpace: 'nowrap' }}>Salvo</span>
-                    )}
-                    {senhaMestraDefinida && !senhaMestraInput && (
-                      <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.6)', whiteSpace: 'nowrap' }}>definida</span>
-                    )}
-                  </div>
-                )}
-              </div>
+                  {/* RIGHT: Rules + chips */}
+                  <div className="flex flex-col gap-3">
+                    <p style={LBL9}>Regras</p>
 
-              <div style={DIV_HR} />
-
-              {/* c) Supervisores chips */}
-              <div className="flex flex-col gap-2">
-                <p style={LBL9}>Supervisores</p>
-                {supervisores.length > 0 ? (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {supervisores.map(c => (
-                      <span
-                        key={c.id}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '5px',
-                          padding: '3px 10px 3px 6px',
-                          borderRadius: '999px',
-                          background: 'rgba(0,239,255,0.08)',
-                          border: '0.5px solid rgba(0,239,255,0.25)',
-                          fontSize: '12px', color: 'rgba(0,239,255,0.85)',
-                        }}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Produtos em promoção aceitam desconto adicional</p>
+                        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                          Desativado: itens já em promoção não recebem o desconto do caixa por cima.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleTogglePromocao}
+                        className="relative transition-colors shrink-0"
+                        style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: promocaoAceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
                       >
-                        <span style={{
-                          width: '18px', height: '18px', borderRadius: '50%',
-                          background: 'rgba(0,239,255,0.15)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '9px', fontWeight: 700, color: '#0ef', flexShrink: 0,
-                        }}>
-                          {c.nome.charAt(0).toUpperCase()}
-                        </span>
-                        {c.nome.split(' ')[0]}
-                      </span>
-                    ))}
+                        <span
+                          className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                          style={{ left: promocaoAceitaDesconto ? '21px' : '3px' }}
+                        />
+                      </button>
+                    </div>
+
+                    <div style={DIV_HR} />
+
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Restringir formas quando há desconto</p>
+                        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                          Ativado: somente formas marcadas abaixo ficam disponíveis no checkout com desconto.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleToggleRestringeFormas}
+                        className="relative transition-colors shrink-0"
+                        style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: descontoRestringeFormas ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                      >
+                        <span
+                          className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                          style={{ left: descontoRestringeFormas ? '21px' : '3px' }}
+                        />
+                      </button>
+                    </div>
+
+                    {formas.filter(f => f.ativo).length > 0 && (
+                      <>
+                        <div style={DIV_HR} />
+                        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>
+                          Formas que aceitam desconto
+                        </p>
+                        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '-6px' }}>
+                          Clique sobre a forma para ativar ou desativar o desconto.
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {formas.filter(f => f.ativo).map(f => {
+                            const aceita = f.aceita_desconto !== false
+                            return (
+                              <button
+                                key={f.id}
+                                type="button"
+                                onClick={() => handleToggleFormaDesconto(f)}
+                                style={{
+                                  minHeight: '38px',
+                                  padding: '8px 15px',
+                                  borderRadius: '9px',
+                                  fontSize: '13px',
+                                  cursor: 'pointer',
+                                  border: aceita ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
+                                  background: aceita ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
+                                  color: aceita ? '#0ef' : 'rgba(255,255,255,0.35)',
+                                }}
+                              >
+                                {f.nome}{aceita ? ' ✓' : ''}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
-                ) : (
-                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>Nenhum supervisor definido.</p>
-                )}
+                </div>
+              )}
+
+              {/* ── Supervisão ───────────────────────────────────────── */}
+              {secao === 'supervisao' && (
+                <div className="flex flex-col gap-5">
+
+                  {/* a) Toggle-mãe — always active, full width */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: supervisaoHabilitada ? 'rgba(0,239,255,0.9)' : 'rgba(255,255,255,0.75)' }}>
+                        Habilitar supervisão
+                      </p>
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                        Exige autorização de supervisor ou senha mestra em ações sensíveis.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleToggleSupervisao}
+                      className="relative transition-colors shrink-0"
+                      style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: supervisaoHabilitada ? 'rgba(0,212,212,0.85)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                    >
+                      <span
+                        className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                        style={{ left: supervisaoHabilitada ? '21px' : '3px' }}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Sub-controls in two columns — dimmed when supervision off */}
+                  <div style={{ opacity: supervisaoHabilitada ? 1 : 0.38, pointerEvents: supervisaoHabilitada ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+
+                      {/* LEFT: Senha mestra */}
+                      <div className="flex flex-col gap-3">
+                        <div style={DIV_HR} />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Senha mestra da loja</p>
+                            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+                              Opcional — autoriza sem escolher supervisor.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleToggleSenhaMestra}
+                            className="relative transition-colors shrink-0"
+                            style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: senhaMestraHabilitada ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer', marginTop: '2px' }}
+                          >
+                            <span
+                              className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                              style={{ left: senhaMestraHabilitada ? '21px' : '3px' }}
+                            />
+                          </button>
+                        </div>
+
+                        {senhaMestraHabilitada && (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="password"
+                              value={senhaMestraInput}
+                              onChange={e => setSenhaMestraInput(e.target.value)}
+                              onBlur={handleSenhaMestraBlur}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur() } }}
+                              placeholder={senhaMestraDefinida ? '••••••••' : 'Definir senha mestra...'}
+                              className="flex-1 outline-none"
+                              style={{ background: 'rgba(2,8,16,0.6)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}
+                              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                              onBlurCapture={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }}
+                            />
+                            {senhaMestraSalva && (
+                              <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)', whiteSpace: 'nowrap' }}>Salvo</span>
+                            )}
+                            {senhaMestraDefinida && !senhaMestraInput && (
+                              <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.6)', whiteSpace: 'nowrap' }}>definida</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* RIGHT: Supervisores + Ações */}
+                      <div className="flex flex-col gap-3">
+                        <div style={DIV_HR} />
+
+                        {/* c) Supervisores chips */}
+                        <div className="flex flex-col gap-2">
+                          <p style={LBL9}>Supervisores</p>
+                          {supervisores.length > 0 ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                              {supervisores.map(c => (
+                                <span
+                                  key={c.id}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                    padding: '3px 10px 3px 6px',
+                                    borderRadius: '999px',
+                                    background: 'rgba(0,239,255,0.08)',
+                                    border: '0.5px solid rgba(0,239,255,0.25)',
+                                    fontSize: '12px', color: 'rgba(0,239,255,0.85)',
+                                  }}
+                                >
+                                  <span style={{
+                                    width: '18px', height: '18px', borderRadius: '50%',
+                                    background: 'rgba(0,239,255,0.15)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '9px', fontWeight: 700, color: '#0ef', flexShrink: 0,
+                                  }}>
+                                    {c.nome.charAt(0).toUpperCase()}
+                                  </span>
+                                  {c.nome.split(' ')[0]}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>Nenhum supervisor definido.</p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => { setSupervisoresQ(''); setModalSupervisores(true) }}
+                            style={{
+                              alignSelf: 'flex-start',
+                              background: 'none',
+                              border: '0.5px solid rgba(0,239,255,0.25)',
+                              borderRadius: '8px',
+                              color: 'rgba(0,239,255,0.7)',
+                              fontSize: '12px',
+                              padding: '5px 12px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Gerenciar supervisores
+                          </button>
+                        </div>
+
+                        <div style={DIV_HR} />
+
+                        {/* d) Ações que exigem autorização */}
+                        <div className="flex flex-col gap-3">
+                          <p style={LBL9}>Ações que exigem autorização</p>
+
+                          <div className="flex items-center justify-between gap-3">
+                            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', flex: 1 }}>Fechar caixa com valor a menos</p>
+                            <button
+                              type="button"
+                              onClick={handleToggleFecharFalta}
+                              className="relative transition-colors shrink-0"
+                              style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: exigeAuthFecharFalta ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                            >
+                              <span
+                                className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                                style={{ left: exigeAuthFecharFalta ? '21px' : '3px' }}
+                              />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3">
+                            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', flex: 1 }}>Fechar caixa com valor a mais</p>
+                            <button
+                              type="button"
+                              onClick={handleToggleFecharSobra}
+                              className="relative transition-colors shrink-0"
+                              style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: exigeAuthFecharSobra ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                            >
+                              <span
+                                className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                                style={{ left: exigeAuthFecharSobra ? '21px' : '3px' }}
+                              />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3">
+                            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', flex: 1 }}>Cancelar item do caixa</p>
+                            <button
+                              type="button"
+                              onClick={handleToggleCancelarItem}
+                              className="relative transition-colors shrink-0"
+                              style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: exigeAuthCancelarItem ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                            >
+                              <span
+                                className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                                style={{ left: exigeAuthCancelarItem ? '21px' : '3px' }}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* e) Amber warning — full width */}
+                  {semMetodoAuth && (
+                    <div style={{ background: 'rgba(234,179,8,0.08)', border: '0.5px solid rgba(234,179,8,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
+                      <p style={{ fontSize: '11px', color: 'rgba(234,179,8,0.8)' }}>
+                        ⚠️ Habilite a senha mestra ou marque ao menos um supervisor.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          </div>
+
+          {/* ── Section nav squares ──────────────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
+
+            {([
+              { key: 'logo'       as const, label: 'Logo da loja',  Icon: ImageIcon   },
+              { key: 'estoque'    as const, label: 'Estoque',        Icon: Package     },
+              { key: 'desconto'   as const, label: 'Desconto',       Icon: Tag         },
+              { key: 'supervisao' as const, label: 'Supervisão',     Icon: ShieldCheck },
+            ] satisfies { key: Secao; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => {
+              const sel = secao === key
+              return (
                 <button
+                  key={key}
                   type="button"
-                  onClick={() => { setSupervisoresQ(''); setModalSupervisores(true) }}
+                  onClick={() => setSecao(key)}
+                  className="flex flex-col items-center justify-center gap-2.5 active:scale-[0.97] transition-all"
                   style={{
-                    alignSelf: 'flex-start',
-                    background: 'none',
-                    border: '0.5px solid rgba(0,239,255,0.25)',
-                    borderRadius: '8px',
-                    color: 'rgba(0,239,255,0.7)',
-                    fontSize: '12px',
-                    padding: '5px 12px',
+                    padding: '20px 12px',
+                    minHeight: '110px',
+                    background:     sel ? 'rgba(0,239,255,0.08)' : 'rgba(8,18,30,0.48)',
+                    backdropFilter: 'blur(8px)',
+                    border:         sel ? '0.5px solid rgba(0,239,255,0.5)' : '0.5px solid rgba(255,255,255,0.09)',
+                    borderRadius:   '10px',
                     cursor: 'pointer',
                   }}
                 >
-                  Gerenciar supervisores
+                  <Icon size={24} style={{ color: sel ? '#0ef' : 'rgba(255,255,255,0.35)' }} />
+                  <span style={{ fontSize: '12px', fontWeight: 500, color: sel ? '#0ef' : 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 1.3 }}>
+                    {label}
+                  </span>
                 </button>
-              </div>
+              )
+            })}
 
-              <div style={DIV_HR} />
-
-              {/* d) Ações que exigem autorização */}
-              <div className="flex flex-col gap-3">
-                <p style={LBL9}>Ações que exigem autorização</p>
-
-                <div className="flex items-start justify-between gap-3">
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', flex: 1 }}>Fechar caixa com valor a menos</p>
-                  <button
-                    type="button"
-                    onClick={handleToggleFecharFalta}
-                    className="relative transition-colors shrink-0"
-                    style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: exigeAuthFecharFalta ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
-                  >
-                    <span
-                      className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                      style={{ left: exigeAuthFecharFalta ? '21px' : '3px' }}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex items-start justify-between gap-3">
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', flex: 1 }}>Fechar caixa com valor a mais</p>
-                  <button
-                    type="button"
-                    onClick={handleToggleFecharSobra}
-                    className="relative transition-colors shrink-0"
-                    style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: exigeAuthFecharSobra ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
-                  >
-                    <span
-                      className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                      style={{ left: exigeAuthFecharSobra ? '21px' : '3px' }}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex items-start justify-between gap-3">
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', flex: 1 }}>Cancelar item do caixa</p>
-                  <button
-                    type="button"
-                    onClick={handleToggleCancelarItem}
-                    className="relative transition-colors shrink-0"
-                    style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: exigeAuthCancelarItem ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
-                  >
-                    <span
-                      className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                      style={{ left: exigeAuthCancelarItem ? '21px' : '3px' }}
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* e) Amber warning — no auth method configured */}
-            {semMetodoAuth && (
-              <div style={{ background: 'rgba(234,179,8,0.08)', border: '0.5px solid rgba(234,179,8,0.25)', borderRadius: '8px', padding: '10px 12px' }}>
-                <p style={{ fontSize: '11px', color: 'rgba(234,179,8,0.8)' }}>
-                  ⚠️ Habilite a senha mestra ou marque ao menos um supervisor.
-                </p>
-              </div>
-            )}
           </div>
 
         </div>

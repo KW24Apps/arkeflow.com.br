@@ -194,6 +194,14 @@ export default function ColaboradorDetalhe() {
     setColab(c => c ? { ...c, ativo: novo } : c)
   }
 
+  async function handleToggleSupervisor() {
+    if (!colab) return
+    const novo = !(colab.is_supervisor ?? false)
+    setColab(c => c ? { ...c, is_supervisor: novo } : c)
+    try { await colaboradoresApi.setSupervisor(id, novo) }
+    catch { setColab(c => c ? { ...c, is_supervisor: !novo } : c) }
+  }
+
   async function salvarAcesso() {
     setSalvando(true); setMsg('')
     try {
@@ -411,23 +419,38 @@ export default function ColaboradorDetalhe() {
                     {isDono && <span style={{ fontSize: '9px', textTransform: 'uppercase', background: 'rgba(0,239,255,0.12)', color: '#0ef', borderRadius: '9999px', padding: '2px 8px' }}>Dono</span>}
                   </div>
 
-                  {/* Access status toggle row */}
+                  {/* Access status + supervisor toggles */}
                   {!isDono && (
-                    <div style={ROW} className="flex items-center justify-between">
-                      <div>
-                        <p style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>
-                          {colab.ativo ? 'Acesso ativo' : 'Acesso bloqueado'}
-                        </p>
-                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>
-                          {colab.ativo ? 'Colaborador pode entrar no sistema' : 'Login bloqueado'}
-                        </p>
+                    <>
+                      <div style={ROW} className="flex items-center justify-between">
+                        <div>
+                          <p style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>
+                            {colab.ativo ? 'Acesso ativo' : 'Acesso bloqueado'}
+                          </p>
+                          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>
+                            {colab.ativo ? 'Colaborador pode entrar no sistema' : 'Login bloqueado'}
+                          </p>
+                        </div>
+                        <button onClick={handleToggleAtivo} className="shrink-0 relative transition-colors"
+                          style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: colab.ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}>
+                          <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                            style={{ left: colab.ativo ? '21px' : '3px' }} />
+                        </button>
                       </div>
-                      <button onClick={handleToggleAtivo} className="shrink-0 relative transition-colors"
-                        style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: colab.ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}>
-                        <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
-                          style={{ left: colab.ativo ? '21px' : '3px' }} />
-                      </button>
-                    </div>
+                      <div style={ROW} className="flex items-center justify-between">
+                        <div>
+                          <p style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>É supervisor</p>
+                          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>
+                            Pode autorizar ações sensíveis (caixa)
+                          </p>
+                        </div>
+                        <button onClick={handleToggleSupervisor} className="shrink-0 relative transition-colors"
+                          style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: (colab.is_supervisor ?? false) ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}>
+                          <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                            style={{ left: (colab.is_supervisor ?? false) ? '21px' : '3px' }} />
+                        </button>
+                      </div>
+                    </>
                   )}
 
                   <GField label="Nome" value={nome} onChange={setNome} onBlur={() => setNome(n => n.replace(/\b\w/g, c => c.toUpperCase()))} />

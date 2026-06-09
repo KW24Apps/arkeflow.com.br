@@ -246,7 +246,7 @@ export default function FormasPagamentoPage() {
 
         {/* ── Edit panel ──────────────────────────────────────────────────── */}
         {formOpen && (
-          <div style={{ ...CARD, maxWidth: isWide ? '860px' : '460px' }} className="p-5 flex flex-col gap-4">
+          <div style={CARD} className="p-5 flex flex-col gap-4">
 
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
               {editandoId ? 'Editar forma de pagamento' : 'Nova forma de pagamento'}
