@@ -45,8 +45,9 @@ const GInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputE
 )
 
 export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Props) {
-  const searchRef = useRef<HTMLInputElement>(null)
-  const nomeRef   = useRef<HTMLInputElement>(null)
+  const searchRef    = useRef<HTMLInputElement>(null)
+  const nomeRef      = useRef<HTMLInputElement>(null)
+  const modalRootRef = useRef<HTMLDivElement>(null)
 
   const [view,      setView]      = useState<View>('search')
   const [q,         setQ]         = useState('')
@@ -101,6 +102,20 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
     return () => window.removeEventListener('keydown', onKey)
   }, [open, view, onClose])
 
+  // ── Focus guard: keep cursor in search field while open in search view ────
+  // Any time focus escapes the modal (e.g. scanner stealing it), redirect back.
+  // Guard is lifted when switching to 'novo' so form fields work normally.
+  useEffect(() => {
+    if (!open || view !== 'search') return
+    function onFocusIn(e: FocusEvent) {
+      if (modalRootRef.current && !modalRootRef.current.contains(e.target as Node)) {
+        searchRef.current?.focus()
+      }
+    }
+    document.addEventListener('focusin', onFocusIn)
+    return () => document.removeEventListener('focusin', onFocusIn)
+  }, [open, view])
+
   if (!open) return null
 
   // ── Save new customer ─────────────────────────────────────────────────────
@@ -151,7 +166,7 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
   // SEARCH VIEW
   // ─────────────────────────────────────────────────────────────────────────
   if (view === 'search') return (
-    <div className="fixed inset-0 bg-midnight/85 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div ref={modalRootRef} className="fixed inset-0 bg-midnight/85 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg flex flex-col shadow-2xl"
         style={{ maxHeight: '88vh' }}
@@ -241,7 +256,7 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
   // REGISTRATION FORM VIEW
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 bg-midnight/85 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div ref={modalRootRef} className="fixed inset-0 bg-midnight/85 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg flex flex-col shadow-2xl"
         style={{ maxHeight: '88vh' }}

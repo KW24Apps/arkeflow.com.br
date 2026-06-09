@@ -11,8 +11,9 @@ interface Props {
 }
 
 export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const todosRef = useRef<Colaborador[]>([])
+  const inputRef     = useRef<HTMLInputElement>(null)
+  const todosRef     = useRef<Colaborador[]>([])
+  const modalRootRef = useRef<HTMLDivElement>(null)
 
   const [q,         setQ]         = useState('')
   const [filtrados, setFiltrados] = useState<Colaborador[]>([])
@@ -54,6 +55,18 @@ export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // ── Focus guard: keep cursor in search field while open ───────────────────
+  useEffect(() => {
+    if (!open) return
+    function onFocusIn(e: FocusEvent) {
+      if (modalRootRef.current && !modalRootRef.current.contains(e.target as Node)) {
+        inputRef.current?.focus()
+      }
+    }
+    document.addEventListener('focusin', onFocusIn)
+    return () => document.removeEventListener('focusin', onFocusIn)
+  }, [open])
+
   if (!open) return null
 
   const nivelLabel = (nivel: string) =>
@@ -61,6 +74,7 @@ export function SalespersonSearchModal({ open, onClose, onSelect }: Props) {
 
   return (
     <div
+      ref={modalRootRef}
       className="fixed inset-0 bg-midnight/85 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >

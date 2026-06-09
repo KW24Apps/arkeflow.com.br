@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 
@@ -65,17 +65,50 @@ export const GlassSelect = forwardRef<GlassSelectHandle, GlassSelectProps>(
       return () => document.removeEventListener('mousedown', onMouseDown)
     }, [])
 
-    // Close on scroll / resize (would drift otherwise)
+    const computePos = useCallback((): DropdownPos | null => {
+      if (!triggerRef.current) return null
+      const rect    = triggerRef.current.getBoundingClientRect()
+      const vvLeft  = window.visualViewport?.offsetLeft  ?? 0
+      const vvTop   = window.visualViewport?.offsetTop   ?? 0
+      const vvH     = window.visualViewport?.height      ?? window.innerHeight
+      const spaceBelow = vvH - rect.bottom
+      const openUp     = spaceBelow < MENU_MAX_H + 8
+      return {
+        top:    rect.bottom + 4 - vvTop,
+        bottom: vvH - rect.top + 4 + vvTop,
+        left:   rect.left - vvLeft,
+        width:  rect.width,
+        openUp,
+      }
+    }, [])
+
+    // Measure synchronously after DOM paints so getBoundingClientRect is accurate
+    useLayoutEffect(() => {
+      if (!open) return
+      const p = computePos()
+      if (p) setPos(p)
+      // rAF tick catches any layout shift that happens on the same frame
+      const raf = requestAnimationFrame(() => {
+        const p2 = computePos()
+        if (p2) setPos(p2)
+      })
+      return () => cancelAnimationFrame(raf)
+    }, [open, computePos])
+
+    // Reposition on scroll / resize instead of closing
     useEffect(() => {
       if (!open) return
-      function close() { setOpen(false) }
-      window.addEventListener('scroll', close, true)
-      window.addEventListener('resize', close)
-      return () => {
-        window.removeEventListener('scroll', close, true)
-        window.removeEventListener('resize', close)
+      function reposition() {
+        const p = computePos()
+        if (p) setPos(p)
       }
-    }, [open])
+      window.addEventListener('scroll', reposition, true)
+      window.addEventListener('resize', reposition)
+      return () => {
+        window.removeEventListener('scroll', reposition, true)
+        window.removeEventListener('resize', reposition)
+      }
+    }, [open, computePos])
 
     function firstEnabled() {
       return options.findIndex(o => !o.disabled)
@@ -93,26 +126,10 @@ export const GlassSelect = forwardRef<GlassSelectHandle, GlassSelectProps>(
       return from
     }
 
-    function computePos(): DropdownPos | null {
-      if (!triggerRef.current) return null
-      const rect       = triggerRef.current.getBoundingClientRect()
-      const spaceBelow = window.innerHeight - rect.bottom
-      const openUp     = spaceBelow < MENU_MAX_H + 8
-      return {
-        top:    rect.bottom + 4,
-        bottom: window.innerHeight - rect.top + 4,
-        left:   rect.left,
-        width:  rect.width,
-        openUp,
-      }
-    }
-
     function openDropdown() {
-      const p = computePos()
-      if (p) setPos(p)
       const idx = options.findIndex(o => o.value === value && !o.disabled)
       setHighlightedIdx(idx >= 0 ? idx : firstEnabled())
-      setOpen(true)
+      setOpen(true)  // useLayoutEffect fires after this and measures accurately
     }
 
     function handleKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
