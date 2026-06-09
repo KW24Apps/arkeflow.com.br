@@ -251,19 +251,49 @@ function VendaRow({
                 {/* Pagamento */}
                 <div>
                   <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 6px' }}>Pagamento</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {(detail.pagamentos ?? []).map((p: any, i: number) => {
-                      const temTroco = p.tipo === 'dinheiro' && Number(p.troco) > 0
-                      const label = temTroco && p.valor_recebido != null
-                        ? `${p.forma_nome} · recebido ${fmt(p.valor_recebido)} · troco ${fmt(p.troco)}`
-                        : `${p.forma_nome} · ${fmt(p.valor)}`
+                      const N         = Number(p.parcelas ?? 1)
+                      const suffix    = p.tipo === 'crediario'
+                        ? (N > 1 ? ` · ${N}×` : '')
+                        : (p.tipo === 'credito' && N > 1 ? ` · ${N}×` : '')
+                      const label     = p.forma_nome + suffix
+                      const temTroco  = p.tipo === 'dinheiro' && Number(p.troco) > 0
                       return (
-                        <span key={i} style={{ fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '4px 10px', color: 'rgba(255,255,255,0.6)' }}>
-                          {label}
-                        </span>
+                        <div key={i}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', fontWeight: 500, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(p.valor)}</span>
+                          </div>
+                          {temTroco && p.valor_recebido != null && (
+                            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', margin: '1px 0 0' }}>
+                              ↳ recebido {fmt(p.valor_recebido)} · troco {fmt(p.troco)}
+                            </p>
+                          )}
+                        </div>
                       )
                     })}
                   </div>
+                  {/* Gaveta summary footer */}
+                  {(() => {
+                    const pags: any[]  = detail.pagamentos ?? []
+                    const gaveta = pags.filter((p: any) => p.tipo !== 'crediario').reduce((s: number, p: any) => s + Number(p.valor), 0)
+                    const aPrazo = pags.filter((p: any) => p.tipo === 'crediario').reduce((s: number, p: any) => s + Number(p.valor), 0)
+                    return (
+                      <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)', marginTop: '6px', paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>Entrou na gaveta</span>
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(100,220,160,0.9)', fontVariantNumeric: 'tabular-nums' }}>{fmt(gaveta)}</span>
+                        </div>
+                        {aPrazo > 0.005 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>a prazo (crediário)</span>
+                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontVariantNumeric: 'tabular-nums' }}>{fmt(aPrazo)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Actions */}
