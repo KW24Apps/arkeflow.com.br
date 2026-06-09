@@ -535,6 +535,20 @@ export default function CaixaPage() {
   // ── PDV ATIVO ─────────────────────────────────────────────────────────────
   return (
     <>
+      <style>{`
+        .gestao-btn { border-radius: 8px; transition: background 0.15s, filter 0.15s, transform 0.08s, opacity 0.15s; }
+        .gestao-btn:hover { background: rgba(0,239,255,0.08) !important; filter: brightness(1.3); }
+        .gestao-btn-danger:hover { background: rgba(240,100,100,0.08) !important; filter: brightness(1.3); }
+        .gestao-btn:active { transform: scale(0.96); }
+        .atrib-row { transition: background 0.15s, border-color 0.15s, transform 0.08s; }
+        .atrib-row:hover { background: rgba(255,255,255,0.08) !important; border-color: rgba(0,239,255,0.25) !important; }
+        .atrib-row:active { transform: scale(0.99); background: rgba(255,255,255,0.11) !important; }
+        .atrib-row-x { transition: color 0.12s; }
+        .atrib-row-x:hover { color: rgba(255,255,255,0.6) !important; }
+        .fechar-venda-btn { transition: background 0.15s, transform 0.08s; }
+        .fechar-venda-btn:hover { background: rgba(0,239,255,1) !important; }
+        .fechar-venda-btn:active { transform: scale(0.98); }
+      `}</style>
       <TopBar />
       <div className="flex flex-col flex-1 overflow-hidden min-h-0">
 
@@ -892,6 +906,7 @@ export default function CaixaPage() {
                       if (cliente_id) { setModalDadosCliente(true) }
                       else { setClienteAutoAberto(false); setModalCliente(true) }
                     }}
+                    className="atrib-row"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
                   >
                     <User size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
@@ -900,6 +915,7 @@ export default function CaixaPage() {
                     </span>
                     {cliente_nome && (
                       <button onClick={e => { e.stopPropagation(); setCliente(null, null) }}
+                        className="atrib-row-x"
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
                         <X size={12} />
                       </button>
@@ -909,6 +925,7 @@ export default function CaixaPage() {
                   <div
                     role="button"
                     onClick={() => setModalVendedor(true)}
+                    className="atrib-row"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
                   >
                     <Briefcase size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
@@ -917,6 +934,7 @@ export default function CaixaPage() {
                     </span>
                     {vendedor && (
                       <button onClick={e => { e.stopPropagation(); setVendedor(null); setVendedorStore(null, null) }}
+                        className="atrib-row-x"
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
                         <X size={12} />
                       </button>
@@ -938,12 +956,12 @@ export default function CaixaPage() {
                       <button
                         key={btn.key}
                         onClick={btn.onClick}
+                        className={btn.danger ? 'gestao-btn gestao-btn-danger' : 'gestao-btn'}
                         style={{
                           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
                           width: '44px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
                           opacity: btn.danger && itens.length > 0 ? 0.5 : 1,
                           color: btn.danger ? 'rgba(240,130,130,0.7)' : 'rgba(0,239,255,0.7)',
-                          transition: 'opacity 0.15s',
                         }}
                       >
                         <span style={{ color: 'inherit' }}>{btn.icon}</span>
@@ -967,7 +985,7 @@ export default function CaixaPage() {
                     Sacola vazia
                   </button>
                 ) : (
-                  <button onClick={() => setModalCheckout(true)} style={{ width: '100%', padding: '12px', background: 'rgba(0,239,255,0.88)', color: '#0a0a1a', fontWeight: 700, borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+                  <button onClick={() => setModalCheckout(true)} className="fechar-venda-btn" style={{ width: '100%', padding: '12px', background: 'rgba(0,239,255,0.88)', color: '#0a0a1a', fontWeight: 700, borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
                     Fechar venda →
                   </button>
                 )}
