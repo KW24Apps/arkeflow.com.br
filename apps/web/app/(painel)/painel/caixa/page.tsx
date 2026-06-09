@@ -689,7 +689,8 @@ export default function CaixaPage() {
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
                     const next = e.relatedTarget as HTMLElement | null
                     if (next && (next.tagName === 'SELECT' || next.tagName === 'BUTTON' || next.tagName === 'INPUT' || next.closest('[data-no-refocus]'))) return
-                    if (!modalBusca && !modalCheckout && !modalVariacao) setTimeout(() => scanRef.current?.focus(), 250)
+                    const algumModalAberto = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente
+                    if (!algumModalAberto) setTimeout(() => scanRef.current?.focus(), 250)
                   }}
                   placeholder='Código de barras, nome... ou "3-código" para qty 3'
                   autoComplete="off"
