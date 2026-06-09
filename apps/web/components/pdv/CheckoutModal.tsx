@@ -514,7 +514,7 @@ export function CheckoutModal({
           {/* Right: total card(s) */}
           <div style={{ minWidth: '260px', flexShrink: 0 }}>
             {descontoCaixa === 0 ? (
-              <div style={{ padding: '8px 12px', background: 'rgba(0,239,255,0.06)', border: '0.5px solid rgba(0,239,255,0.25)', borderRadius: '12px' }}>
+              <div style={{ padding: '8px 12px', background: 'rgba(0,239,255,0.06)', border: '0.5px solid rgba(0,239,255,0.25)', borderRadius: '12px', minHeight: '58px', display: 'flex', alignItems: 'center' }}>
                 <p style={{ fontSize: '20px', fontWeight: 800, color: '#0ef', lineHeight: 1, margin: 0, whiteSpace: 'nowrap' }}>{fmt(baseTotal)}</p>
               </div>
             ) : (
