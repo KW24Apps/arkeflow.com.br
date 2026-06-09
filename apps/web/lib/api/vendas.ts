@@ -14,6 +14,7 @@ export interface PagamentoVenda {
   detalhe?:       string | null
   valor_recebido?: number
   troco?:          number
+  primeira_parcela?: string
 }
 
 export interface NovaVendaPayload {
