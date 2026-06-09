@@ -1,9 +1,8 @@
 'use client'
 
-// Integer cents, right-to-left digit entry
-export function CurrencyInput({
-  value, onChange, onEnter, onFocus, onBlur, placeholder, style, className, autoFocus,
-}: {
+import { forwardRef } from 'react'
+
+export const CurrencyInput = forwardRef<HTMLInputElement, {
   value:       number
   onChange:    (cents: number) => void
   onEnter?:    () => void
@@ -13,7 +12,7 @@ export function CurrencyInput({
   style?:      React.CSSProperties
   className?:  string
   autoFocus?:  boolean
-}) {
+}>(function CurrencyInput({ value, onChange, onEnter, onFocus, onBlur, placeholder, style, className, autoFocus }, ref) {
   function fmtCents(c: number) {
     if (c === 0) return ''
     const r = Math.floor(c / 100)
@@ -32,6 +31,7 @@ export function CurrencyInput({
   }
   return (
     <input
+      ref={ref}
       type="text"
       value={fmtCents(value)}
       onChange={() => {}}
@@ -44,4 +44,4 @@ export function CurrencyInput({
       className={className}
     />
   )
-}
+})

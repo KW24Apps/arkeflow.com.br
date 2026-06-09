@@ -9,6 +9,7 @@ import { usePDVStore } from '@/store/pdv.store'
 import { api } from '@/lib/api/client'
 import type { ItemComDesconto } from '@/lib/calcularDesconto'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
+import { GlassSelect, type GlassSelectHandle } from '@/components/ui/GlassSelect'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -16,7 +17,7 @@ interface PagamentoParcial {
   forma:    FormaPagamento
   valor:    number
   parcelas: number
-  juros?:   number    // cartão interest add-on (not counted toward sale total)
+  juros?:   number
 }
 
 interface DescontoCfg {
@@ -88,6 +89,13 @@ function defaultPrimeiraParcela(): string {
   return d.toISOString().split('T')[0]
 }
 
+function validateParcelasStr(str: string, max: number): string {
+  const n = parseInt(str, 10)
+  if (!str.trim() || isNaN(n) || n < 1) return 'mín. 1×'
+  if (n > max) return `máx. ${max}×`
+  return ''
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function CheckoutModal({
@@ -96,7 +104,14 @@ export function CheckoutModal({
   clienteNome, vendedorNome, vendedorRemovivel, formasPagamento,
   onAbrirCliente, onAbrirVendedor, onAbrirDadosCliente, onRemoverCliente, onRemoverVendedor,
 }: Props) {
-  const valorRef = useRef<HTMLInputElement>(null)
+  // ── Refs ─────────────────────────────────────────────────────────────────
+  const selectRef            = useRef<GlassSelectHandle>(null)
+  const valorRef             = useRef<HTMLInputElement>(null)
+  const entradaRef           = useRef<HTMLInputElement>(null)
+  const parcelasRef          = useRef<HTMLInputElement>(null)
+  const crediarioParcelasRef = useRef<HTMLInputElement>(null)
+  const primeiraParcelaRef   = useRef<HTMLInputElement>(null)
+  const finalizarRef         = useRef<HTMLButtonElement>(null)
 
   // ── Core state ───────────────────────────────────────────────────────────
   const [formas,          setFormas]          = useState<FormaPagamento[]>([])
@@ -104,7 +119,8 @@ export function CheckoutModal({
   const [pagamentos,      setPagamentos]      = useState<PagamentoParcial[]>([])
   const [formaAtual,      setFormaAtual]      = useState<FormaPagamento | null>(null)
   const [valorAtual,      setValorAtual]      = useState('')
-  const [parcelas,        setParcelas]        = useState(1)
+  const [parcelasStr,     setParcelasStr]     = useState('1')
+  const [parcelasErro,    setParcelasErro]    = useState('')
   const [processando,     setProcessando]     = useState(false)
   const [erro,            setErro]            = useState('')
   const [descontoCfg,     setDescontoCfg]     = useState<DescontoCfg | null>(null)
@@ -113,18 +129,19 @@ export function CheckoutModal({
   const [creditoInfo,     setCreditoInfo]     = useState<CreditoInfo>({ limite: 0, ocupado: 0, disponivel: 0 })
 
   // ── Crediário state ──────────────────────────────────────────────────────
-  const [crediarioCfg,      setCrediarioCfg]      = useState<CrediarioCfg | null>(null)
-  const [entrada,           setEntrada]            = useState(0)
-  const [crediarioParcelas, setCrediarioParcelas]  = useState(1)
-  const [primeiraParcela,   setPrimeiraParcela]    = useState(defaultPrimeiraParcela)
-  const [formaEntradaId,    setFormaEntradaId]     = useState<string | null>(null)
+  const [crediarioCfg,            setCrediarioCfg]            = useState<CrediarioCfg | null>(null)
+  const [entrada,                  setEntrada]                 = useState(0)
+  const [crediarioParcelasStr,     setCrediarioParcelasStr]    = useState('1')
+  const [crediarioParcelasErro,    setCrediarioParcelasErro]   = useState('')
+  const [primeiraParcela,          setPrimeiraParcela]         = useState(defaultPrimeiraParcela)
+  const [formaEntradaId,           setFormaEntradaId]          = useState<string | null>(null)
 
   // ── Load forms + config on open ──────────────────────────────────────────
   useEffect(() => {
     if (!open) return
-    setPagamentos([]); setValorAtual(''); setParcelas(1); setErro(''); setComDesconto(false)
+    setPagamentos([]); setValorAtual(''); setParcelasStr('1'); setParcelasErro(''); setErro(''); setComDesconto(false)
     setCreditoLiberado(false); setCreditoInfo({ limite: 0, ocupado: 0, disponivel: 0 })
-    setCrediarioParcelas(1); setPrimeiraParcela(defaultPrimeiraParcela())
+    setCrediarioParcelasStr('1'); setCrediarioParcelasErro(''); setPrimeiraParcela(defaultPrimeiraParcela())
     setEntrada(0); setFormaEntradaId(null)
 
     const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario']
@@ -151,9 +168,8 @@ export function CheckoutModal({
     }
 
     if (formasPagamento && formasPagamento.length > 0) {
-      // Forms pre-loaded by parent — render immediately (no spinner), fetch discount config in background
       applyForms(formasPagamento)
-      setTimeout(() => valorRef.current?.focus(), 100)
+      setTimeout(() => selectRef.current?.focus(), 100)
       api.get<any>('/dados-loja/sistema').then(sysRes => {
         setDescontoCfg({
           pct:         Number(sysRes.data.desconto_max_percentual ?? 0),
@@ -176,7 +192,7 @@ export function CheckoutModal({
           restringe:   !!sysRes.data.desconto_restringe_formas,
         })
         setCarregando(false)
-        setTimeout(() => valorRef.current?.focus(), 100)
+        setTimeout(() => selectRef.current?.focus(), 100)
       }).catch(() => setCarregando(false))
     }
   }, [open])
@@ -234,9 +250,13 @@ export function CheckoutModal({
   const troco       = valAtual > restante ? valAtual - restante : 0
   const usadasIds   = pagamentos.map(p => p.forma.id)
 
+  // true when all payments are staged but not yet finalized
+  const todoPago = restante <= 0.01 && pagamentos.length > 0 && formaAtual?.tipo !== 'crediario'
+
   // ── Crediário derived values ─────────────────────────────────────────────
   const entradaMinima  = crediarioCfg ? Math.round(totalEfetivo * (crediarioCfg.entrada_min_pct / 100) * 100) / 100 : 0
   const financiado     = Math.round(Math.max(0, totalEfetivo - entrada) * 100) / 100
+  const crediarioParcelas = Math.max(1, parseInt(crediarioParcelasStr, 10) || 0)
   const N              = crediarioParcelas
   const jurosParcelado = (() => {
     if (!crediarioCfg?.juros_habilitado || N <= crediarioCfg.juros_sem_ate) return financiado
@@ -245,7 +265,7 @@ export function CheckoutModal({
   const valorPorParcela = N > 0 ? jurosParcelado / N : 0
   const creditoOk       = financiado <= creditoInfo.disponivel + 0.01
   const entradaValida   = crediarioCfg?.entrada_obrigatoria ? entrada >= entradaMinima - 0.005 : true
-  const crediarioOk     = entradaValida && financiado > 0.005 && creditoOk
+  const crediarioOk     = entradaValida && financiado > 0.005 && creditoOk && crediarioParcelasErro === ''
 
   const formasEntrada: FormaPagamento[] = (() => {
     if (!crediarioCfg) return []
@@ -265,7 +285,8 @@ export function CheckoutModal({
     juros_sem_ate:    Number(formaAtual?.config?.juros_sem_ate ?? 0),
     juros_mes:        Number(formaAtual?.config?.juros_mes ?? 0),
   }
-  const cartaoN = isCartao ? parcelas : 1
+  const parcelas            = Math.max(1, parseInt(parcelasStr, 10) || 0)
+  const cartaoN             = isCartao ? parcelas : 1
   const cartaoValorComJuros = (() => {
     if (!isCartao || !cartaoCfg.juros_habilitado || cartaoN <= cartaoCfg.juros_sem_ate || valAtual <= 0) return valAtual
     return Math.round(valAtual * (1 + (cartaoCfg.juros_mes / 100) * cartaoN) * 100) / 100
@@ -274,14 +295,12 @@ export function CheckoutModal({
   const cartaoParcelaValor = cartaoN > 0 && cartaoValorComJuros > 0 ? cartaoValorComJuros / cartaoN : 0
 
   // ── Entra no caixa agora ─────────────────────────────────────────────────
-  // Common forms: full sale total received at the drawer.
-  // Crediário: only the down-payment (entrada) is received now; financed amount is credit.
   const caixaAgora = isCrediario ? entrada : totalEfetivo
 
   // ── Discount toggle ──────────────────────────────────────────────────────
   function handleComDesconto(novoValor: boolean) {
     setComDesconto(novoValor)
-    setPagamentos([]); setValorAtual(''); setParcelas(1); setErro('')
+    setPagamentos([]); setValorAtual(''); setParcelasStr('1'); setParcelasErro(''); setErro('')
     const novasPermitidas = formas.filter(f => {
       if (!f.ativo) return false
       if (f.tipo === 'crediario' && !creditoLiberado) return false
@@ -289,7 +308,8 @@ export function CheckoutModal({
       return true
     })
     setFormaAtual(novasPermitidas[0] ?? null)
-    setTimeout(() => valorRef.current?.focus(), 50)
+    // Return focus to forma select so keyboard flow can restart
+    setTimeout(() => selectRef.current?.focus(), 50)
   }
 
   // ── Switch payment form ──────────────────────────────────────────────────
@@ -297,13 +317,15 @@ export function CheckoutModal({
     const switchingToCrediario = f.tipo === 'crediario' && formaAtual?.tipo !== 'crediario'
     setFormaAtual(f)
     setErro('')
-    setParcelas(1)
+    setParcelasStr('1')
+    setParcelasErro('')
     if (switchingToCrediario) {
       setPagamentos([])
       setValorAtual('')
       const min = crediarioCfg ? Math.round(totalEfetivo * (crediarioCfg.entrada_min_pct / 100) * 100) / 100 : 0
       setEntrada(min)
-      setCrediarioParcelas(1)
+      setCrediarioParcelasStr('1')
+      setCrediarioParcelasErro('')
       setPrimeiraParcela(defaultPrimeiraParcela())
       setFormaEntradaId(null)
     }
@@ -343,11 +365,15 @@ export function CheckoutModal({
 
   function registrarEtapa() {
     if (!formaAtual || valAtual <= 0) return
+    // Validate parcelas for cartão before recording
+    if (isCartao) {
+      const pErr = validateParcelasStr(parcelasStr, cartaoCfg.max_parcelas)
+      if (pErr) { setParcelasErro(pErr); return }
+    }
     const err = validarEntrada()
     if (err) { setErro(err); return }
     setErro('')
 
-    // Cartão interest on top of base valor
     let jurosValue = 0
     if (isCartao) {
       const cN = parcelas
@@ -360,15 +386,21 @@ export function CheckoutModal({
     const novoPag: PagamentoParcial = { forma: formaAtual, valor: valAtual, parcelas, juros: jurosValue }
     const novaLista    = [...pagamentos, novoPag]
     const novoRestante = Math.max(0, totalEfetivo - novaLista.reduce((s, p) => s + p.valor, 0))
+
+    setPagamentos(novaLista)
+    setValorAtual('')
+    setParcelasStr('1')
+    setParcelasErro('')
+
     if (novoRestante <= 0.01) {
-      finalizarVenda(novaLista)
+      // All paid — move focus to the finalize button; a second Enter finalizes
+      setTimeout(() => finalizarRef.current?.focus(), 50)
     } else {
-      setPagamentos(novaLista)
-      setValorAtual(''); setParcelas(1)
+      // Partial payment — go back to forma select for next method
       const usadas = novaLista.map(p => p.forma.id)
-      const prox = formasPermitidas.find(f => !usadas.includes(f.id))
+      const prox   = formasPermitidas.find(f => !usadas.includes(f.id))
       if (prox) setFormaAtual(prox)
-      setTimeout(() => valorRef.current?.focus(), 50)
+      setTimeout(() => selectRef.current?.focus(), 50)
     }
   }
 
@@ -402,6 +434,11 @@ export function CheckoutModal({
 
   async function finalizarCrediario() {
     if (!formaAtual || !crediarioOk) return
+    // Validate crediário parcelas inline (belt-and-suspenders)
+    if (crediarioCfg) {
+      const pErr = validateParcelasStr(crediarioParcelasStr, crediarioCfg.max_parcelas)
+      if (pErr) { setCrediarioParcelasErro(pErr); return }
+    }
     setProcessando(true); setErro('')
     const D = comDesconto ? descontoCaixa : 0
     try {
@@ -445,9 +482,9 @@ export function CheckoutModal({
   }
 
   function resetState() {
-    setPagamentos([]); setValorAtual(''); setParcelas(1); setErro('')
+    setPagamentos([]); setValorAtual(''); setParcelasStr('1'); setParcelasErro(''); setErro('')
     setProcessando(false); setFormaAtual(null); setComDesconto(false)
-    setEntrada(0); setCrediarioParcelas(1); setPrimeiraParcela(defaultPrimeiraParcela())
+    setEntrada(0); setCrediarioParcelasStr('1'); setCrediarioParcelasErro(''); setPrimeiraParcela(defaultPrimeiraParcela())
     setFormaEntradaId(null)
   }
 
@@ -458,7 +495,9 @@ export function CheckoutModal({
   // ── Derived button state ─────────────────────────────────────────────────
   const btnDisabled = processando || (isCrediario
     ? !crediarioOk
-    : !formaAtual || valAtual <= 0 || !valorAtual)
+    : todoPago
+      ? false
+      : !formaAtual || valAtual <= 0 || !valorAtual || (isCartao && parcelasErro !== ''))
 
   // ── Shared style tokens ──────────────────────────────────────────────────
   const labelStyle: React.CSSProperties = { fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', margin: 0 }
@@ -546,23 +585,34 @@ export function CheckoutModal({
               </div>
             ) : (
               <>
-                {/* Form selector */}
+                {/* ── Forma de pagamento — GlassSelect ────────────────── */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <p style={labelStyle}>Forma de pagamento</p>
-                  <select
+                  <GlassSelect
+                    ref={selectRef}
                     value={formaAtual?.id ?? ''}
-                    onChange={e => {
-                      const f = formasPermitidas.find(f => f.id === e.target.value)
+                    onChange={v => {
+                      const f = formasPermitidas.find(f => f.id === v)
                       if (f) handleFormaChange(f)
                     }}
-                    style={{ ...inputStyle, minHeight: '44px', fontSize: '13px' }}
-                  >
-                    {formasPermitidas.map(f => (
-                      <option key={f.id} value={f.id} disabled={!isCrediario && usadasIds.includes(f.id) && f.id !== formaAtual?.id}>
-                        {f.nome}{!isCrediario && usadasIds.includes(f.id) ? ' (usado)' : ''}
-                      </option>
-                    ))}
-                  </select>
+                    onConfirm={v => {
+                      // Look up by the confirmed value (avoids reading stale formaAtual state)
+                      const forma = v ? formasPermitidas.find(f => f.id === v) : null
+                      if (!forma) return
+                      if (forma.tipo === 'crediario') {
+                        setTimeout(() => entradaRef.current?.focus(), 50)
+                      } else if (forma.tipo === 'credito') {
+                        setTimeout(() => parcelasRef.current?.focus(), 50)
+                      } else {
+                        setTimeout(() => valorRef.current?.focus(), 50)
+                      }
+                    }}
+                    options={formasPermitidas.map(f => ({
+                      value:    f.id,
+                      label:    `${f.nome}${!isCrediario && usadasIds.includes(f.id) ? ' (usado)' : ''}`,
+                      disabled: !isCrediario && usadasIds.includes(f.id) && f.id !== formaAtual?.id,
+                    }))}
+                  />
                 </div>
 
                 {/* ── CREDIÁRIO PANEL ────────────────────────────────────── */}
@@ -574,8 +624,10 @@ export function CheckoutModal({
                         Entrada{crediarioCfg.entrada_obrigatoria ? ` (mín. ${fmt(entradaMinima)})` : ' (opcional)'}
                       </p>
                       <CurrencyInput
+                        ref={entradaRef}
                         value={Math.round(entrada * 100)}
                         onChange={cents => setEntrada(Math.min(cents / 100, totalEfetivo - 0.01))}
+                        onEnter={() => setTimeout(() => crediarioParcelasRef.current?.focus(), 50)}
                         style={{ ...inputStyle, minHeight: '48px', fontSize: '18px', fontWeight: 600,
                           border: `0.5px solid ${crediarioCfg.entrada_obrigatoria && entrada < entradaMinima - 0.005 ? 'rgba(240,100,100,0.55)' : 'rgba(255,255,255,0.12)'}` }}
                       />
@@ -600,28 +652,50 @@ export function CheckoutModal({
                     )}
 
                     <div style={{ display: 'flex', gap: '12px' }}>
-                      {/* Parcelas typeable input */}
+                      {/* Parcelas — typable, validate on blur/confirm */}
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <p style={labelStyle}>Parcelas</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input
+                            ref={crediarioParcelasRef}
                             type="text" inputMode="numeric"
-                            value={crediarioParcelas}
-                            onChange={e => {
-                              const raw = parseInt(e.target.value.replace(/\D/g, ''))
-                              setCrediarioParcelas(isNaN(raw) || raw < 1 ? 1 : Math.min(raw, crediarioCfg.max_parcelas))
+                            value={crediarioParcelasStr}
+                            onChange={e => { setCrediarioParcelasStr(e.target.value.replace(/\D/g, '')); setCrediarioParcelasErro('') }}
+                            onBlur={() => {
+                              const err = validateParcelasStr(crediarioParcelasStr, crediarioCfg.max_parcelas)
+                              setCrediarioParcelasErro(err)
                             }}
-                            style={{ ...inputStyle, width: '80px', minHeight: '44px', fontSize: '22px', fontWeight: 700, textAlign: 'center', color: '#0ef', flexShrink: 0 }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                const err = validateParcelasStr(crediarioParcelasStr, crediarioCfg.max_parcelas)
+                                setCrediarioParcelasErro(err)
+                                if (!err) setTimeout(() => primeiraParcelaRef.current?.focus(), 50)
+                              }
+                            }}
+                            style={{ ...inputStyle, width: '80px', minHeight: '44px', fontSize: '22px', fontWeight: 700, textAlign: 'center', color: '#0ef', flexShrink: 0,
+                              border: `0.5px solid ${crediarioParcelasErro ? 'rgba(240,100,100,0.55)' : 'rgba(255,255,255,0.12)'}` }}
                           />
                           <span style={{ fontSize: '22px', fontWeight: 700, color: '#0ef' }}>×</span>
                         </div>
-                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>máx. {crediarioCfg.max_parcelas}×</p>
+                        {crediarioParcelasErro
+                          ? <p style={{ fontSize: '10px', color: 'rgba(240,100,100,0.75)', margin: 0 }}>{crediarioParcelasErro}</p>
+                          : <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>máx. {crediarioCfg.max_parcelas}×</p>
+                        }
                       </div>
 
                       {/* First due date */}
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <p style={labelStyle}>Vencimento da 1ª parcela</p>
-                        <input type="date" value={primeiraParcela} onChange={e => setPrimeiraParcela(e.target.value)}
+                        <input
+                          ref={primeiraParcelaRef}
+                          type="date" value={primeiraParcela} onChange={e => setPrimeiraParcela(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              setTimeout(() => finalizarRef.current?.focus(), 50)
+                            }
+                          }}
                           style={{ ...inputStyle, minHeight: '44px', fontSize: '13px', colorScheme: 'dark' }}
                         />
                       </div>
@@ -634,25 +708,39 @@ export function CheckoutModal({
                 {/* ── COMMON FORM INPUTS ─────────────────────────────────── */}
                 {!isCrediario && (
                   <>
-                    {/* Cartão: parcelas field */}
+                    {/* Cartão: parcelas — typable, validate on blur/confirm */}
                     {isCartao && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <p style={labelStyle}>Parcelas</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input
+                            ref={parcelasRef}
                             type="text" inputMode="numeric"
-                            value={parcelas}
-                            onChange={e => {
-                              const raw = parseInt(e.target.value.replace(/\D/g, ''))
-                              setParcelas(isNaN(raw) || raw < 1 ? 1 : Math.min(raw, cartaoCfg.max_parcelas))
+                            value={parcelasStr}
+                            onChange={e => { setParcelasStr(e.target.value.replace(/\D/g, '')); setParcelasErro('') }}
+                            onBlur={() => {
+                              const err = validateParcelasStr(parcelasStr, cartaoCfg.max_parcelas)
+                              setParcelasErro(err)
                             }}
-                            style={{ ...inputStyle, width: '80px', minHeight: '44px', fontSize: '22px', fontWeight: 700, textAlign: 'center', color: '#0ef', flexShrink: 0, padding: '0 8px' }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                const err = validateParcelasStr(parcelasStr, cartaoCfg.max_parcelas)
+                                setParcelasErro(err)
+                                if (!err) setTimeout(() => valorRef.current?.focus(), 50)
+                              }
+                            }}
+                            style={{ ...inputStyle, width: '80px', minHeight: '44px', fontSize: '22px', fontWeight: 700, textAlign: 'center', color: '#0ef', flexShrink: 0, padding: '0 8px',
+                              border: `0.5px solid ${parcelasErro ? 'rgba(240,100,100,0.55)' : 'rgba(255,255,255,0.12)'}` }}
                           />
                           <span style={{ fontSize: '22px', fontWeight: 700, color: '#0ef' }}>×</span>
                         </div>
-                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>
-                          máx. {cartaoCfg.max_parcelas}×{cartaoCfg.juros_habilitado && cartaoCfg.juros_sem_ate > 0 ? ` · sem juros até ${cartaoCfg.juros_sem_ate}×` : ''}
-                        </p>
+                        {parcelasErro
+                          ? <p style={{ fontSize: '10px', color: 'rgba(240,100,100,0.75)', margin: 0 }}>{parcelasErro}</p>
+                          : <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>
+                              máx. {cartaoCfg.max_parcelas}×{cartaoCfg.juros_habilitado && cartaoCfg.juros_sem_ate > 0 ? ` · sem juros até ${cartaoCfg.juros_sem_ate}×` : ''}
+                            </p>
+                        }
                       </div>
                     )}
 
@@ -660,13 +748,14 @@ export function CheckoutModal({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <p style={labelStyle}>Valor</p>
-                        {restante > 0 && (
+                        {restante > 0 && !todoPago && (
                           <button onClick={autoFill} style={{ fontSize: '11px', color: '#0ef', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                             preencher restante ({fmt(restante)})
                           </button>
                         )}
                       </div>
                       <CurrencyInput
+                        ref={valorRef}
                         value={Math.round(valAtual * 100)}
                         onChange={cents => { setValorAtual(cents > 0 ? (cents / 100).toFixed(2) : ''); setErro('') }}
                         onEnter={registrarEtapa}
@@ -864,7 +953,8 @@ export function CheckoutModal({
             Cancelar
           </button>
           <button
-            onClick={isCrediario ? finalizarCrediario : registrarEtapa}
+            ref={finalizarRef}
+            onClick={isCrediario ? finalizarCrediario : todoPago ? () => finalizarVenda(pagamentos) : registrarEtapa}
             disabled={btnDisabled}
             style={{ flex: 2, minHeight: '48px', background: '#0ef', border: 'none', borderRadius: '14px', fontSize: '14px', fontWeight: 700, color: 'rgba(2,8,16,0.95)', cursor: btnDisabled ? 'default' : 'pointer', opacity: btnDisabled ? 0.4 : 1, transition: 'opacity 0.15s' }}
           >
