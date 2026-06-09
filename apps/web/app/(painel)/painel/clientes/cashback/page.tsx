@@ -97,6 +97,8 @@ export default function CashbackRegrasPage() {
     })
   }
 
+  const isEditing = formOpen && editandoId !== null
+
   return (
     <>
       <TopBar />
@@ -182,14 +184,17 @@ export default function CashbackRegrasPage() {
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '32px 0' }}>Nenhuma regra cadastrada</p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
-            {regras.map(r => (
+            {regras.map(r => {
+              const isSelected = isEditing && r.id === editandoId
+              const cardOpacity = isSelected ? 1 : isEditing ? 0.4 : 1
+              return (
               <div
                 key={r.id}
                 onClick={() => abrirEdicao(r)}
                 className="p-4 flex flex-col gap-2 cursor-pointer active:scale-[0.98] transition-all"
-                style={CARD}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+                style={{ ...CARD, opacity: cardOpacity, ...(isSelected && { background: 'rgba(0,239,255,0.06)', border: '1px solid rgba(0,239,255,0.5)' }) }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
               >
                 <div className="flex items-start justify-between gap-2">
                   <p style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{r.nome}</p>
@@ -206,7 +211,8 @@ export default function CashbackRegrasPage() {
                   {r.validade_meses ? `Vence em ${r.validade_meses} meses` : 'Sem vencimento'}
                 </p>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

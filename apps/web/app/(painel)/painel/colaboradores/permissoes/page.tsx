@@ -83,6 +83,8 @@ export default function ModelosPermissaoPage() {
     })
   }
 
+  const isEditing = formAberto && editandoId !== null
+
   return (
     <>
       <TopBar />
@@ -161,14 +163,17 @@ export default function ModelosPermissaoPage() {
           </p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
-            {modelos.map(m => (
+            {modelos.map(m => {
+              const isSelected = isEditing && m.id === editandoId
+              const cardOpacity = isSelected ? 1 : isEditing ? 0.4 : 1
+              return (
               <div
                 key={m.id}
                 onClick={() => abrirEdicao(m)}
                 className="p-4 flex flex-col gap-2.5 cursor-pointer active:scale-[0.98] transition-all"
-                style={CARD}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+                style={{ ...CARD, opacity: cardOpacity, ...(isSelected && { background: 'rgba(0,239,255,0.06)', border: '1px solid rgba(0,239,255,0.5)' }) }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
               >
                 <p style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500, fontSize: '14px' }}>
                   {m.nome}
@@ -198,7 +203,8 @@ export default function ModelosPermissaoPage() {
                   </div>
                 )}
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

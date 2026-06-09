@@ -145,6 +145,7 @@ export default function FormasPagamentoPage() {
   }
 
   const isWide      = tipo === 'credito' || tipo === 'crediario'
+  const isEditing   = formOpen && editandoId !== null
   const formasChips = formas.filter(f => f.ativo && f.tipo !== 'crediario')
 
   // ── Shared sub-blocks ──────────────────────────────────────────────────────
@@ -521,14 +522,18 @@ export default function FormasPagamentoPage() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
 
-            {formas.map(f => (
+            {formas.map(f => {
+              const isSelected = isEditing && f.id === editandoId
+              const baseOpacity = f.ativo ? 1 : 0.45
+              const cardOpacity = isSelected ? 1 : isEditing ? baseOpacity * 0.4 : baseOpacity
+              return (
               <button
                 key={f.id}
                 onClick={() => abrirEdicao(f)}
                 className="p-4 flex flex-col items-center gap-3 text-center active:scale-[0.97] transition-all"
-                style={{ ...CARD, opacity: f.ativo ? 1 : 0.45 }}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+                style={{ ...CARD, opacity: cardOpacity, ...(isSelected && { background: 'rgba(0,239,255,0.06)', border: '1px solid rgba(0,239,255,0.5)' }) }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
               >
                 {/* Active/inactive pill switch — top-right corner */}
                 <button
@@ -577,7 +582,8 @@ export default function FormasPagamentoPage() {
                   </div>
                 </div>
               </button>
-            ))}
+              )
+            })}
 
           </div>
         )}
