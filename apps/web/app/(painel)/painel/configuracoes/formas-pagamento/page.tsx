@@ -23,11 +23,29 @@ const INPUT_STYLE: React.CSSProperties = {
   borderRadius: '8px',
 }
 
+const LABEL: React.CSSProperties = {
+  fontSize: '10px', color: 'rgba(255,255,255,0.35)',
+  textTransform: 'uppercase', letterSpacing: '0.1em',
+}
+
 function focusIn(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
   e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)'
 }
 function focusOut(e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) {
   e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+}
+
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="relative transition-colors shrink-0"
+      style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: on ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+    >
+      <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: on ? '21px' : '3px' }} />
+    </button>
+  )
 }
 
 function TipoIcon({ tipo, size = 22 }: { tipo: string; size?: number }) {
@@ -43,17 +61,18 @@ function TipoIcon({ tipo, size = 22 }: { tipo: string; size?: number }) {
 }
 
 export default function FormasPagamentoPage() {
-  const [formas,    setFormas]    = useState<FormaPagamento[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [formOpen,  setFormOpen]  = useState(false)
-  const [editandoId,setEditandoId]= useState<string | null>(null)
-  const [salvando,  setSalvando]  = useState(false)
+  const [formas,       setFormas]       = useState<FormaPagamento[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [formOpen,     setFormOpen]     = useState(false)
+  const [editandoId,   setEditandoId]   = useState<string | null>(null)
+  const [salvando,     setSalvando]     = useState(false)
 
-  const [nome, setNome] = useState('')
-  const [tipo, setTipo] = useState('outro')
-  const [ativo, setAtivo] = useState(true)
-  const [aceitaDesconto,     setAceitaDesconto]     = useState(true)
-  const [editandoPadrao,     setEditandoPadrao]     = useState(false)
+  const [nome,           setNome]           = useState('')
+  const [tipo,           setTipo]           = useState('outro')
+  const [ativo,          setAtivo]          = useState(true)
+  const [aceitaDesconto, setAceitaDesconto] = useState(true)
+  const [config,         setConfig]         = useState<Record<string, any>>({})
+  const [editandoPadrao, setEditandoPadrao] = useState(false)
   const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
   async function load() {
@@ -73,13 +92,14 @@ export default function FormasPagamentoPage() {
 
   function abrirNova() {
     setNome(''); setTipo('outro')
-    setAtivo(true); setAceitaDesconto(true); setEditandoId(null); setEditandoPadrao(false); setFormOpen(true)
+    setAtivo(true); setAceitaDesconto(true); setConfig({}); setEditandoId(null); setEditandoPadrao(false); setFormOpen(true)
   }
 
   function abrirEdicao(f: FormaPagamento) {
     setNome(f.nome); setTipo(f.tipo)
     setAtivo(f.ativo)
     setAceitaDesconto(f.aceita_desconto !== false)
+    setConfig(f.config ?? {})
     setEditandoId(f.id); setEditandoPadrao(!!f.padrao_sistema); setFormOpen(true)
   }
 
@@ -87,12 +107,7 @@ export default function FormasPagamentoPage() {
     if (!editandoPadrao && !nome) return
     setSalvando(true)
     try {
-      const data = {
-        nome,
-        tipo,
-        ativo,
-        aceita_desconto: aceitaDesconto,
-      }
+      const data = { nome, tipo, ativo, aceita_desconto: aceitaDesconto, config }
       if (editandoId) await financeiroApi.atualizarFormaPagamento(editandoId, data as any)
       else await financeiroApi.criarFormaPagamento(data as any)
       await load(); setFormOpen(false)
@@ -122,6 +137,12 @@ export default function FormasPagamentoPage() {
       },
     })
   }
+
+  function setC(key: string, value: any) {
+    setConfig(prev => ({ ...prev, [key]: value }))
+  }
+
+  const formasChips = formas.filter(f => f.ativo && f.tipo !== 'crediario')
 
   return (
     <>
@@ -153,7 +174,7 @@ export default function FormasPagamentoPage() {
                   style={INPUT_STYLE}
                 />
                 <div className="flex flex-col gap-1.5">
-                  <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Tipo</label>
+                  <label style={LABEL}>Tipo</label>
                   <select
                     value={tipo} onChange={e => setTipo(e.target.value)}
                     onFocus={focusIn} onBlur={focusOut}
@@ -172,32 +193,255 @@ export default function FormasPagamentoPage() {
                 <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Forma ativa</p>
                 <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>Disponível no checkout do caixa.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setAtivo(v => !v)}
-                className="relative transition-colors shrink-0"
-                style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-              >
-                <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: ativo ? '21px' : '3px' }} />
-              </button>
+              <Toggle on={ativo} onToggle={() => setAtivo(v => !v)} />
             </div>
 
             {/* Aceita desconto toggle */}
-            <div className="flex items-center justify-between py-3">
+            <div className="flex items-center justify-between py-3" style={{ borderBottom: (tipo === 'credito' || tipo === 'crediario') ? '0.5px solid rgba(255,255,255,0.07)' : 'none' }}>
               <div>
                 <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Aceita desconto</p>
                 <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>Elegível para o desconto global do caixa.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setAceitaDesconto(v => !v)}
-                className="relative transition-colors shrink-0"
-                style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: aceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
-              >
-                <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: aceitaDesconto ? '21px' : '3px' }} />
-              </button>
+              <Toggle on={aceitaDesconto} onToggle={() => setAceitaDesconto(v => !v)} />
             </div>
 
+            {/* ── Config: Parcelamento (credito) ─────────────────────────────── */}
+            {tipo === 'credito' && (
+              <div className="flex flex-col gap-3">
+                <p style={{ ...LABEL, color: 'rgba(255,255,255,0.3)' }}>Parcelamento</p>
+
+                <div className="flex flex-col gap-1.5">
+                  <label style={LABEL}>Máx. parcelas</label>
+                  <input
+                    type="number" min="1" step="1"
+                    value={config.max_parcelas ?? 1}
+                    onChange={e => setC('max_parcelas', Math.max(1, parseInt(e.target.value) || 1))}
+                    onFocus={focusIn} onBlur={focusOut}
+                    className="w-full min-h-[38px] px-3 outline-none"
+                    style={{ ...INPUT_STYLE, fontSize: '13px' }}
+                  />
+                </div>
+
+                <div className="flex items-start justify-between gap-4">
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)', flex: 1 }}>Cobrar juros de parcelamento</p>
+                  <Toggle on={!!config.juros_habilitado} onToggle={() => setC('juros_habilitado', !config.juros_habilitado)} />
+                </div>
+
+                {config.juros_habilitado && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label style={LABEL}>Sem juros até (parcelas)</label>
+                      <input
+                        type="number" min="0" step="1"
+                        value={config.juros_sem_ate ?? 0}
+                        onChange={e => setC('juros_sem_ate', parseInt(e.target.value) || 0)}
+                        onFocus={focusIn} onBlur={focusOut}
+                        className="w-full min-h-[38px] px-3 outline-none"
+                        style={{ ...INPUT_STYLE, fontSize: '13px' }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label style={LABEL}>Juros ao mês acima %</label>
+                      <div className="relative">
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={config.juros_mes ?? 0}
+                          onChange={e => setC('juros_mes', parseFloat(e.target.value) || 0)}
+                          onFocus={focusIn} onBlur={focusOut}
+                          className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                          style={{ ...INPUT_STYLE, fontSize: '13px' }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Config: Crediário (crediario) ──────────────────────────────── */}
+            {tipo === 'crediario' && (
+              <div className="flex flex-col gap-3">
+                <p style={{ ...LABEL, color: 'rgba(255,255,255,0.3)' }}>Crediário</p>
+
+                {/* Máximo de parcelas */}
+                <div className="flex flex-col gap-1.5">
+                  <label style={LABEL}>Máximo de parcelas</label>
+                  <input
+                    type="number" min="1" step="1"
+                    value={config.max_parcelas ?? 1}
+                    onChange={e => setC('max_parcelas', Math.max(1, parseInt(e.target.value) || 1))}
+                    onFocus={focusIn} onBlur={focusOut}
+                    className="w-full min-h-[38px] px-3 outline-none"
+                    style={{ ...INPUT_STYLE, fontSize: '13px' }}
+                  />
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: '-2px' }}>
+                    A data da 1ª parcela é definida na venda; as seguintes caem todo mês no mesmo dia.
+                  </p>
+                </div>
+
+                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                {/* Exigir entrada mínima */}
+                <div className="flex items-start justify-between gap-4">
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)', flex: 1 }}>Exigir entrada mínima</p>
+                  <Toggle on={!!config.entrada_obrigatoria} onToggle={() => setC('entrada_obrigatoria', !config.entrada_obrigatoria)} />
+                </div>
+
+                {config.entrada_obrigatoria && (
+                  <div className="flex flex-col gap-1.5">
+                    <label style={LABEL}>Percentual mínimo da entrada %</label>
+                    <div className="relative">
+                      <input
+                        type="number" min="0" max="100" step="0.1"
+                        value={config.entrada_min_pct ?? 0}
+                        onChange={e => setC('entrada_min_pct', parseFloat(e.target.value) || 0)}
+                        onFocus={focusIn} onBlur={focusOut}
+                        className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                        style={{ ...INPUT_STYLE, fontSize: '13px' }}
+                      />
+                      <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                {/* Cobrar juros de parcelamento */}
+                <div className="flex items-start justify-between gap-4">
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)', flex: 1 }}>Cobrar juros de parcelamento</p>
+                  <Toggle on={!!config.juros_habilitado} onToggle={() => setC('juros_habilitado', !config.juros_habilitado)} />
+                </div>
+
+                {config.juros_habilitado && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label style={LABEL}>Sem juros até (parcelas)</label>
+                      <input
+                        type="number" min="0" step="1"
+                        value={config.juros_sem_ate ?? 0}
+                        onChange={e => setC('juros_sem_ate', parseInt(e.target.value) || 0)}
+                        onFocus={focusIn} onBlur={focusOut}
+                        className="w-full min-h-[38px] px-3 outline-none"
+                        style={{ ...INPUT_STYLE, fontSize: '13px' }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label style={LABEL}>Juros ao mês acima %</label>
+                      <div className="relative">
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={config.juros_mes ?? 0}
+                          onChange={e => setC('juros_mes', parseFloat(e.target.value) || 0)}
+                          onFocus={focusIn} onBlur={focusOut}
+                          className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                          style={{ ...INPUT_STYLE, fontSize: '13px' }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                {/* Cobrar juros por atraso */}
+                <div className="flex items-start justify-between gap-4">
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)', flex: 1 }}>Cobrar juros por atraso</p>
+                  <Toggle on={!!config.atraso_habilitado} onToggle={() => setC('atraso_habilitado', !config.atraso_habilitado)} />
+                </div>
+
+                {config.atraso_habilitado && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label style={LABEL}>Multa por atraso %</label>
+                      <div className="relative">
+                        <input
+                          type="number" min="0" step="0.1"
+                          value={config.atraso_multa ?? 0}
+                          onChange={e => setC('atraso_multa', parseFloat(e.target.value) || 0)}
+                          onFocus={focusIn} onBlur={focusOut}
+                          className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                          style={{ ...INPUT_STYLE, fontSize: '13px' }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label style={LABEL}>Juros de mora ao mês %</label>
+                      <div className="relative">
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={config.atraso_mora_mes ?? 0}
+                          onChange={e => setC('atraso_mora_mes', parseFloat(e.target.value) || 0)}
+                          onFocus={focusIn} onBlur={focusOut}
+                          className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                          style={{ ...INPUT_STYLE, fontSize: '13px' }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Formas aceitas na entrada / nas parcelas */}
+                {formasChips.length > 0 && (
+                  <>
+                    <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                    <p style={LABEL}>Formas aceitas na entrada</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {formasChips.map(f => {
+                        const on = ((config.formas_entrada ?? []) as string[]).includes(f.id)
+                        return (
+                          <button
+                            key={f.id} type="button"
+                            onClick={() => setC('formas_entrada', on
+                              ? (config.formas_entrada ?? [] as string[]).filter((id: string) => id !== f.id)
+                              : [...(config.formas_entrada ?? []), f.id]
+                            )}
+                            style={{
+                              minHeight: '38px', padding: '8px 15px', borderRadius: '9px', fontSize: '13px', cursor: 'pointer',
+                              border: on ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
+                              background: on ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
+                              color: on ? '#0ef' : 'rgba(255,255,255,0.35)',
+                            }}
+                          >
+                            {f.nome}{on ? ' ✓' : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <p style={LABEL}>Formas aceitas nas parcelas</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {formasChips.map(f => {
+                        const on = ((config.formas_parcela ?? []) as string[]).includes(f.id)
+                        return (
+                          <button
+                            key={f.id} type="button"
+                            onClick={() => setC('formas_parcela', on
+                              ? (config.formas_parcela ?? [] as string[]).filter((id: string) => id !== f.id)
+                              : [...(config.formas_parcela ?? []), f.id]
+                            )}
+                            style={{
+                              minHeight: '38px', padding: '8px 15px', borderRadius: '9px', fontSize: '13px', cursor: 'pointer',
+                              border: on ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
+                              background: on ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
+                              color: on ? '#0ef' : 'rgba(255,255,255,0.35)',
+                            }}
+                          >
+                            {f.nome}{on ? ' ✓' : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Action buttons */}
             <div className="flex items-center justify-between gap-3">
               {editandoId && !editandoPadrao ? (
                 <button

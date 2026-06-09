@@ -22,6 +22,7 @@ export interface FormaPagamento {
   id: string; nome: string; tipo: string
   padrao_sistema: boolean; ativo: boolean
   aceita_desconto?: boolean
+  config?: Record<string, any>
 }
 
 export const financeiroApi = {
