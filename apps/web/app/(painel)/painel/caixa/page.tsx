@@ -152,6 +152,7 @@ export default function CaixaPage() {
   const [salvMov,    setSalvMov]     = useState(false)
   const [fechVendas, setFechVendas]  = useState<VendaTurno[]>([])
   const [fechLoad,   setFechLoad]    = useState(false)
+  const [fechWarning,setFechWarning] = useState(false)
 
   // ── Seleção de variação ───────────────────────────────────────────────────
   const [modalVariacao,   setModalVariacao]   = useState(false)
@@ -458,6 +459,15 @@ export default function CaixaPage() {
     setTimeout(() => scanRef.current?.focus(), 100)
   }
 
+  function handleFecharCaixa() {
+    if (itens.length > 0) {
+      setFechWarning(true)
+      setTimeout(() => setFechWarning(false), 3000)
+      return
+    }
+    setModalFechar(true)
+  }
+
   const fmt    = (v?: number | string | null) => `R$ ${Number(v ?? 0).toFixed(2)}`
   const nomeOp = (usuario as any)?.nome || (usuario as any)?.username || 'Operador'
   const primeiroNome = nomeOp.split(' ')[0]
@@ -700,7 +710,7 @@ export default function CaixaPage() {
 
         {/* ── DIREITA: Glass Sidebar ──────────────────────────────────────── */}
         <div
-          className="relative z-[1] hidden md:flex flex-col shrink-0 overflow-y-auto"
+          className="relative z-[1] hidden md:flex flex-col shrink-0"
           style={{ width: '240px', gap: '8px', padding: '10px', borderLeft: '0.5px solid rgba(255,255,255,0.06)' }}
           data-no-refocus
         >
@@ -856,7 +866,7 @@ export default function CaixaPage() {
                     )}
                     <div>
                       <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 2px' }}>Com desconto</p>
-                      <p style={{ fontSize: '24px', fontWeight: 600, color: 'rgba(100,220,160,0.9)', lineHeight: 1.1, margin: 0 }}>
+                      <p style={{ fontSize: '18px', fontWeight: 600, color: 'rgba(100,220,160,0.9)', lineHeight: 1.1, margin: 0 }}>
                         R$ {valorComDesconto.toFixed(2)}
                       </p>
                       <p style={{ fontSize: '11px', color: 'rgba(100,220,160,0.7)', margin: '4px 0 0' }}>
@@ -870,73 +880,86 @@ export default function CaixaPage() {
                 </p>
               </div>
 
-              {/* Module 2 — Atribuição da venda */}
-              <div style={MOD}>
-                <span style={MOD_LABEL}>Atribuição da venda</span>
-                {/* Cliente */}
-                <div
-                  role="button"
-                  onClick={() => {
-                    if (cliente_id) { setModalDadosCliente(true) }
-                    else { setClienteAutoAberto(false); setModalCliente(true) }
-                  }}
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
-                >
-                  <User size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: '12px', color: cliente_nome ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {cliente_nome ?? 'Adicionar cliente'}
-                  </span>
-                  {cliente_nome && (
-                    <button onClick={e => { e.stopPropagation(); setCliente(null, null) }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
-                      <X size={12} />
-                    </button>
-                  )}
+              {/* MIDDLE: Atribuição + Gestão — scrolling zone */}
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Module 2 — Atribuição da venda */}
+                <div style={MOD}>
+                  <span style={MOD_LABEL}>Atribuição da venda</span>
+                  {/* Cliente */}
+                  <div
+                    role="button"
+                    onClick={() => {
+                      if (cliente_id) { setModalDadosCliente(true) }
+                      else { setClienteAutoAberto(false); setModalCliente(true) }
+                    }}
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                  >
+                    <User size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: '12px', color: cliente_nome ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {cliente_nome ?? 'Adicionar cliente'}
+                    </span>
+                    {cliente_nome && (
+                      <button onClick={e => { e.stopPropagation(); setCliente(null, null) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                  {/* Vendedor */}
+                  <div
+                    role="button"
+                    onClick={() => setModalVendedor(true)}
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+                  >
+                    <Briefcase size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: '12px', color: vendedor ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {vendedor ? vendedor.nome : 'Adicionar vendedor'}
+                    </span>
+                    {vendedor && (
+                      <button onClick={e => { e.stopPropagation(); setVendedor(null); setVendedorStore(null, null) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                {/* Vendedor */}
-                <div
-                  role="button"
-                  onClick={() => setModalVendedor(true)}
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
-                >
-                  <Briefcase size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: '12px', color: vendedor ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {vendedor ? vendedor.nome : 'Adicionar vendedor'}
-                  </span>
-                  {vendedor && (
-                    <button onClick={e => { e.stopPropagation(); setVendedor(null); setVendedorStore(null, null) }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
-                      <X size={12} />
-                    </button>
+
+                {/* Module 3 — Gestão do caixa */}
+                <div style={MOD}>
+                  <span style={MOD_LABEL}>Gestão do caixa</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                    {[
+                      { key: 'sacolas',    icon: <ShoppingBag size={18} />, label: 'Sacolas',    onClick: () => setModalSacolas(true),               danger: false },
+                      { key: 'provas',     icon: <Home        size={18} />, label: 'Provas',     onClick: () => router.push('/painel/prova-em-casa'), danger: false },
+                      { key: 'sangria',    icon: <ArrowUp     size={18} />, label: 'Sangria',    onClick: () => setModalMov('sangria'),               danger: false },
+                      { key: 'suprimento', icon: <ArrowDown   size={18} />, label: 'Suprimento', onClick: () => setModalMov('suprimento'),            danger: false },
+                      { key: 'fechar',     icon: <Lock        size={18} />, label: 'Fechar',     onClick: () => handleFecharCaixa(),                  danger: true  },
+                    ].map(btn => (
+                      <button
+                        key={btn.key}
+                        onClick={btn.onClick}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                          width: '44px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0',
+                          opacity: btn.danger && itens.length > 0 ? 0.5 : 1,
+                          color: btn.danger ? 'rgba(240,130,130,0.7)' : 'rgba(0,239,255,0.7)',
+                          transition: 'opacity 0.15s',
+                        }}
+                      >
+                        <span style={{ color: 'inherit' }}>{btn.icon}</span>
+                        <span style={{ fontSize: '9px', color: btn.danger ? 'rgba(240,130,130,0.7)' : 'rgba(255,255,255,0.55)' }}>{btn.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {fechWarning && (
+                    <p style={{ fontSize: '10px', color: 'rgba(240,130,130,0.8)', textAlign: 'center', marginTop: '6px', lineHeight: 1.4 }}>
+                      Finalize ou cancele a venda atual antes de fechar o caixa.
+                    </p>
                   )}
                 </div>
               </div>
 
-              {/* Module 3 — Gestão do caixa */}
-              <div style={MOD}>
-                <span style={MOD_LABEL}>Gestão do caixa</span>
-                <CaixaRow icon={<ShoppingBag size={13} />} label="Sacolas pendentes"   onClick={() => setModalSacolas(true)} />
-                <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
-                <CaixaRow icon={<Home        size={13} />} label="Provas em Casa"       onClick={() => router.push('/painel/prova-em-casa')} />
-                <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
-                <CaixaRow icon={<ArrowUp     size={13} />} label="Sangria — retirada"   onClick={() => setModalMov('sangria')} />
-                <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
-                <CaixaRow icon={<ArrowDown   size={13} />} label="Suprimento — reforço" onClick={() => setModalMov('suprimento')} />
-                <div style={{ borderBottom: '0.5px solid rgba(255,255,255,0.05)' }} />
-                <div style={{ opacity: itens.length > 0 ? 0.5 : 1 }}>
-                  <CaixaRow icon={<Lock size={13} />} label="Fechar caixa" onClick={() => { if (itens.length > 0) return; setModalFechar(true) }} danger />
-                </div>
-                {itens.length > 0 && (
-                  <p style={{ fontSize: '11px', color: 'rgba(240,130,130,0.75)', margin: '-2px 0 4px', lineHeight: 1.4 }}>
-                    Finalize ou cancele a venda atual antes de fechar o caixa.
-                  </p>
-                )}
-              </div>
-
-              {/* Spacer */}
-              <div style={{ flex: 1, minHeight: '8px' }} />
-
-              {/* Module 4 — Finalizar venda */}
+              {/* BOTTOM: Module 4 — Finalizar venda */}
               <div style={MOD}>
                 <span style={MOD_LABEL}>Finalizar venda</span>
                 {itens.length === 0 ? (
