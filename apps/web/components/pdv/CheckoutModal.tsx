@@ -16,6 +16,7 @@ interface PagamentoParcial {
   forma:    FormaPagamento
   valor:    number
   parcelas: number
+  juros?:   number    // cartão interest add-on (not counted toward sale total)
 }
 
 interface DescontoCfg {
@@ -121,7 +122,7 @@ export function CheckoutModal({
       api.get<any>('/dados-loja/sistema'),
     ]).then(([fs, sysRes]) => {
       const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario']
-      const sorted = [...fs].sort((a, b) => {
+      const sorted = [...fs].sort((a: FormaPagamento, b: FormaPagamento) => {
         const ia = TIPOS.indexOf(a.tipo); const ib = TIPOS.indexOf(b.tipo)
         if (ia !== ib) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
         return a.nome.localeCompare(b.nome)
@@ -132,20 +133,22 @@ export function CheckoutModal({
         promoAceita: !!sysRes.data.promocao_aceita_desconto,
         restringe:   !!sysRes.data.desconto_restringe_formas,
       }
+      // Crediário config comes from the crediário forma's config object
+      const crediarioForma = fs.find((f: FormaPagamento) => f.tipo === 'crediario')
+      const cCfg = crediarioForma?.config ?? {}
       const ccfg: CrediarioCfg = {
-        max_parcelas:        Number(sysRes.data.crediario_max_parcelas ?? 12),
-        entrada_obrigatoria: !!sysRes.data.crediario_entrada_obrigatoria,
-        entrada_min_pct:     Number(sysRes.data.crediario_entrada_min_pct ?? 0),
-        juros_habilitado:    !!sysRes.data.crediario_juros_habilitado,
-        juros_sem_ate:       Number(sysRes.data.crediario_juros_sem_ate ?? 0),
-        juros_mes:           Number(sysRes.data.crediario_juros_mes ?? 0),
-        formas_entrada_ids:  Array.isArray(sysRes.data.crediario_formas_entrada) ? sysRes.data.crediario_formas_entrada : [],
+        max_parcelas:        Number(cCfg.max_parcelas ?? 12),
+        entrada_obrigatoria: !!cCfg.entrada_obrigatoria,
+        entrada_min_pct:     Number(cCfg.entrada_min_pct ?? 0),
+        juros_habilitado:    !!cCfg.juros_habilitado,
+        juros_sem_ate:       Number(cCfg.juros_sem_ate ?? 0),
+        juros_mes:           Number(cCfg.juros_mes ?? 0),
+        formas_entrada_ids:  Array.isArray(cCfg.formas_entrada) ? cCfg.formas_entrada : [],
       }
       setFormas(sorted)
       setDescontoCfg(cfg)
       setCrediarioCfg(ccfg)
-      // Default to first non-crediário form; credit effect will reveal crediário when confirmed
-      setFormaAtual(sorted.find(f => f.ativo && f.tipo !== 'crediario') ?? null)
+      setFormaAtual(sorted.find((f: FormaPagamento) => f.ativo && f.tipo !== 'crediario') ?? null)
       setCarregando(false)
       setTimeout(() => valorRef.current?.focus(), 100)
     }).catch(() => setCarregando(false))
@@ -227,6 +230,27 @@ export function CheckoutModal({
   const isCrediario      = formaAtual?.tipo === 'crediario'
   const nomeFormaEntrada = formasEntrada.find(f => f.id === (formaEntradaId ?? formasEntrada[0]?.id))?.nome ?? ''
 
+  // ── Cartão de crédito derived values ────────────────────────────────────
+  const isCartao = formaAtual?.tipo === 'credito'
+  const cartaoCfg = {
+    max_parcelas:     Number(formaAtual?.config?.max_parcelas ?? 1),
+    juros_habilitado: !!formaAtual?.config?.juros_habilitado,
+    juros_sem_ate:    Number(formaAtual?.config?.juros_sem_ate ?? 0),
+    juros_mes:        Number(formaAtual?.config?.juros_mes ?? 0),
+  }
+  const cartaoN = isCartao ? parcelas : 1
+  const cartaoValorComJuros = (() => {
+    if (!isCartao || !cartaoCfg.juros_habilitado || cartaoN <= cartaoCfg.juros_sem_ate || valAtual <= 0) return valAtual
+    return Math.round(valAtual * (1 + (cartaoCfg.juros_mes / 100) * cartaoN) * 100) / 100
+  })()
+  const cartaoJurosValor   = Math.max(0, Math.round((cartaoValorComJuros - valAtual) * 100) / 100)
+  const cartaoParcelaValor = cartaoN > 0 && cartaoValorComJuros > 0 ? cartaoValorComJuros / cartaoN : 0
+
+  // ── Entra no caixa agora ─────────────────────────────────────────────────
+  // Common forms: full sale total received at the drawer.
+  // Crediário: only the down-payment (entrada) is received now; financed amount is credit.
+  const caixaAgora = isCrediario ? entrada : totalEfetivo
+
   // ── Discount toggle ──────────────────────────────────────────────────────
   function handleComDesconto(novoValor: boolean) {
     setComDesconto(novoValor)
@@ -246,6 +270,7 @@ export function CheckoutModal({
     const switchingToCrediario = f.tipo === 'crediario' && formaAtual?.tipo !== 'crediario'
     setFormaAtual(f)
     setErro('')
+    setParcelas(1)
     if (switchingToCrediario) {
       setPagamentos([])
       setValorAtual('')
@@ -275,6 +300,7 @@ export function CheckoutModal({
         forma_pagamento_id: p.forma.id,
         valor:              abatedValor,
         parcelas:           p.parcelas,
+        juros:              p.juros ?? 0,
         valor_recebido:     isDinheiro ? p.valor : undefined,
         troco:              isDinheiro ? Math.round(Math.max(0, p.valor - abatedValor) * 100) / 100 : undefined,
       }
@@ -293,7 +319,18 @@ export function CheckoutModal({
     const err = validarEntrada()
     if (err) { setErro(err); return }
     setErro('')
-    const novoPag: PagamentoParcial = { forma: formaAtual, valor: valAtual, parcelas }
+
+    // Cartão interest on top of base valor
+    let jurosValue = 0
+    if (isCartao) {
+      const cN = parcelas
+      if (cartaoCfg.juros_habilitado && cN > cartaoCfg.juros_sem_ate) {
+        const valorComJuros = Math.round(valAtual * (1 + (cartaoCfg.juros_mes / 100) * cN) * 100) / 100
+        jurosValue = Math.max(0, Math.round((valorComJuros - valAtual) * 100) / 100)
+      }
+    }
+
+    const novoPag: PagamentoParcial = { forma: formaAtual, valor: valAtual, parcelas, juros: jurosValue }
     const novaLista    = [...pagamentos, novoPag]
     const novoRestante = Math.max(0, totalEfetivo - novaLista.reduce((s, p) => s + p.valor, 0))
     if (novoRestante <= 0.01) {
@@ -563,6 +600,29 @@ export function CheckoutModal({
                 {/* ── COMMON FORM INPUTS ─────────────────────────────────── */}
                 {!isCrediario && (
                   <>
+                    {/* Cartão: parcelas field */}
+                    {isCartao && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <p style={labelStyle}>Parcelas</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="text" inputMode="numeric"
+                            value={parcelas}
+                            onChange={e => {
+                              const raw = parseInt(e.target.value.replace(/\D/g, ''))
+                              setParcelas(isNaN(raw) || raw < 1 ? 1 : Math.min(raw, cartaoCfg.max_parcelas))
+                            }}
+                            style={{ ...inputStyle, width: '80px', minHeight: '44px', fontSize: '22px', fontWeight: 700, textAlign: 'center', color: '#0ef', flexShrink: 0, padding: '0 8px' }}
+                          />
+                          <span style={{ fontSize: '22px', fontWeight: 700, color: '#0ef' }}>×</span>
+                        </div>
+                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>
+                          máx. {cartaoCfg.max_parcelas}×{cartaoCfg.juros_habilitado && cartaoCfg.juros_sem_ate > 0 ? ` · sem juros até ${cartaoCfg.juros_sem_ate}×` : ''}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Valor input */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <p style={labelStyle}>Valor</p>
@@ -583,6 +643,13 @@ export function CheckoutModal({
                       />
                       {formaAtual?.tipo === 'dinheiro' && troco > 0 && (
                         <p style={{ textAlign: 'center', color: 'rgba(100,220,160,0.9)', fontSize: '13px', fontWeight: 500, margin: 0 }}>Troco: {fmt(troco)}</p>
+                      )}
+                      {/* Cartão interest preview */}
+                      {isCartao && valAtual > 0 && parcelas > 1 && (
+                        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '12px', margin: 0 }}>
+                          {parcelas}× de {fmt(cartaoParcelaValor)}
+                          {cartaoJurosValor > 0 && <span style={{ color: 'rgba(240,160,100,0.8)' }}> · juros {fmt(cartaoJurosValor)}</span>}
+                        </p>
                       )}
                     </div>
                     {erro && <p style={{ color: 'rgba(240,100,100,0.85)', fontSize: '12px', textAlign: 'center', margin: 0 }}>{erro}</p>}
@@ -639,11 +706,17 @@ export function CheckoutModal({
                   <p style={{ fontSize: '22px', fontWeight: 700, color: '#0ef', lineHeight: 1, margin: 0 }}>{N}× {fmt(valorPorParcela)}</p>
                   {N > 1 && <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '4px', marginBottom: 0 }}>Total {fmt(jurosParcelado)}</p>}
                 </div>
-                <div style={{ marginTop: 'auto' }}>
+                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ padding: '8px 12px', borderRadius: '10px', background: creditoOk ? 'rgba(100,220,160,0.07)' : 'rgba(240,100,100,0.07)', border: `0.5px solid ${creditoOk ? 'rgba(100,220,160,0.3)' : 'rgba(240,100,100,0.3)'}` }}>
                     <p style={{ fontSize: '12px', fontWeight: 600, color: creditoOk ? 'rgba(100,220,160,0.9)' : 'rgba(240,100,100,0.75)', textAlign: 'center', margin: 0 }}>
                       {creditoOk ? '✓ Cabe no limite' : '✗ Crédito insuficiente'}
                     </p>
+                  </div>
+                  <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.09)', paddingTop: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Entra no caixa agora</span>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(100,220,160,0.9)' }}>{fmt(caixaAgora)}</span>
+                    </div>
                   </div>
                 </div>
               </>
@@ -684,12 +757,22 @@ export function CheckoutModal({
                     <div style={dividerStyle} />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                       {pagamentos.map((p, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                            <span style={{ width: '15px', height: '15px', borderRadius: '50%', background: 'rgba(100,220,160,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', color: 'rgba(100,220,160,0.9)', flexShrink: 0 }}>✓</span>
-                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)' }}>{p.forma.nome}</span>
+                        <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                              <span style={{ width: '15px', height: '15px', borderRadius: '50%', background: 'rgba(100,220,160,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', color: 'rgba(100,220,160,0.9)', flexShrink: 0 }}>✓</span>
+                              <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)' }}>{p.forma.nome}</span>
+                            </div>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.82)' }}>{fmt(p.valor)}</span>
                           </div>
-                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.82)' }}>{fmt(p.valor)}</span>
+                          {p.forma.tipo === 'credito' && p.parcelas > 1 && (
+                            <div style={{ paddingLeft: '22px' }}>
+                              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+                                {p.parcelas}× de {fmt((p.valor + (p.juros ?? 0)) / p.parcelas)}
+                                {(p.juros ?? 0) > 0 && <span style={{ color: 'rgba(240,160,100,0.7)' }}> · juros {fmt(p.juros!)}</span>}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ))}
                       <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '6px', borderTop: '0.5px solid rgba(255,255,255,0.09)', marginTop: '2px' }}>
@@ -717,6 +800,14 @@ export function CheckoutModal({
                     </div>
                   </>
                 )}
+
+                {/* Entra no caixa agora */}
+                <div style={{ marginTop: 'auto', borderTop: '0.5px solid rgba(255,255,255,0.09)', paddingTop: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Entra no caixa agora</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(100,220,160,0.9)' }}>{fmt(caixaAgora)}</span>
+                  </div>
+                </div>
               </>
             )}
           </div>
@@ -736,24 +827,7 @@ export function CheckoutModal({
             disabled={btnDisabled}
             style={{ flex: 2, minHeight: '48px', background: '#0ef', border: 'none', borderRadius: '14px', fontSize: '14px', fontWeight: 700, color: 'rgba(2,8,16,0.95)', cursor: btnDisabled ? 'default' : 'pointer', opacity: btnDisabled ? 0.4 : 1, transition: 'opacity 0.15s' }}
           >
-            {processando ? 'Registrando...' : isCrediario ? (
-              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.35 }}>
-                {entrada > 0.005 ? (
-                  <>
-                    <span style={{ fontSize: '15px', fontWeight: 500 }}>Receber {fmt(entrada)} em {nomeFormaEntrada}</span>
-                    <span style={{ fontSize: '12px', opacity: 0.75 }}>+ {N}× de {fmt(valorPorParcela)}</span>
-                  </>
-                ) : (
-                  <>
-                    <span style={{ fontSize: '15px', fontWeight: 500 }}>Finalizar no crediário</span>
-                    <span style={{ fontSize: '12px', opacity: 0.75 }}>{N}× de {fmt(valorPorParcela)}</span>
-                  </>
-                )}
-              </span>
-            ) : (restante <= 0.01 || valAtual >= restante)
-              ? `Finalizar — ${fmt(totalEfetivo)}`
-              : `Confirmar ${fmt(valAtual)} →`
-            }
+            {processando ? 'Registrando...' : 'Finalizar venda'}
           </button>
         </div>
 

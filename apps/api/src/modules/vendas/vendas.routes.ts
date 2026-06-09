@@ -19,6 +19,7 @@ const pagamentoSchema = z.object({
   forma_pagamento_id: z.string().uuid(),
   valor:          z.coerce.number().positive(),
   parcelas:       z.coerce.number().int().min(1).default(1),
+  juros:          z.coerce.number().min(0).optional().nullable(),
   detalhe:        z.string().optional().nullable(),
   valor_recebido: z.coerce.number().min(0).optional().nullable(),
   troco:          z.coerce.number().min(0).optional().nullable(),
@@ -46,12 +47,18 @@ export async function vendasRoutes(app: FastifyInstance) {
 
     // Verifica configuração global de estoque
     const { rows: [cfg] } = await pool.query(
-      `SELECT controle_estoque, crediario_juros_habilitado, crediario_juros_sem_ate, crediario_juros_mes FROM configuracoes_loja LIMIT 1`
+      `SELECT controle_estoque FROM configuracoes_loja LIMIT 1`
     )
     const controleGlobal = cfg?.controle_estoque ?? true
-    const crediario_juros_habilitado: boolean = cfg?.crediario_juros_habilitado ?? false
-    const crediario_juros_sem_ate: number = Number(cfg?.crediario_juros_sem_ate ?? 0)
-    const crediario_juros_mes: number = Number(cfg?.crediario_juros_mes ?? 0)
+
+    // Lê config de juros do crediário direto da forma_pagamento
+    const { rows: [crediarioFp] } = await pool.query(
+      `SELECT config FROM formas_pagamento WHERE tipo = 'crediario' AND ativo = true LIMIT 1`
+    )
+    const cCfg = crediarioFp?.config ?? {}
+    const crediario_juros_habilitado: boolean = !!cCfg.juros_habilitado
+    const crediario_juros_sem_ate: number = Number(cCfg.juros_sem_ate ?? 0)
+    const crediario_juros_mes: number = Number(cCfg.juros_mes ?? 0)
 
     // Calcula totais
     const subtotal = data.itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
@@ -151,10 +158,18 @@ export async function vendasRoutes(app: FastifyInstance) {
         const { rows: [fp] } = await client.query(
           `SELECT tipo FROM formas_pagamento WHERE id = $1`, [pag.forma_pagamento_id]
         )
+        // Para cartão de crédito, persiste juros e parcelas no campo detalhe
+        let detalhe = pag.detalhe ?? null
+        if (fp?.tipo === 'credito') {
+          const jurosVal = pag.juros ?? 0
+          if (jurosVal > 0 || pag.parcelas > 1) {
+            detalhe = JSON.stringify({ juros: jurosVal, parcelas: pag.parcelas })
+          }
+        }
         const { rows: [pv] } = await client.query(
           `INSERT INTO pagamentos_venda (venda_id, forma_pagamento_id, valor, parcelas, detalhe, valor_recebido, troco)
            VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-          [venda_id, pag.forma_pagamento_id, pag.valor, pag.parcelas, pag.detalhe ?? null, pag.valor_recebido ?? null, pag.troco ?? null]
+          [venda_id, pag.forma_pagamento_id, pag.valor, pag.parcelas, detalhe, pag.valor_recebido ?? null, pag.troco ?? null]
         )
         const pv_id = pv.id
 
