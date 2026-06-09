@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { User, Briefcase, X } from 'lucide-react'
 import { financeiroApi, type FormaPagamento } from '@/lib/api/financeiro'
 import { vendasApi } from '@/lib/api/vendas'
+import { clientesApi } from '@/lib/api/clientes'
 import { usePDVStore } from '@/store/pdv.store'
 import { api } from '@/lib/api/client'
 import type { ItemComDesconto } from '@/lib/calcularDesconto'
@@ -73,17 +74,24 @@ export function CheckoutModal({
   const [erro,        setErro]        = useState('')
   const [descontoCfg, setDescontoCfg] = useState<DescontoCfg | null>(null)
   const [comDesconto, setComDesconto] = useState(false)
+  const [creditoLiberado, setCreditoLiberado] = useState(false)
 
   // ── Load on open ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return
     setPagamentos([]); setValorAtual(''); setParcelas(1); setErro(''); setComDesconto(false)
+    setCreditoLiberado(false)
     setCarregando(true)
+
+    const creditoPromise = clienteId
+      ? clientesApi.getCredito(clienteId).then(r => r.credito_liberado === true).catch(() => false as boolean)
+      : Promise.resolve(false as boolean)
 
     Promise.all([
       financeiroApi.formasPagamento(),
       api.get<any>('/dados-loja/sistema'),
-    ]).then(([fs, sysRes]) => {
+      creditoPromise,
+    ]).then(([fs, sysRes, credito]) => {
       const TIPOS = ['dinheiro', 'pix', 'debito', 'credito', 'crediario']
       const sorted = [...fs].sort((a, b) => {
         const ia = TIPOS.indexOf(a.tipo); const ib = TIPOS.indexOf(b.tipo)
@@ -96,9 +104,12 @@ export function CheckoutModal({
         promoAceita: !!sysRes.data.promocao_aceita_desconto,
         restringe:  !!sysRes.data.desconto_restringe_formas,
       }
+      const credBool = credito as boolean
+      setCreditoLiberado(credBool)
       setFormas(sorted)
       setDescontoCfg(cfg)
-      setFormaAtual(sorted.find(f => f.ativo) ?? null)
+      const permitidasInicial = sorted.filter(f => f.ativo && !(f.tipo === 'crediario' && !credBool))
+      setFormaAtual(permitidasInicial[0] ?? null)
       setCarregando(false)
       setTimeout(() => valorRef.current?.focus(), 100)
     }).catch(() => setCarregando(false))
@@ -125,6 +136,7 @@ export function CheckoutModal({
   // ── Allowed payment forms ─────────────────────────────────────────────────
   const formasPermitidas = formas.filter(f => {
     if (!f.ativo) return false
+    if (f.tipo === 'crediario' && !creditoLiberado) return false
     if (comDesconto && descontoCfg?.restringe && f.aceita_desconto === false) return false
     return true
   })
@@ -143,6 +155,7 @@ export function CheckoutModal({
     setPagamentos([]); setValorAtual(''); setParcelas(1); setErro('')
     const novasPermitidas = formas.filter(f => {
       if (!f.ativo) return false
+      if (f.tipo === 'crediario' && !creditoLiberado) return false
       if (novoValor && descontoCfg?.restringe && f.aceita_desconto === false) return false
       return true
     })
