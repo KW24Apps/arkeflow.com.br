@@ -1,0 +1,1 @@
+ALTER TABLE formas_pagamento ADD COLUMN IF NOT EXISTS config JSONB NOT NULL DEFAULT '{}'::jsonb;

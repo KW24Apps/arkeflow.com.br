@@ -13,6 +13,7 @@ const schema = z.object({
   tipo:            z.string().min(1),
   ativo:           z.boolean().default(true),
   aceita_desconto: z.boolean().default(true),
+  config:          z.record(z.any()).optional(),
 })
 
 export async function formasPagamentoRoutes(app: FastifyInstance) {
@@ -53,8 +54,10 @@ export async function formasPagamentoRoutes(app: FastifyInstance) {
         throw new AppError('Tipo de formas padrão do sistema não pode ser alterado.', 400)
     }
 
-    const keys   = Object.keys(data)
-    const values = Object.values(data)
+    const bindData: Record<string, any> = { ...data }
+    if (bindData.config !== undefined) bindData.config = JSON.stringify(bindData.config)
+    const keys   = Object.keys(bindData)
+    const values = Object.values(bindData)
     const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
     const { rows: [r] } = await pool.query(
       `UPDATE formas_pagamento SET ${set} WHERE id = $1 RETURNING *`, [id, ...values]
