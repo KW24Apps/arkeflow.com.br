@@ -35,6 +35,7 @@ export interface Colaborador extends ColaboradorPerfil {
   nivel: 'dono_loja' | 'vendedor'
   permissoes: string[]
   ativo: boolean
+  is_supervisor: boolean
   ultimo_acesso: string | null
   dias_semana:   number[] | null
   hora_inicio:   string | null
@@ -73,4 +74,6 @@ export const colaboradoresApi = {
     api.delete(`/colaboradores/${id}/permanente`),
   redefinirSenha: (id: string, senha: string) =>
     api.put(`/colaboradores/${id}/senha`, { senha }).then(r => r.data),
+  setSupervisor: (id: string, is_supervisor: boolean) =>
+    api.put(`/colaboradores/${id}/supervisor`, { is_supervisor }).then(r => r.data),
 }

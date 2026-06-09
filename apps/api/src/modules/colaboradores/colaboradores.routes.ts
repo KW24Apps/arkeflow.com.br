@@ -63,7 +63,7 @@ const updateAcessoSchema = z.object({
 const CAMPOS_USER = `
   u.id, u.nome, u.email, u.username, u.nivel, u.permissoes,
   u.modelo_permissao_id, u.ativo, u.ultimo_acesso,
-  u.dias_semana, u.hora_inicio, u.hora_fim
+  u.dias_semana, u.hora_inicio, u.hora_fim, u.is_supervisor
 `
 
 async function upsertPerfil(usuario_id: string, data: z.infer<typeof perfilSchema>) {
@@ -290,6 +290,17 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     // Exclui permanentemente
     await platformPool.query(`DELETE FROM usuarios WHERE id = $1`, [id])
     return reply.status(204).send()
+  })
+
+  app.put('/:id/supervisor', { preHandler: dono }, async (req, reply) => {
+    const user = req.user as JwtPayload
+    const { id } = req.params as { id: string }
+    const { is_supervisor } = z.object({ is_supervisor: z.boolean() }).parse(req.body)
+    await platformPool.query(
+      `UPDATE usuarios SET is_supervisor = $1 WHERE id = $2 AND loja_id = $3`,
+      [is_supervisor, id, user.loja_id]
+    )
+    return reply.send({ ok: true })
   })
 
   app.put('/:id/senha', { preHandler: dono }, async (req, reply) => {

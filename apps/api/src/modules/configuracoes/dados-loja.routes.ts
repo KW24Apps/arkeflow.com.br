@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import bcrypt from 'bcryptjs'
 import { createWriteStream, mkdirSync } from 'fs'
 import { join } from 'path'
 import { pipeline } from 'stream/promises'
@@ -145,27 +146,46 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     const pool = getTenantPoolFromRequest(req)
     const { rows: [cfg] } = await pool.query(`SELECT * FROM configuracoes_loja LIMIT 1`)
 
-    // Também retorna logo_url da loja para o header
     const user = req.user as JwtPayload
     const { rows: [loja] } = await platformPool.query(
       `SELECT logo_url FROM lojas WHERE id = $1`, [user.loja_id]
     )
-    return reply.send({ ...cfg, logo_url_loja: loja?.logo_url ?? null })
+
+    // Never leak the hash — expose only whether one is set
+    const senhaMestraDefinida = !!(cfg?.senha_mestra_hash)
+    const { senha_mestra_hash: _omit, ...cfgSafe } = cfg ?? {}
+
+    return reply.send({ ...cfgSafe, logo_url_loja: loja?.logo_url ?? null, senha_mestra_definida: senhaMestraDefinida })
   })
 
   app.put('/sistema', { preHandler: dono }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
     const user = req.user as JwtPayload
-    const { logo_url, link_loja, controle_estoque, desconto_max_percentual, desconto_max_valor, promocao_aceita_desconto, desconto_restringe_formas } = req.body as any
+    const {
+      logo_url, link_loja, controle_estoque,
+      desconto_max_percentual, desconto_max_valor, promocao_aceita_desconto, desconto_restringe_formas,
+      supervisao_habilitada, senha_mestra_habilitada,
+      exige_auth_fechar_falta, exige_auth_fechar_sobra, exige_auth_cancelar_item,
+      senha_mestra,
+    } = req.body as any
 
     // Atualiza configuracoes_loja no banco da loja
     const upd: string[] = []; const val: any[] = []
-    if (controle_estoque !== undefined)         { val.push(controle_estoque);          upd.push(`controle_estoque = $${val.length}`) }
-    if (link_loja !== undefined)                { val.push(link_loja ?? null);         upd.push(`link_loja = $${val.length}`) }
-    if (desconto_max_percentual !== undefined)  { val.push(desconto_max_percentual);   upd.push(`desconto_max_percentual = $${val.length}`) }
-    if (desconto_max_valor !== undefined)       { val.push(desconto_max_valor);        upd.push(`desconto_max_valor = $${val.length}`) }
-    if (promocao_aceita_desconto !== undefined) { val.push(promocao_aceita_desconto);  upd.push(`promocao_aceita_desconto = $${val.length}`) }
-    if (desconto_restringe_formas !== undefined){ val.push(desconto_restringe_formas); upd.push(`desconto_restringe_formas = $${val.length}`) }
+    if (controle_estoque !== undefined)          { val.push(controle_estoque);           upd.push(`controle_estoque = $${val.length}`) }
+    if (link_loja !== undefined)                 { val.push(link_loja ?? null);          upd.push(`link_loja = $${val.length}`) }
+    if (desconto_max_percentual !== undefined)   { val.push(desconto_max_percentual);    upd.push(`desconto_max_percentual = $${val.length}`) }
+    if (desconto_max_valor !== undefined)        { val.push(desconto_max_valor);         upd.push(`desconto_max_valor = $${val.length}`) }
+    if (promocao_aceita_desconto !== undefined)  { val.push(promocao_aceita_desconto);   upd.push(`promocao_aceita_desconto = $${val.length}`) }
+    if (desconto_restringe_formas !== undefined) { val.push(desconto_restringe_formas);  upd.push(`desconto_restringe_formas = $${val.length}`) }
+    if (supervisao_habilitada !== undefined)     { val.push(supervisao_habilitada);      upd.push(`supervisao_habilitada = $${val.length}`) }
+    if (senha_mestra_habilitada !== undefined)   { val.push(senha_mestra_habilitada);    upd.push(`senha_mestra_habilitada = $${val.length}`) }
+    if (exige_auth_fechar_falta !== undefined)   { val.push(exige_auth_fechar_falta);    upd.push(`exige_auth_fechar_falta = $${val.length}`) }
+    if (exige_auth_fechar_sobra !== undefined)   { val.push(exige_auth_fechar_sobra);    upd.push(`exige_auth_fechar_sobra = $${val.length}`) }
+    if (exige_auth_cancelar_item !== undefined)  { val.push(exige_auth_cancelar_item);   upd.push(`exige_auth_cancelar_item = $${val.length}`) }
+    if (senha_mestra && typeof senha_mestra === 'string' && senha_mestra.trim()) {
+      const hash = await bcrypt.hash(senha_mestra.trim(), 10)
+      val.push(hash); upd.push(`senha_mestra_hash = $${val.length}`)
+    }
     if (upd.length) await pool.query(`UPDATE configuracoes_loja SET ${upd.join(', ')}`, val)
 
     // Atualiza logo_url na tabela lojas (plataforma)
