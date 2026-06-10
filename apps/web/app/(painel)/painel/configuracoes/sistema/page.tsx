@@ -108,10 +108,12 @@ export default function ConfigSistemaPage() {
   const [caixaSaved,             setCaixaSaved]             = useState(false)
 
   // ── Atalhos state ─────────────────────────────────────────────────────────
-  const [atalhosCfg,   setAtalhosCfg]   = useState<Record<string, string>>({})
-  const [atalhosSaved, setAtalhosSaved] = useState(false)
-  const [atalhoFlash,  setAtalhoFlash]  = useState<string | null>(null)
-  const [atalhoFocus,  setAtalhoFocus]  = useState<string | null>(null)
+  const [atalhosCfg,      setAtalhosCfg]      = useState<Record<string, string>>({})
+  const [atalhosSaved,    setAtalhosSaved]    = useState(false)
+  const [atalhoCapturing, setAtalhoCapturing] = useState<string | null>(null)
+  const [atalhoDisplayKey, setAtalhoDisplayKey] = useState('')
+  const [atalhoConflict,  setAtalhoConflict]  = useState(false)
+  const [atalhoHover,     setAtalhoHover]     = useState<string | null>(null)
 
   // ── Layout state ──────────────────────────────────────────────────────────
   const [secao, setSecao] = useState<Secao>(null)
@@ -296,30 +298,41 @@ export default function ConfigSistemaPage() {
 
   // ── Atalhos handlers ──────────────────────────────────────────────────────
 
-  function handleAtalhoKeyDown(e: React.KeyboardEvent<HTMLInputElement>, actionKey: string) {
-    if (e.key === 'Backspace' || e.key === 'Delete') {
+  useEffect(() => {
+    if (!atalhoCapturing) return
+    async function persist(cfg: Record<string, string>) {
+      try {
+        await api.put('/dados-loja/sistema', { atalhos_caixa: cfg })
+        setAtalhosSaved(true)
+        setTimeout(() => setAtalhosSaved(false), 2000)
+      } catch {}
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setAtalhoCapturing(null); setAtalhoDisplayKey(''); return
+      }
+      if (e.key === 'Backspace') {
+        e.preventDefault()
+        const next = { ...atalhosCfg }; delete next[atalhoCapturing]
+        setAtalhosCfg(next); setAtalhoCapturing(null); setAtalhoDisplayKey('')
+        persist(next); return
+      }
+      const k = e.key.toUpperCase()
+      if (!/^[A-Z0-9]$/.test(k)) return
       e.preventDefault()
-      setAtalhosCfg(prev => { const next = { ...prev }; delete next[actionKey]; return next })
-      return
+      setAtalhoDisplayKey(k)
+      if (Object.entries(atalhosCfg).some(([ak, v]) => ak !== atalhoCapturing && v === k)) {
+        setAtalhoConflict(true)
+        setTimeout(() => setAtalhoConflict(false), 300)
+        return
+      }
+      const next = { ...atalhosCfg, [atalhoCapturing]: k }
+      setAtalhosCfg(next); setAtalhoCapturing(null); setAtalhoDisplayKey('')
+      persist(next)
     }
-    const k = e.key.toUpperCase()
-    if (!/^[A-Z0-9]$/.test(k)) return
-    e.preventDefault()
-    if (Object.entries(atalhosCfg).some(([ak, v]) => ak !== actionKey && v === k)) {
-      setAtalhoFlash(actionKey)
-      setTimeout(() => setAtalhoFlash(null), 300)
-      return
-    }
-    setAtalhosCfg(prev => ({ ...prev, [actionKey]: k }))
-  }
-
-  async function handleSaveAtalhos() {
-    try {
-      await api.put('/dados-loja/sistema', { atalhos_caixa: atalhosCfg })
-      setAtalhosSaved(true)
-      setTimeout(() => setAtalhosSaved(false), 2000)
-    } catch {}
-  }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [atalhoCapturing, atalhosCfg])
 
   async function handleToggleSupervisor(col: Colaborador) {
     const novoVal = !(col.is_supervisor ?? false)
@@ -698,45 +711,36 @@ export default function ConfigSistemaPage() {
                     Defina uma tecla extra (Alt + letra ou número) para cada ação do caixa. Os atalhos padrão (F2–F10) continuam funcionando.
                   </p>
                   <div className="flex flex-col gap-2">
-                    {ATALHO_ACTIONS.map(({ actionKey, label, fKey }) => (
-                      <div key={actionKey} className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)' }}>{label}</span>
-                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '1px 5px' }}>{fKey}</span>
+                    {ATALHO_ACTIONS.map(({ actionKey, label, fKey }) => {
+                      const assigned = atalhosCfg[actionKey]
+                      const hov = atalhoHover === actionKey
+                      return (
+                        <div key={actionKey} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)' }}>{label}</span>
+                            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '1px 5px' }}>{fKey}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { setAtalhoCapturing(actionKey); setAtalhoDisplayKey('') }}
+                            onMouseEnter={() => setAtalhoHover(actionKey)}
+                            onMouseLeave={() => setAtalhoHover(null)}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              height: '32px', minWidth: '82px', padding: '0 10px',
+                              borderRadius: '8px',
+                              border: `0.5px solid ${assigned ? 'rgba(0,239,255,0.3)' : hov ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}`,
+                              background: assigned ? 'rgba(0,239,255,0.08)' : hov ? 'rgba(255,255,255,0.06)' : 'transparent',
+                              color: assigned ? 'rgba(0,239,255,0.85)' : 'rgba(255,255,255,0.25)',
+                              fontSize: '12px', cursor: 'pointer',
+                              transition: 'border-color 0.12s, background 0.12s',
+                            }}
+                          >
+                            {assigned ? `Alt + ${assigned}` : '—'}
+                          </button>
                         </div>
-                        <input
-                          value={
-                            atalhoFocus === actionKey && !atalhosCfg[actionKey]
-                              ? ''
-                              : atalhosCfg[actionKey] ? `Alt + ${atalhosCfg[actionKey]}` : ''
-                          }
-                          readOnly
-                          placeholder={atalhoFocus === actionKey && !atalhosCfg[actionKey] ? 'pressione uma tecla…' : '—'}
-                          onFocus={() => setAtalhoFocus(actionKey)}
-                          onKeyDown={e => handleAtalhoKeyDown(e, actionKey)}
-                          onBlur={() => { setAtalhoFocus(null); handleSaveAtalhos() }}
-                          style={{
-                            width: '82px',
-                            minHeight: '38px',
-                            background: atalhoFocus === actionKey ? 'rgba(0,239,255,0.06)' : 'rgba(8,18,30,0.5)',
-                            border: `0.5px solid ${
-                              atalhoFlash === actionKey ? 'rgba(240,100,100,0.6)'
-                              : atalhoFocus === actionKey ? 'rgba(0,239,255,0.5)'
-                              : 'rgba(255,255,255,0.12)'
-                            }`,
-                            borderRadius: '8px',
-                            padding: '0 10px',
-                            fontSize: '12px',
-                            color: atalhosCfg[actionKey] ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.35)',
-                            outline: 'none',
-                            textAlign: 'center',
-                            cursor: 'default',
-                            caretColor: 'transparent',
-                            transition: 'border-color 0.12s, background 0.12s',
-                          }}
-                        />
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -1115,6 +1119,42 @@ export default function ConfigSistemaPage() {
           </div>
         </div>
       )}
+
+      {/* ── Key-capture overlay ──────────────────────────────────────────────── */}
+      {atalhoCapturing && (() => {
+        const meta = ATALHO_ACTIONS.find(a => a.actionKey === atalhoCapturing)
+        return (
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(8,18,30,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => { setAtalhoCapturing(null); setAtalhoDisplayKey('') }}
+          >
+            <div
+              style={{ width: '320px', padding: '32px', background: 'rgba(8,18,30,0.98)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '16px' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                <p style={{ fontSize: '16px', fontWeight: 500, color: 'rgba(255,255,255,0.88)', margin: 0 }}>{meta?.label}</p>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '6px', marginBottom: 0 }}>Pressione uma tecla (letra ou número)</p>
+              </div>
+              <div style={{
+                height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '12px',
+                border: `1px solid ${atalhoConflict ? 'rgba(240,100,100,0.6)' : 'rgba(0,239,255,0.3)'}`,
+                background: atalhoConflict ? 'rgba(240,100,100,0.06)' : 'rgba(0,239,255,0.06)',
+                marginBottom: '16px',
+                transition: 'border-color 0.12s, background 0.12s',
+              }}>
+                <span style={{ fontSize: '32px', fontWeight: 600, color: atalhoConflict ? 'rgba(240,100,100,0.8)' : atalhoDisplayKey ? 'rgba(0,239,255,0.9)' : 'rgba(255,255,255,0.2)' }}>
+                  {atalhoDisplayKey || '?'}
+                </span>
+              </div>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', margin: 0 }}>
+                Backspace para limpar · Esc para cancelar
+              </p>
+            </div>
+          </div>
+        )
+      })()}
     </>
   )
 }
