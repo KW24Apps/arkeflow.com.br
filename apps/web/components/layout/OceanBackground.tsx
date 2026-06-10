@@ -22,12 +22,13 @@ export function OceanBackground() {
     const stage = ref.current
     if (!stage) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let alive = true
 
     const timeouts: number[] = []
     const rnd = (a: number, b: number) => a + Math.random() * (b - a)
 
     function burst(b: HTMLDivElement) {
-      if (!stage) return
+      if (!alive || !stage) return
       const r = b.getBoundingClientRect()
       const s = stage.getBoundingClientRect()
       const cx = r.left - s.left + r.width / 2
@@ -57,7 +58,7 @@ export function OceanBackground() {
     }
 
     function spawn() {
-      if (!stage) return
+      if (!alive || !stage) return
       const H = stage.clientHeight || window.innerHeight
       const b = document.createElement('div')
       b.className = 'ocean-bb'
@@ -70,7 +71,7 @@ export function OceanBackground() {
       b.style.setProperty('--op', op.toFixed(2))
       b.style.setProperty('--rise', rise + 'px')
       b.style.animation = 'ocean-rise ' + dur.toFixed(1) + 's linear forwards'
-      b.addEventListener('animationend', () => { burst(b); b.remove(); spawn() }, { once: true })
+      b.addEventListener('animationend', () => { if (!alive) { b.remove(); return }; burst(b); b.remove(); spawn() }, { once: true })
       stage.appendChild(b)
     }
 
@@ -80,6 +81,7 @@ export function OceanBackground() {
     }
 
     return () => {
+      alive = false
       timeouts.forEach(clearTimeout)
       stage.querySelectorAll('.ocean-bb, .ocean-ring, .ocean-drop').forEach(e => e.remove())
     }

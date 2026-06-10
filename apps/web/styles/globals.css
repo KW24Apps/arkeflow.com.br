@@ -15,7 +15,7 @@
   }
 
   body {
-    @apply bg-midnight text-sea-foam font-sans antialiased;
+    @apply text-sea-foam font-sans antialiased;
   }
 
   /* Scrollbar discreta no tema escuro */
