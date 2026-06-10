@@ -21,7 +21,7 @@ export function OceanBackground() {
   useEffect(() => {
     const stage = ref.current
     if (!stage) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let alive = true
 
     const timeouts: number[] = []
@@ -75,9 +75,9 @@ export function OceanBackground() {
       stage.appendChild(b)
     }
 
-    const MAX = 18
+    const MAX = reduced ? 6 : 18
     for (let i = 0; i < MAX; i++) {
-      timeouts.push(window.setTimeout(spawn, Math.random() * 9000))
+      timeouts.push(window.setTimeout(spawn, Math.random() * (reduced ? 4000 : 2500)))
     }
 
     return () => {
