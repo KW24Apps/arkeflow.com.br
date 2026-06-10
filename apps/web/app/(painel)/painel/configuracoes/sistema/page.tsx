@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ImageIcon, Package, Tag, ShieldCheck } from 'lucide-react'
+import { ImageIcon, Package, Tag, ShieldCheck, Banknote } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -15,12 +15,16 @@ interface SistemaConfig {
   desconto_max_valor: string | number
   promocao_aceita_desconto: boolean
   desconto_restringe_formas: boolean
-  supervisao_habilitada:    boolean
-  senha_mestra_habilitada:  boolean
-  senha_mestra_definida:    boolean
-  exige_auth_fechar_falta:  boolean
-  exige_auth_fechar_sobra:  boolean
-  exige_auth_cancelar_item: boolean
+  supervisao_habilitada:      boolean
+  senha_mestra_habilitada:    boolean
+  senha_mestra_definida:      boolean
+  exige_auth_fechar_falta:    boolean
+  exige_auth_fechar_sobra:    boolean
+  exige_auth_cancelar_item:   boolean
+  sangria_limite_habilitado:  boolean
+  sangria_limite_valor:       string | number
+  sangria_fundo_troco:        string | number
+  sangria_limite_modo:        string
 }
 
 async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
@@ -49,7 +53,7 @@ const LBL9: React.CSSProperties = {
 
 const DIV_HR: React.CSSProperties = { height: '0.5px', background: 'rgba(255,255,255,0.07)' }
 
-type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | null
+type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | null
 
 export default function ConfigSistemaPage() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -84,6 +88,13 @@ export default function ConfigSistemaPage() {
   const [modalSupervisores,     setModalSupervisores]     = useState(false)
   const [supervisoresQ,         setSupervisoresQ]         = useState('')
 
+  // ── Caixa limit state ─────────────────────────────────────────────────────
+  const [sangriLimiteHabilitado, setSangriLimiteHabilitado] = useState(false)
+  const [sangriLimiteValorCents, setSangriLimiteValorCents] = useState(0)
+  const [sangriSaldoTrocoCents,  setSangriSaldoTrocoCents]  = useState(0)
+  const [sangriLimiteModo,       setSangriLimiteModo]       = useState<'avisar' | 'obrigar'>('avisar')
+  const [caixaSaved,             setCaixaSaved]             = useState(false)
+
   // ── Layout state ──────────────────────────────────────────────────────────
   const [secao, setSecao] = useState<Secao>(null)
 
@@ -109,6 +120,10 @@ export default function ConfigSistemaPage() {
       setExigeAuthFecharFalta(d.exige_auth_fechar_falta ?? false)
       setExigeAuthFecharSobra(d.exige_auth_fechar_sobra ?? false)
       setExigeAuthCancelarItem(d.exige_auth_cancelar_item ?? false)
+      setSangriLimiteHabilitado(d.sangria_limite_habilitado ?? false)
+      setSangriLimiteValorCents(Math.round(Number(d.sangria_limite_valor ?? 0) * 100))
+      setSangriSaldoTrocoCents(Math.round(Number(d.sangria_fundo_troco ?? 0) * 100))
+      setSangriLimiteModo((d.sangria_limite_modo ?? 'avisar') as 'avisar' | 'obrigar')
     }).finally(() => setLoading(false))
   }, [])
 
@@ -241,6 +256,25 @@ export default function ConfigSistemaPage() {
     } catch { setExigeAuthCancelarItem(!v) }
   }
 
+  // ── Caixa limit handlers ──────────────────────────────────────────────────
+
+  async function handleSaveCaixa(fields: Record<string, any>) {
+    try {
+      await api.put('/dados-loja/sistema', fields)
+      setCaixaSaved(true)
+      setTimeout(() => setCaixaSaved(false), 2000)
+    } catch {}
+  }
+
+  async function handleToggleSangriaLimite() {
+    const v = !sangriLimiteHabilitado
+    setSangriLimiteHabilitado(v)
+    try {
+      await api.put('/dados-loja/sistema', { sangria_limite_habilitado: v })
+      setCaixaSaved(true); setTimeout(() => setCaixaSaved(false), 2000)
+    } catch { setSangriLimiteHabilitado(!v) }
+  }
+
   async function handleToggleSupervisor(col: Colaborador) {
     const novoVal = !(col.is_supervisor ?? false)
     setColaboradores(prev => prev.map(c => c.id === col.id ? { ...c, is_supervisor: novoVal } : c))
@@ -258,15 +292,16 @@ export default function ConfigSistemaPage() {
   const supervisores = colaboradores.filter(c => c.is_supervisor)
   const semMetodoAuth = supervisaoHabilitada && !senhaMestraDefinida && supervisores.length === 0
 
-  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao'
+  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa'
   const PANEL_ICON: Record<SecaoNonNull, React.ReactNode> = {
     logo:       <ImageIcon   size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     estoque:    <Package     size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     desconto:   <Tag         size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     supervisao: <ShieldCheck size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    caixa:      <Banknote    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
   }
   const PANEL_LABEL: Record<SecaoNonNull, string> = {
-    logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão',
+    logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão', caixa: 'Limite de caixa',
   }
 
   return (
@@ -294,6 +329,7 @@ export default function ConfigSistemaPage() {
               {secao === 'estoque'    && toggleSaved     && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'desconto'   && descontoSaved   && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'supervisao' && supervisaoSaved && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
+              {secao === 'caixa'      && caixaSaved      && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
             </div>
 
             {/* Panel body */}
@@ -519,6 +555,94 @@ export default function ConfigSistemaPage() {
                 </div>
               )}
 
+              {/* ── Limite de caixa ──────────────────────────────────── */}
+              {secao === 'caixa' && (
+                <div className="flex flex-col gap-5">
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
+                    Avisa (ou obriga) a fazer sangria quando o dinheiro em caixa passa do limite, ao finalizar uma venda.
+                  </p>
+
+                  {/* Master toggle */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: sangriLimiteHabilitado ? 'rgba(0,239,255,0.9)' : 'rgba(255,255,255,0.75)' }}>
+                        Limite de caixa habilitado
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleToggleSangriaLimite}
+                      className="relative transition-colors shrink-0"
+                      style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: sangriLimiteHabilitado ? 'rgba(0,212,212,0.85)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                    >
+                      <span
+                        className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all"
+                        style={{ left: sangriLimiteHabilitado ? '21px' : '3px' }}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Sub-controls */}
+                  <div style={{ opacity: sangriLimiteHabilitado ? 1 : 0.38, pointerEvents: sangriLimiteHabilitado ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
+                    <div className="flex flex-col gap-4">
+
+                      {/* Two currency inputs side by side */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1.5">
+                          <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Limite</label>
+                          <CurrencyInput
+                            value={sangriLimiteValorCents}
+                            onChange={setSangriLimiteValorCents}
+                            onBlur={() => handleSaveCaixa({ sangria_limite_valor: sangriLimiteValorCents / 100 })}
+                            className="w-full min-h-[38px] px-3 outline-none"
+                            style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Fundo de troco</label>
+                          <CurrencyInput
+                            value={sangriSaldoTrocoCents}
+                            onChange={setSangriSaldoTrocoCents}
+                            onBlur={() => handleSaveCaixa({ sangria_fundo_troco: sangriSaldoTrocoCents / 100 })}
+                            className="w-full min-h-[38px] px-3 outline-none"
+                            style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Segmented modo selector */}
+                      <div className="flex flex-col gap-1.5">
+                        <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Ao atingir o limite</label>
+                        <div className="flex gap-2">
+                          {(['avisar', 'obrigar'] as const).map(v => {
+                            const lbl = v === 'avisar' ? 'Só avisar' : 'Obrigar'
+                            const sel = sangriLimiteModo === v
+                            return (
+                              <button
+                                key={v}
+                                type="button"
+                                onClick={() => { setSangriLimiteModo(v); handleSaveCaixa({ sangria_limite_modo: v }) }}
+                                style={{
+                                  flex: 1, minHeight: '38px',
+                                  borderRadius: '8px',
+                                  border: sel ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
+                                  background: sel ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
+                                  color: sel ? '#0ef' : 'rgba(255,255,255,0.45)',
+                                  fontSize: '13px', cursor: 'pointer',
+                                }}
+                              >
+                                {lbl}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ── Supervisão ───────────────────────────────────────── */}
               {secao === 'supervisao' && (
                 <div className="flex flex-col gap-5">
@@ -724,10 +848,11 @@ export default function ConfigSistemaPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
 
             {([
-              { key: 'logo'       as const, label: 'Logo da loja',  Icon: ImageIcon   },
-              { key: 'estoque'    as const, label: 'Estoque',        Icon: Package     },
-              { key: 'desconto'   as const, label: 'Desconto',       Icon: Tag         },
-              { key: 'supervisao' as const, label: 'Supervisão',     Icon: ShieldCheck },
+              { key: 'logo'       as const, label: 'Logo da loja',     Icon: ImageIcon   },
+              { key: 'estoque'    as const, label: 'Estoque',           Icon: Package     },
+              { key: 'desconto'   as const, label: 'Desconto',          Icon: Tag         },
+              { key: 'supervisao' as const, label: 'Supervisão',        Icon: ShieldCheck },
+              { key: 'caixa'      as const, label: 'Limite de caixa',   Icon: Banknote    },
             ] satisfies { key: Secao; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => {
               const sel = secao === key
               return (

@@ -166,22 +166,37 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
       desconto_max_percentual, desconto_max_valor, promocao_aceita_desconto, desconto_restringe_formas,
       supervisao_habilitada, senha_mestra_habilitada,
       exige_auth_fechar_falta, exige_auth_fechar_sobra, exige_auth_cancelar_item,
+      sangria_limite_habilitado, sangria_limite_valor, sangria_fundo_troco, sangria_limite_modo,
       senha_mestra,
     } = req.body as any
 
+    if (sangria_limite_modo !== undefined && !['avisar', 'obrigar'].includes(sangria_limite_modo)) {
+      return reply.status(400).send({ error: 'sangria_limite_modo inválido.' })
+    }
+    if (sangria_limite_valor !== undefined && Number(sangria_limite_valor) < 0) {
+      return reply.status(400).send({ error: 'sangria_limite_valor deve ser ≥ 0.' })
+    }
+    if (sangria_fundo_troco !== undefined && Number(sangria_fundo_troco) < 0) {
+      return reply.status(400).send({ error: 'sangria_fundo_troco deve ser ≥ 0.' })
+    }
+
     // Atualiza configuracoes_loja no banco da loja
     const upd: string[] = []; const val: any[] = []
-    if (controle_estoque !== undefined)          { val.push(controle_estoque);           upd.push(`controle_estoque = $${val.length}`) }
-    if (link_loja !== undefined)                 { val.push(link_loja ?? null);          upd.push(`link_loja = $${val.length}`) }
-    if (desconto_max_percentual !== undefined)   { val.push(desconto_max_percentual);    upd.push(`desconto_max_percentual = $${val.length}`) }
-    if (desconto_max_valor !== undefined)        { val.push(desconto_max_valor);         upd.push(`desconto_max_valor = $${val.length}`) }
-    if (promocao_aceita_desconto !== undefined)  { val.push(promocao_aceita_desconto);   upd.push(`promocao_aceita_desconto = $${val.length}`) }
-    if (desconto_restringe_formas !== undefined) { val.push(desconto_restringe_formas);  upd.push(`desconto_restringe_formas = $${val.length}`) }
-    if (supervisao_habilitada !== undefined)     { val.push(supervisao_habilitada);      upd.push(`supervisao_habilitada = $${val.length}`) }
-    if (senha_mestra_habilitada !== undefined)   { val.push(senha_mestra_habilitada);    upd.push(`senha_mestra_habilitada = $${val.length}`) }
-    if (exige_auth_fechar_falta !== undefined)   { val.push(exige_auth_fechar_falta);    upd.push(`exige_auth_fechar_falta = $${val.length}`) }
-    if (exige_auth_fechar_sobra !== undefined)   { val.push(exige_auth_fechar_sobra);    upd.push(`exige_auth_fechar_sobra = $${val.length}`) }
-    if (exige_auth_cancelar_item !== undefined)  { val.push(exige_auth_cancelar_item);   upd.push(`exige_auth_cancelar_item = $${val.length}`) }
+    if (controle_estoque !== undefined)            { val.push(controle_estoque);             upd.push(`controle_estoque = $${val.length}`) }
+    if (link_loja !== undefined)                   { val.push(link_loja ?? null);            upd.push(`link_loja = $${val.length}`) }
+    if (desconto_max_percentual !== undefined)     { val.push(desconto_max_percentual);      upd.push(`desconto_max_percentual = $${val.length}`) }
+    if (desconto_max_valor !== undefined)          { val.push(desconto_max_valor);           upd.push(`desconto_max_valor = $${val.length}`) }
+    if (promocao_aceita_desconto !== undefined)    { val.push(promocao_aceita_desconto);     upd.push(`promocao_aceita_desconto = $${val.length}`) }
+    if (desconto_restringe_formas !== undefined)   { val.push(desconto_restringe_formas);    upd.push(`desconto_restringe_formas = $${val.length}`) }
+    if (supervisao_habilitada !== undefined)       { val.push(supervisao_habilitada);        upd.push(`supervisao_habilitada = $${val.length}`) }
+    if (senha_mestra_habilitada !== undefined)     { val.push(senha_mestra_habilitada);      upd.push(`senha_mestra_habilitada = $${val.length}`) }
+    if (exige_auth_fechar_falta !== undefined)     { val.push(exige_auth_fechar_falta);      upd.push(`exige_auth_fechar_falta = $${val.length}`) }
+    if (exige_auth_fechar_sobra !== undefined)     { val.push(exige_auth_fechar_sobra);      upd.push(`exige_auth_fechar_sobra = $${val.length}`) }
+    if (exige_auth_cancelar_item !== undefined)    { val.push(exige_auth_cancelar_item);     upd.push(`exige_auth_cancelar_item = $${val.length}`) }
+    if (sangria_limite_habilitado !== undefined)   { val.push(sangria_limite_habilitado);    upd.push(`sangria_limite_habilitado = $${val.length}`) }
+    if (sangria_limite_valor !== undefined)        { val.push(sangria_limite_valor);         upd.push(`sangria_limite_valor = $${val.length}`) }
+    if (sangria_fundo_troco !== undefined)         { val.push(sangria_fundo_troco);          upd.push(`sangria_fundo_troco = $${val.length}`) }
+    if (sangria_limite_modo !== undefined)         { val.push(sangria_limite_modo);          upd.push(`sangria_limite_modo = $${val.length}`) }
     if (senha_mestra && typeof senha_mestra === 'string' && senha_mestra.trim()) {
       const hash = await bcrypt.hash(senha_mestra.trim(), 10)
       val.push(hash); upd.push(`senha_mestra_hash = $${val.length}`)

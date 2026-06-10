@@ -216,10 +216,48 @@ export async function caixaRoutes(app: FastifyInstance) {
     const { tipo, valor, motivo } = req.body as { tipo: 'sangria' | 'suprimento'; valor: number; motivo?: string }
 
     const { rows: [t] } = await pool.query(
-      `SELECT id FROM turnos_caixa WHERE status = 'aberto' AND usuario_id = $1 LIMIT 1`,
+      `SELECT id, saldo_inicial, aberto_em, usuario_id FROM turnos_caixa WHERE status = 'aberto' AND usuario_id = $1 LIMIT 1`,
       [user.id]
     )
     if (!t) throw new AppError('Abra o caixa primeiro.', 400)
+
+    if (tipo === 'sangria') {
+      if (!valor || valor <= 0) throw new AppError('Valor inválido.', 400)
+
+      const [cashRes, movRes] = await Promise.all([
+        pool.query<{ total: string }>(
+          `SELECT COALESCE(SUM(pv.valor), 0) AS total
+           FROM pagamentos_venda pv
+           JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id
+           JOIN vendas v            ON v.id  = pv.venda_id
+           WHERE fp.tipo = 'dinheiro'
+             AND v.status = 'finalizada'
+             AND v.usuario_id = $1
+             AND v.criado_em >= $2`,
+          [t.usuario_id, t.aberto_em]
+        ),
+        pool.query<{ suprimentos: string; sangrias: string }>(
+          `SELECT
+             COALESCE(SUM(CASE WHEN tipo = 'suprimento' THEN valor ELSE 0 END), 0) AS suprimentos,
+             COALESCE(SUM(CASE WHEN tipo = 'sangria'    THEN valor ELSE 0 END), 0) AS sangrias
+           FROM movimentos_caixa WHERE turno_id = $1`,
+          [t.id]
+        ),
+      ])
+
+      const disponivel =
+        Number(t.saldo_inicial) +
+        Number(cashRes.rows[0].total) +
+        Number(movRes.rows[0].suprimentos) -
+        Number(movRes.rows[0].sangrias)
+
+      if (valor > disponivel) {
+        throw new AppError(
+          `Sangria maior que o dinheiro em caixa. Disponível: R$ ${disponivel.toFixed(2)}.`,
+          400
+        )
+      }
+    }
 
     const { rows: [m] } = await pool.query(
       `INSERT INTO movimentos_caixa (turno_id, tipo, valor, motivo)
