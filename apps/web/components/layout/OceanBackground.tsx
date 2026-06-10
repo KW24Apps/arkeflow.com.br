@@ -86,7 +86,7 @@ export function OceanBackground() {
       timeouts.forEach(clearTimeout)
       stage.querySelectorAll('.ocean-bb, .ocean-ring, .ocean-drop').forEach(e => e.remove())
     }
-  }, [])
+  }, [mounted])
 
   if (!mounted) return null
 
