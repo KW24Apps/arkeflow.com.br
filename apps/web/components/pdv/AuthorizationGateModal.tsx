@@ -6,15 +6,24 @@ import { GlassSelect } from '@/components/ui/GlassSelect'
 import { autorizacoesApi, type Supervisor, type ValidarResp } from '@/lib/api/autorizacoes'
 
 interface Props {
-  open:                boolean
-  acao:                string
-  acaoLabel:           string
-  acaoTom?:            'danger' | 'info'
-  exigeJustificativa?: boolean
-  turnoId?:            string | null
-  detalhe?:            Record<string, any>
-  onClose:             () => void
-  onAuthorized:        (r: ValidarResp) => void
+  open:                  boolean
+  acao:                  string
+  acaoLabel:             string
+  acaoTom?:              'danger' | 'info'
+  exigeJustificativa?:   boolean
+  somenteJustificativa?: boolean
+  turnoId?:              string | null
+  detalhe?:              Record<string, any>
+  onClose:               () => void
+  onAuthorized:          (r: GateResult) => void
+}
+
+export interface GateResult {
+  autorizacao_id: string | null
+  autorizado_por: string | null
+  autorizado_nome: string | null
+  criado_em?: string
+  justificativa: string | null
 }
 
 const LBL: React.CSSProperties = {
@@ -42,6 +51,7 @@ const INPUT: React.CSSProperties = {
 export function AuthorizationGateModal({
   open, acao, acaoLabel, acaoTom = 'info',
   exigeJustificativa = false,
+  somenteJustificativa = false,
   turnoId, detalhe,
   onClose, onAuthorized,
 }: Props) {
@@ -111,7 +121,7 @@ export function AuthorizationGateModal({
         turno_id:      turnoId ?? null,
         detalhe,
       })
-      onAuthorized(resp)
+      onAuthorized({ ...resp, justificativa })
       onClose()
     } catch (e: any) {
       setErro(e?.response?.data?.error ?? 'Falha na autorização.')
@@ -168,11 +178,18 @@ export function AuthorizationGateModal({
                 Cancelar
               </button>
               <button
-                onClick={() => setStep('auth')}
+                onClick={() => {
+                  if (somenteJustificativa) {
+                    onAuthorized({ autorizacao_id: null, autorizado_por: null, autorizado_nome: null, justificativa })
+                    onClose()
+                  } else {
+                    setStep('auth')
+                  }
+                }}
                 disabled={!justificativa.trim()}
                 style={{ flex: 2, minHeight: '42px', background: '#0ef', border: 'none', borderRadius: '10px', color: '#0a0a1a', fontSize: '13px', fontWeight: 700, cursor: justificativa.trim() ? 'pointer' : 'default', opacity: justificativa.trim() ? 1 : 0.4, transition: 'opacity 0.15s' }}
               >
-                Continuar →
+                {somenteJustificativa ? 'Confirmar' : 'Continuar →'}
               </button>
             </div>
           </>

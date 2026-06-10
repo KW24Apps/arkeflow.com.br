@@ -12,7 +12,7 @@ interface CaixaStore {
 
   carregar:           () => Promise<void>
   abrir:              (saldo_inicial: number, obs?: string) => Promise<void>
-  fechar:             (saldo_final: number, obs?: string) => Promise<void>
+  fechar:             (saldo_final: number, obs?: string, justificativa?: string | null, autorizacao_id?: string | null) => Promise<void>
   registrarMovimento: (tipo: 'sangria' | 'suprimento', valor: number, motivo?: string) => Promise<void>
   limparErro:         () => void
 }
@@ -45,10 +45,10 @@ export const useCaixaStore = create<CaixaStore>((set) => ({
     }
   },
 
-  fechar: async (saldo_final, obs) => {
+  fechar: async (saldo_final, obs, justificativa, autorizacao_id) => {
     set({ carregando: true, erro: null })
     try {
-      const turno = await caixaApi.fechar({ saldo_final, observacao: obs })
+      const turno = await caixaApi.fechar({ saldo_final, observacao: obs, justificativa, autorizacao_id })
       set({ status: 'fechado', turno, carregando: false })
     } catch (e: any) {
       const msg = e?.response?.data?.error ?? 'Erro ao fechar caixa.'

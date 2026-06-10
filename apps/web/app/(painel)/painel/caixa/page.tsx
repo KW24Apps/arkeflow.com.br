@@ -168,8 +168,9 @@ export default function CaixaPage() {
   const [formasPagamento,  setFormasPagamento]  = useState<FormaPagamento[]>([])
 
   // ── Supervisão ────────────────────────────────────────────────────────────
-  const [supCfg,             setSupCfg]             = useState<{ habilitada: boolean; cancelarItem: boolean }>({ habilitada: false, cancelarItem: false })
+  const [supCfg,             setSupCfg]             = useState<{ habilitada: boolean; cancelarItem: boolean; fecharFalta: boolean; fecharSobra: boolean }>({ habilitada: false, cancelarItem: false, fecharFalta: false, fecharSobra: false })
   const [gateItem,           setGateItem]           = useState<{ versaoId: string; nome: string } | null>(null)
+  const [gateFechar,         setGateFechar]         = useState<{ divergencia: number } | null>(null)
   const [operadorSupervisor, setOperadorSupervisor] = useState(false)
 
   // ── Boas-vindas ───────────────────────────────────────────────────────────
@@ -187,7 +188,7 @@ export default function CaixaPage() {
     api.get('/dados-loja/sistema').then(r => {
       const d = r.data
       setDescontoCfg({ pct: Number(d.desconto_max_percentual ?? 0), valor: Number(d.desconto_max_valor ?? 0), promoAceita: !!d.promocao_aceita_desconto })
-      setSupCfg({ habilitada: !!d.supervisao_habilitada, cancelarItem: !!d.exige_auth_cancelar_item })
+      setSupCfg({ habilitada: !!d.supervisao_habilitada, cancelarItem: !!d.exige_auth_cancelar_item, fecharFalta: !!d.exige_auth_fechar_falta, fecharSobra: !!d.exige_auth_fechar_sobra })
     }).catch(() => {})
     autorizacoesApi.supervisores()
       .then(r => {
@@ -458,6 +459,25 @@ export default function CaixaPage() {
   }
 
   async function handleFechar() {
+    const saldoIni    = Number(turno?.saldo_inicial ?? 0)
+    const sangrias    = Number(turno?.total_sangrias ?? 0)
+    const suprimentos = Number(turno?.total_suprimentos ?? 0)
+    let dinheiroVendas = 0
+    for (const v of fechVendas) {
+      for (const p of v.pagamentos ?? []) {
+        if (p.tipo === 'dinheiro') dinheiroVendas += Number(p.valor)
+      }
+    }
+    const saldoEsperado = saldoIni + dinheiroVendas + suprimentos - sangrias
+    const contado       = saldoFinal / 100
+    const div           = Math.round((contado - saldoEsperado) * 100) / 100
+
+    const precisa = supCfg.habilitada && div !== 0 &&
+      ((div < 0 && supCfg.fecharFalta) || (div > 0 && supCfg.fecharSobra))
+    if (precisa) {
+      setGateFechar({ divergencia: div })
+      return
+    }
     setSalvMov(true)
     try { await fechar(saldoFinal / 100, obsFech || undefined); setModalFechar(false) }
     finally { setSalvMov(false) }
@@ -499,7 +519,7 @@ export default function CaixaPage() {
   const MOD_LABEL: React.CSSProperties = { fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '10px' }
 
   // Keep modalAbertoRef current on every render so setTimeout callbacks read live state
-  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente || !!gateItem
+  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente || !!gateItem || !!gateFechar
 
   function focusScanSafe() {
     if (!modalAbertoRef.current) scanRef.current?.focus()
@@ -1098,6 +1118,28 @@ export default function CaixaPage() {
         detalhe={gateItem ? { versao_id: gateItem.versaoId, nome: gateItem.nome } : {}}
         onClose={() => setGateItem(null)}
         onAuthorized={() => { if (gateItem) removeItem(gateItem.versaoId); setGateItem(null) }}
+      />
+
+      <AuthorizationGateModal
+        open={!!gateFechar}
+        acao={gateFechar && gateFechar.divergencia < 0 ? 'fechar_falta' : 'fechar_sobra'}
+        acaoLabel={gateFechar && gateFechar.divergencia < 0 ? 'Fechar caixa com falta' : 'Fechar caixa com sobra'}
+        acaoTom="danger"
+        exigeJustificativa
+        somenteJustificativa={operadorSupervisor}
+        turnoId={turno?.id ?? null}
+        detalhe={gateFechar ? { divergencia: gateFechar.divergencia } : {}}
+        onClose={() => setGateFechar(null)}
+        onAuthorized={async (r) => {
+          setSalvMov(true)
+          try {
+            await fechar(saldoFinal / 100, obsFech || undefined, r.justificativa ?? null, r.autorizacao_id ?? null)
+            setGateFechar(null)
+            setModalFechar(false)
+          } finally {
+            setSalvMov(false)
+          }
+        }}
       />
 
       {/* Modal Boas-vindas */}

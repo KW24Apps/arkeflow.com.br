@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { authMiddleware } from '../../core/middlewares/auth'
 import { authorize } from '../../core/middlewares/authorize'
 import { getTenantPoolFromRequest } from '../../core/tenant/resolver'
+import { platformPool } from '../../config/database'
 import { AppError } from '../../core/errors/AppError'
 import type { JwtPayload } from '@arkeflow/shared'
 
@@ -109,13 +110,100 @@ export async function caixaRoutes(app: FastifyInstance) {
   app.post('/fechar', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
     const user = req.user as JwtPayload
-    const { saldo_final, observacao } = req.body as { saldo_final?: number; observacao?: string }
+    const { saldo_final, observacao, justificativa, autorizacao_id } = req.body as {
+      saldo_final?:    number
+      observacao?:     string
+      justificativa?:  string | null
+      autorizacao_id?: string | null
+    }
+
+    // Find open shift
+    const { rows: [turno] } = await pool.query(
+      `SELECT id, saldo_inicial, aberto_em, usuario_id FROM turnos_caixa
+       WHERE status = 'aberto' AND usuario_id = $1 LIMIT 1`,
+      [user.id]
+    )
+    if (!turno) throw new AppError('Nenhum caixa aberto para fechar.', 400)
+
+    // Compute expected cash value server-side
+    const [cashRes, movRes] = await Promise.all([
+      pool.query<{ total: string }>(
+        `SELECT COALESCE(SUM(pv.valor), 0) AS total
+         FROM pagamentos_venda pv
+         JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id
+         JOIN vendas v            ON v.id  = pv.venda_id
+         WHERE fp.tipo = 'dinheiro'
+           AND v.status = 'finalizada'
+           AND v.usuario_id = $1
+           AND v.criado_em >= $2`,
+        [turno.usuario_id, turno.aberto_em]
+      ),
+      pool.query<{ suprimentos: string; sangrias: string }>(
+        `SELECT
+           COALESCE(SUM(CASE WHEN tipo = 'suprimento' THEN valor ELSE 0 END), 0) AS suprimentos,
+           COALESCE(SUM(CASE WHEN tipo = 'sangria'    THEN valor ELSE 0 END), 0) AS sangrias
+         FROM movimentos_caixa WHERE turno_id = $1`,
+        [turno.id]
+      ),
+    ])
+
+    const saldoInicial   = Number(turno.saldo_inicial)
+    const cashVendas     = Number(cashRes.rows[0].total)
+    const suprimentos    = Number(movRes.rows[0].suprimentos)
+    const sangrias       = Number(movRes.rows[0].sangrias)
+    const valorEsperado  = saldoInicial + cashVendas + suprimentos - sangrias
+    const saldoFinalNum  = saldo_final ?? 0
+    const divergencia    = Math.round((saldoFinalNum - valorEsperado) * 100) / 100
+
+    // Read supervision config
+    const { rows: [cfg] } = await pool.query<{
+      supervisao_habilitada:   boolean
+      exige_auth_fechar_falta: boolean
+      exige_auth_fechar_sobra: boolean
+    }>(
+      `SELECT supervisao_habilitada, exige_auth_fechar_falta, exige_auth_fechar_sobra
+       FROM configuracoes_loja LIMIT 1`
+    )
+
+    const authRequired = !!(
+      cfg?.supervisao_habilitada &&
+      ((divergencia < 0 && cfg?.exige_auth_fechar_falta) || (divergencia > 0 && cfg?.exige_auth_fechar_sobra))
+    )
+
+    if (authRequired) {
+      if (!justificativa?.trim()) {
+        throw new AppError('Justificativa obrigatória para fechar com divergência.', 400, 'JUSTIFICATIVA_OBRIGATORIA')
+      }
+      const ehDono = (user as any).nivel === 'dono_loja'
+      let ehSupervisor = ehDono
+      if (!ehDono) {
+        const { rows: [u] } = await platformPool.query<{ is_supervisor: boolean }>(
+          `SELECT is_supervisor FROM usuarios WHERE id = $1`,
+          [user.id]
+        )
+        ehSupervisor = !!u?.is_supervisor
+      }
+      if (!ehSupervisor && !autorizacao_id) {
+        throw new AppError('Autorização de supervisor necessária.', 401, 'AUTORIZACAO_NECESSARIA')
+      }
+    }
+
+    const divergenciaJust = authRequired ? (justificativa?.trim() ?? null) : null
+    const autorizacaoId   = authRequired ? (autorizacao_id ?? null) : null
 
     const { rows: [t] } = await pool.query(
-      `UPDATE turnos_caixa SET status = 'fechado', saldo_final = $1, observacao = $2, fechado_em = NOW()
-       WHERE status = 'aberto' AND usuario_id = $3
+      `UPDATE turnos_caixa
+       SET status                    = 'fechado',
+           saldo_final               = $1,
+           observacao                = $2,
+           fechado_em                = NOW(),
+           valor_esperado            = $3,
+           divergencia               = $4,
+           divergencia_justificativa = $5,
+           autorizacao_id            = $6
+       WHERE status = 'aberto' AND usuario_id = $7
        RETURNING *`,
-      [saldo_final ?? 0, observacao ?? null, user.id]
+      [saldoFinalNum, observacao ?? null, valorEsperado, divergencia, divergenciaJust, autorizacaoId, user.id]
     )
     if (!t) throw new AppError('Nenhum caixa aberto para fechar.', 400)
     return reply.send(t)

@@ -70,7 +70,7 @@ export const caixaApi = {
   abrir: (data: { saldo_inicial?: number; observacao?: string }) =>
     api.post<TurnoCaixa>('/caixa/abrir', data).then(r => r.data),
 
-  fechar: (data: { saldo_final?: number; observacao?: string }) =>
+  fechar: (data: { saldo_final?: number; observacao?: string; justificativa?: string | null; autorizacao_id?: string | null }) =>
     api.post<TurnoCaixa>('/caixa/fechar', data).then(r => r.data),
 
   movimento: (data: { tipo: 'sangria' | 'suprimento'; valor: number; motivo?: string }) =>
