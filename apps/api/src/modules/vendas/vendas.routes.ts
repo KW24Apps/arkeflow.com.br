@@ -65,9 +65,10 @@ export async function vendasRoutes(app: FastifyInstance) {
     const crediario_juros_mes: number = Number(cCfg.juros_mes ?? 0)
 
     // Calcula totais
-    const subtotal = data.itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
-    const desconto_total = data.itens.reduce((s, i) => s + i.desconto_item, 0) + data.desconto_promocao + data.desconto_pagamento
-    const total = Math.max(0, subtotal - desconto_total - data.cashback_usado)
+    const subtotal       = data.itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
+    const desconto_itens = data.itens.reduce((s, i) => s + i.desconto_item, 0)
+    const desconto_total = desconto_itens + data.desconto_pagamento
+    const total          = Math.max(0, subtotal - desconto_total - data.cashback_usado)
 
     // Valida que pagamentos cobrem o total
     const totalPago = data.pagamentos.reduce((s, p) => s + p.valor, 0)
