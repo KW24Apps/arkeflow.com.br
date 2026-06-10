@@ -148,10 +148,10 @@ export default function PromocoesPage() {
         nome,
         codigo:          codigo.trim().toUpperCase() || null,
         tipo,
-        aplica_todos:    aplicacao.aplica_todos,
+        aplica_todos:    tipo === 'primeira_compra' ? true : aplicacao.aplica_todos,
         categorias_alvo: aplicacao.categorias_alvo,
         produtos_ids:    aplicacao.produtos_ids,
-        aplicacao:       aplicacao.aplica_todos       ? 'todos'
+        aplicacao:       (tipo === 'primeira_compra' || aplicacao.aplica_todos) ? 'todos'
                        : aplicacao.categorias_alvo.length ? 'categoria'
                        : 'produtos_selecionados',
         valor_desconto: ['desconto_percentual', 'desconto_fixo', 'primeira_compra'].includes(tipo)
