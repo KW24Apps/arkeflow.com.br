@@ -25,6 +25,7 @@ import type { Cliente } from '@/lib/api/clientes'
 import type { Colaborador } from '@/lib/api/colaboradores'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
 import { AuthorizationGateModal } from '@/components/pdv/AuthorizationGateModal'
+import { autorizacoesApi } from '@/lib/api/autorizacoes'
 
 interface ProdutoSearch { id: string; nome: string; preco_base: string; total_versoes: number }
 
@@ -167,8 +168,9 @@ export default function CaixaPage() {
   const [formasPagamento,  setFormasPagamento]  = useState<FormaPagamento[]>([])
 
   // ── Supervisão ────────────────────────────────────────────────────────────
-  const [supCfg,   setSupCfg]   = useState<{ habilitada: boolean; cancelarItem: boolean }>({ habilitada: false, cancelarItem: false })
-  const [gateItem, setGateItem] = useState<{ versaoId: string; nome: string } | null>(null)
+  const [supCfg,             setSupCfg]             = useState<{ habilitada: boolean; cancelarItem: boolean }>({ habilitada: false, cancelarItem: false })
+  const [gateItem,           setGateItem]           = useState<{ versaoId: string; nome: string } | null>(null)
+  const [operadorSupervisor, setOperadorSupervisor] = useState(false)
 
   // ── Boas-vindas ───────────────────────────────────────────────────────────
   const [modalBoasVindas,  setModalBoasVindas]  = useState(false)
@@ -187,6 +189,13 @@ export default function CaixaPage() {
       setDescontoCfg({ pct: Number(d.desconto_max_percentual ?? 0), valor: Number(d.desconto_max_valor ?? 0), promoAceita: !!d.promocao_aceita_desconto })
       setSupCfg({ habilitada: !!d.supervisao_habilitada, cancelarItem: !!d.exige_auth_cancelar_item })
     }).catch(() => {})
+    autorizacoesApi.supervisores()
+      .then(r => {
+        const ehDono = (usuario as any)?.nivel === 'dono_loja'
+        const ehSup  = !!(usuario as any)?.id && r.supervisores.some(s => s.id === (usuario as any).id)
+        setOperadorSupervisor(ehDono || ehSup)
+      })
+      .catch(() => setOperadorSupervisor((usuario as any)?.nivel === 'dono_loja'))
     financeiroApi.formasPagamento().then(fs => {
       setFormasPagamento(fs)
       setFormasDesc(fs.filter(f => f.ativo && f.aceita_desconto !== false).map(f => f.nome))
@@ -676,7 +685,8 @@ export default function CaixaPage() {
                         <td className="pr-2">
                           <button
                             onClick={() => {
-                              if (supCfg.habilitada && supCfg.cancelarItem) {
+                              const precisaAuth = supCfg.habilitada && supCfg.cancelarItem && !operadorSupervisor
+                              if (precisaAuth) {
                                 setGateItem({ versaoId: item.versao_id, nome: item.nome })
                               } else {
                                 removeItem(item.versao_id)

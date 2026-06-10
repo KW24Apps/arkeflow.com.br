@@ -245,6 +245,10 @@ export function AuthorizationGateModal({
                     <input
                       type="password"
                       autoFocus
+                      autoComplete="new-password"
+                      name="auth-otp"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={senha}
                       onChange={e => { setSenha(e.target.value); setErro('') }}
                       onKeyDown={e => { if (e.key === 'Enter') handleAuthorizar() }}
