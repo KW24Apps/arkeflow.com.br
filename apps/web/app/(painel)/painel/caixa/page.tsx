@@ -178,6 +178,18 @@ export default function CaixaPage() {
   const boasVindasRef      = useRef<{ msg: string; hora: string } | null>(null)
   const boasVindasTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ── Limite de caixa ──────────────────────────────────────────────────────
+  const [limiteCfg,          setLimiteCfg]          = useState<{ habilitado: boolean; limite: number; fundo: number; modo: 'avisar' | 'obrigar' }>({ habilitado: false, limite: 0, fundo: 0, modo: 'avisar' })
+  const [avisoLimite,        setAvisoLimite]        = useState(false)
+  const [sangriaObrigatoria, setSangriaObrigatoria] = useState(false)
+  const [movErro,            setMovErro]            = useState('')
+
+  // ── Derived cash state ────────────────────────────────────────────────────
+  const dinheiroCaixa  = Number(turno?.dinheiro_em_caixa ?? 0)
+  const overLimit      = limiteCfg.habilitado && limiteCfg.limite > 0 && dinheiroCaixa > limiteCfg.limite
+  const locked         = overLimit && limiteCfg.modo === 'obrigar'
+  const suggestedCents = Math.max(0, Math.round((dinheiroCaixa - limiteCfg.fundo) * 100))
+
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { carregar() }, [])
   useEffect(() => () => { if (boasVindasTimerRef.current) clearTimeout(boasVindasTimerRef.current) }, [])
@@ -189,6 +201,7 @@ export default function CaixaPage() {
       const d = r.data
       setDescontoCfg({ pct: Number(d.desconto_max_percentual ?? 0), valor: Number(d.desconto_max_valor ?? 0), promoAceita: !!d.promocao_aceita_desconto })
       setSupCfg({ habilitada: !!d.supervisao_habilitada, cancelarItem: !!d.exige_auth_cancelar_item, fecharFalta: !!d.exige_auth_fechar_falta, fecharSobra: !!d.exige_auth_fechar_sobra })
+      setLimiteCfg({ habilitado: !!d.sangria_limite_habilitado, limite: Number(d.sangria_limite_valor ?? 0), fundo: Number(d.sangria_fundo_troco ?? 0), modo: d.sangria_limite_modo === 'obrigar' ? 'obrigar' : 'avisar' })
     }).catch(() => {})
     autorizacoesApi.supervisores()
       .then(r => {
@@ -217,10 +230,10 @@ export default function CaixaPage() {
     caixaApi.vendas().then(r => setFechVendas(r.vendas)).finally(() => setFechLoad(false))
   }, [modalFechar])
 
-  // Start next sale when first product is added after a completed sale
+  // Start next sale when first product is added after a completed sale (blocked when locked)
   useEffect(() => {
-    if (vendaOK && itens.length > 0) novaVenda()
-  }, [vendaOK, itens.length])
+    if (vendaOK && itens.length > 0 && !locked) novaVenda()
+  }, [vendaOK, itens.length, locked])
 
   // Auto-focus first non-esgotado card when variant modal opens
   useEffect(() => {
@@ -276,6 +289,18 @@ export default function CaixaPage() {
       setModalCliente(true)
     }
   }, [itens.length, cliente_id, status])
+
+  // Show limit warning in obrigar mode (reload + post-sale)
+  useEffect(() => {
+    if (status !== 'aberto' || !overLimit || limiteCfg.modo !== 'obrigar') return
+    setAvisoLimite(true)
+  }, [status, overLimit, limiteCfg.modo])
+
+  // Show limit warning after a sale in avisar mode
+  useEffect(() => {
+    if (vendaOK === null || !overLimit || limiteCfg.modo !== 'avisar') return
+    setAvisoLimite(true)
+  }, [vendaOK, overLimit, limiteCfg.modo])
 
   function handleClienteSelecionado(c: Cliente) {
     setCliente(c.id, c.nome)
@@ -454,8 +479,13 @@ export default function CaixaPage() {
   async function handleMovimento() {
     if (!valorMov || valorMov <= 0 || !modalMov) return
     setSalvMov(true)
-    try { await registrarMovimento(modalMov, valorMov / 100, motivoMov || undefined); setModalMov(null); setValorMov(0); setMotivoMov('') }
-    finally { setSalvMov(false) }
+    setMovErro('')
+    try {
+      await registrarMovimento(modalMov, valorMov / 100, motivoMov || undefined)
+      setModalMov(null); setValorMov(0); setMotivoMov(''); setSangriaObrigatoria(false)
+    } catch (e: any) {
+      setMovErro(e?.message ?? 'Erro ao registrar movimento.')
+    } finally { setSalvMov(false) }
   }
 
   async function handleFechar() {
@@ -488,6 +518,7 @@ export default function CaixaPage() {
     setVendaOK(r)
     limpar()
     setVendedor(null)
+    carregar()
   }
 
   function novaVenda() {
@@ -508,6 +539,8 @@ export default function CaixaPage() {
     setModalMov(null)
     setValorMov(0)
     setMotivoMov('')
+    setSangriaObrigatoria(false)
+    setMovErro('')
   }
 
   const fmt    = (v?: number | string | null) => `R$ ${Number(v ?? 0).toFixed(2)}`
@@ -519,7 +552,7 @@ export default function CaixaPage() {
   const MOD_LABEL: React.CSSProperties = { fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '10px' }
 
   // Keep modalAbertoRef current on every render so setTimeout callbacks read live state
-  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente || !!gateItem || !!gateFechar
+  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente || !!gateItem || !!gateFechar || avisoLimite || locked
 
   function focusScanSafe() {
     if (!modalAbertoRef.current) scanRef.current?.focus()
@@ -772,18 +805,19 @@ export default function CaixaPage() {
                 <input
                   ref={scanRef}
                   value={scan}
-                  onChange={e => { setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
-                  onKeyDown={onScanKeyDown}
-                  onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                  onChange={e => { if (locked) return; setScan(e.target.value); buscarTexto(e.target.value); setScanErro('') }}
+                  onKeyDown={e => { if (locked) return; onScanKeyDown(e) }}
+                  onFocus={e => { e.currentTarget.style.borderColor = locked ? 'rgba(240,100,100,0.3)' : 'rgba(0,239,255,0.4)' }}
                   onBlur={e => {
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
                     const next = e.relatedTarget as HTMLElement | null
                     if (next && (next.tagName === 'SELECT' || next.tagName === 'BUTTON' || next.tagName === 'INPUT' || next.closest('[data-no-refocus]'))) return
                     setTimeout(() => focusScanSafe(), 250)
                   }}
-                  placeholder='Código de barras, nome... ou "3-código" para qty 3'
+                  placeholder={locked ? 'Faça uma sangria para continuar vendendo' : 'Código de barras, nome... ou "3-código" para qty 3'}
                   autoComplete="off"
-                  style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '9px 12px 9px 36px', fontSize: '13px', color: 'rgba(255,255,255,0.75)', outline: 'none', width: '100%' }}
+                  readOnly={locked}
+                  style={{ background: locked ? 'rgba(240,100,100,0.04)' : 'rgba(8,18,30,0.5)', border: `0.5px solid ${locked ? 'rgba(240,100,100,0.2)' : 'rgba(255,255,255,0.12)'}`, borderRadius: '8px', padding: '9px 12px 9px 36px', fontSize: '13px', color: locked ? 'rgba(240,130,130,0.5)' : 'rgba(255,255,255,0.75)', outline: 'none', width: '100%' }}
                 />
               </div>
               <button
@@ -1057,8 +1091,8 @@ export default function CaixaPage() {
                     Sacola vazia
                   </button>
                 ) : (
-                  <button onClick={() => setModalCheckout(true)} className="fechar-venda-btn" style={{ width: '100%', padding: '12px', background: 'rgba(0,239,255,0.88)', color: '#0a0a1a', fontWeight: 700, borderRadius: '8px', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
-                    Fechar venda →
+                  <button onClick={() => !locked && setModalCheckout(true)} disabled={locked} className="fechar-venda-btn" style={{ width: '100%', padding: '12px', background: locked ? 'rgba(255,255,255,0.06)' : 'rgba(0,239,255,0.88)', color: locked ? 'rgba(255,255,255,0.2)' : '#0a0a1a', fontWeight: 700, borderRadius: '8px', fontSize: '13px', border: 'none', cursor: locked ? 'default' : 'pointer' }}>
+                    {locked ? 'Sangria obrigatória' : 'Fechar venda →'}
                   </button>
                 )}
               </div>
@@ -1154,6 +1188,72 @@ export default function CaixaPage() {
           }
         }}
       />
+
+      {/* Modal Limite de caixa */}
+      {avisoLimite && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(2,8,16,0.82)' }}
+          onClick={locked ? undefined : () => setAvisoLimite(false)}
+        >
+          <div
+            style={{ background: 'rgba(8,18,30,0.98)', border: `0.5px solid ${locked ? 'rgba(240,100,100,0.3)' : 'rgba(234,179,8,0.3)'}`, borderRadius: '16px', width: '100%', maxWidth: '380px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: locked ? 'rgba(240,100,100,0.1)' : 'rgba(234,179,8,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: '18px' }}>{locked ? '🔒' : '⚠️'}</span>
+              </div>
+              <div>
+                <p style={{ fontSize: '15px', fontWeight: 600, color: 'rgba(255,255,255,0.88)', margin: 0 }}>Limite de caixa atingido</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', margin: '2px 0 0' }}>
+                  {locked ? 'Faça uma sangria para continuar vendendo' : 'Recomenda-se fazer uma sangria'}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ background: locked ? 'rgba(240,100,100,0.08)' : 'rgba(234,179,8,0.08)', border: `0.5px solid ${locked ? 'rgba(240,100,100,0.2)' : 'rgba(234,179,8,0.2)'}`, borderRadius: '10px', padding: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>Dinheiro em caixa</span>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: locked ? 'rgba(240,130,130,0.9)' : 'rgba(234,179,8,0.9)' }}>{fmt(dinheiroCaixa)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)' }}>Limite configurado</span>
+                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)' }}>{fmt(limiteCfg.limite)}</span>
+              </div>
+            </div>
+
+            {suggestedCents > 0 && (
+              <p style={{ fontSize: '11px', color: 'rgba(100,220,160,0.7)', textAlign: 'center', margin: 0 }}>
+                Valor sugerido: {fmt(suggestedCents / 100)} — deixa {fmt(limiteCfg.fundo)} na gaveta
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {!locked && (
+                <button
+                  onClick={() => setAvisoLimite(false)}
+                  style={{ flex: 1, minHeight: '44px', background: 'none', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '10px', color: 'rgba(255,255,255,0.45)', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Depois
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setAvisoLimite(false)
+                  setValorMov(suggestedCents > 0 ? suggestedCents : 0)
+                  setMotivoMov(locked ? 'Limite de caixa atingido' : '')
+                  setSangriaObrigatoria(locked)
+                  setModalMov('sangria')
+                }}
+                style={{ flex: 1, minHeight: '44px', background: 'rgba(234,179,8,0.15)', border: '0.5px solid rgba(234,179,8,0.4)', borderRadius: '10px', color: 'rgba(234,179,8,0.9)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Fazer sangria
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Boas-vindas */}
       {modalBoasVindas && boasVindasRef.current && (
@@ -1275,24 +1375,52 @@ export default function CaixaPage() {
 
       {/* Modal Sangria / Suprimento */}
       {modalMov && (
-        <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4" onClick={closeModalMov}>
-          <div className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg p-6 flex flex-col gap-4" style={{ maxHeight: '88vh' }} onClick={e => e.stopPropagation()}>
-            <h3 className="text-sea-foam font-semibold capitalize">{modalMov}</h3>
-            <p className="text-steel text-xs -mt-2">{modalMov === 'sangria' ? 'Retirada de dinheiro do caixa.' : 'Reforço de dinheiro no caixa.'}</p>
+        <div className="fixed inset-0 bg-midnight/80 z-50 flex items-center justify-center p-4" onClick={sangriaObrigatoria ? undefined : closeModalMov}>
+          <div
+            className="bg-deep-ocean rounded-2xl w-full max-w-lg p-6 flex flex-col gap-4"
+            style={{ maxHeight: '88vh', border: sangriaObrigatoria ? '0.5px solid rgba(240,100,100,0.35)' : '0.5px solid rgba(255,255,255,0.1)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div>
+              <h3 className="text-sea-foam font-semibold capitalize">{modalMov}</h3>
+              {sangriaObrigatoria ? (
+                <div style={{ marginTop: '6px', background: 'rgba(240,100,100,0.08)', border: '0.5px solid rgba(240,100,100,0.2)', borderRadius: '8px', padding: '8px 10px' }}>
+                  <p style={{ fontSize: '11px', color: 'rgba(240,130,130,0.8)', margin: 0 }}>
+                    Caixa com {fmt(dinheiroCaixa)} em dinheiro — acima do limite de {fmt(limiteCfg.limite)}. Faça a sangria para continuar vendendo.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-steel text-xs mt-1">{modalMov === 'sangria' ? 'Retirada de dinheiro do caixa.' : 'Reforço de dinheiro no caixa.'}</p>
+              )}
+            </div>
             <div>
               <label className="text-steel text-xs block mb-1">Valor (R$)</label>
               <CurrencyInput
                 value={valorMov} onChange={setValorMov} onEnter={handleMovimento}
                 autoFocus placeholder="R$ 0,00"
                 className="w-full min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
+              {sangriaObrigatoria && suggestedCents > 0 && (
+                <p style={{ fontSize: '11px', color: 'rgba(100,220,160,0.7)', marginTop: '4px' }}>
+                  sugerido — deixa {fmt(limiteCfg.fundo)} na gaveta
+                </p>
+              )}
             </div>
-            <div>
-              <label className="text-steel text-xs block mb-1">Motivo (opcional)</label>
-              <input type="text" value={motivoMov} onChange={e => setMotivoMov(e.target.value)}
-                className="w-full min-h-[44px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
-            </div>
+            {!sangriaObrigatoria && (
+              <div>
+                <label className="text-steel text-xs block mb-1">Motivo (opcional)</label>
+                <input type="text" value={motivoMov} onChange={e => setMotivoMov(e.target.value)}
+                  className="w-full min-h-[44px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sea-foam text-sm outline-none focus:border-electric-cyan" />
+              </div>
+            )}
+            {movErro && (
+              <div style={{ background: 'rgba(240,100,100,0.08)', border: '0.5px solid rgba(240,100,100,0.2)', borderRadius: '8px', padding: '8px 10px' }}>
+                <p style={{ fontSize: '12px', color: 'rgba(240,130,130,0.85)', margin: 0 }}>{movErro}</p>
+              </div>
+            )}
             <div className="flex gap-3">
-              <button onClick={closeModalMov} className="flex-1 min-h-[44px] border border-ocean-depth text-steel rounded-xl text-sm">Cancelar</button>
+              {!sangriaObrigatoria && (
+                <button onClick={closeModalMov} className="flex-1 min-h-[44px] border border-ocean-depth text-steel rounded-xl text-sm">Cancelar</button>
+              )}
               <button onClick={handleMovimento} disabled={salvMov || !valorMov}
                 className="flex-1 min-h-[44px] bg-electric-cyan text-midnight rounded-xl text-sm font-semibold disabled:opacity-40">
                 {salvMov ? '...' : 'Confirmar'}

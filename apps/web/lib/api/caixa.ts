@@ -10,10 +10,11 @@ export interface TurnoCaixa {
   aberto_em:          string
   fechado_em:         string | null
   // Aggregates returned by /caixa/status
-  total_vendas?:      string
-  qtd_vendas?:        number
-  total_sangrias?:    string
-  total_suprimentos?: string
+  total_vendas?:       string
+  qtd_vendas?:         number
+  total_sangrias?:     string
+  total_suprimentos?:  string
+  dinheiro_em_caixa?:  number
 }
 
 export interface MovimentoCaixa {

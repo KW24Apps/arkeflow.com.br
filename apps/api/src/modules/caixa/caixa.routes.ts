@@ -44,7 +44,18 @@ export async function caixaRoutes(app: FastifyInstance) {
          COALESCE((
            SELECT SUM(mv.valor) FROM movimentos_caixa mv
            WHERE mv.turno_id = t.id AND mv.tipo = 'suprimento'
-         ), 0)::numeric AS total_suprimentos
+         ), 0)::numeric AS total_suprimentos,
+         COALESCE((
+           SELECT SUM(pv.valor)
+           FROM pagamentos_venda pv
+           JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id
+           JOIN vendas v            ON v.id  = pv.venda_id
+           WHERE fp.tipo = 'dinheiro'
+             AND v.status = 'finalizada'
+             AND v.usuario_id = t.usuario_id
+             AND v.criado_em >= t.aberto_em
+             AND (t.fechado_em IS NULL OR v.criado_em <= t.fechado_em)
+         ), 0)::numeric AS vendas_dinheiro
        FROM turnos_caixa t
        WHERE t.status = 'aberto'
          AND t.usuario_id = $1
@@ -82,7 +93,13 @@ export async function caixaRoutes(app: FastifyInstance) {
       return reply.send({ status: 'fechado', turno: ultimo ?? null })
     }
 
-    return reply.send({ status: 'aberto', turno: turnoAberto })
+    const dc = Math.round((
+      Number(turnoAberto.saldo_inicial) +
+      Number(turnoAberto.vendas_dinheiro) +
+      Number(turnoAberto.total_suprimentos) -
+      Number(turnoAberto.total_sangrias)
+    ) * 100) / 100
+    return reply.send({ status: 'aberto', turno: { ...turnoAberto, dinheiro_em_caixa: dc } })
   })
 
   // Abrir caixa
