@@ -390,7 +390,8 @@ export default function CaixaPage() {
   }
 
   // ── Cálculos ──────────────────────────────────────────────────────────────
-  const { itensComDesconto, totalDesconto } = calcularDescontos(itens, promocoes, !clienteInfo?.total_compras, {})
+  const ehPrimeiraCompra = clienteInfo !== null && !clienteInfo.total_compras
+  const { itensComDesconto, totalDesconto } = calcularDescontos(itens, promocoes, ehPrimeiraCompra, {})
   const subtotal  = itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
   const baseTotal = Math.max(0, subtotal - totalDesconto)
 

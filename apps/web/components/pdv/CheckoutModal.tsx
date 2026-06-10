@@ -921,12 +921,19 @@ export function CheckoutModal({
                     <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Subtotal</span>
                     <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)' }}>{fmt(itensComDesconto.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0))}</span>
                   </div>
-                  {totalDesconto > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Desc. promoção</span>
-                      <span style={{ fontSize: '12px', color: 'rgba(240,100,100,0.75)' }}>− {fmt(totalDesconto)}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const byPromo = new Map<string, number>()
+                    for (const item of itensComDesconto) {
+                      if (!item.promocao_nome || item.desconto_item <= 0) continue
+                      byPromo.set(item.promocao_nome, (byPromo.get(item.promocao_nome) ?? 0) + item.desconto_item)
+                    }
+                    return Array.from(byPromo.entries()).map(([nome, val]) => (
+                      <div key={nome} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>{nome}</span>
+                        <span style={{ fontSize: '12px', color: 'rgba(240,100,100,0.75)' }}>− {fmt(val)}</span>
+                      </div>
+                    ))
+                  })()}
                   {comDesconto && descontoCaixa > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Desc. caixa</span>
