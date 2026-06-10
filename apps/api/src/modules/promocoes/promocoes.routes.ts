@@ -175,9 +175,15 @@ export async function promocoesRoutes(app: FastifyInstance) {
         [id],
       )
 
-      const tipoFinal        = data.tipo         ?? current.tipo
-      const aplicaTodosFinal = data.aplica_todos  ?? current.aplica_todos
-      const produtosFinal    = (produtos_ids       ?? current.produtos_ids) as string[]
+      if (!current) throw new AppError('Promoção não encontrada', 404)
+
+      const tipoFinal        = data.tipo        ?? current.tipo
+      const aplicaTodosFinal = data.aplica_todos ?? current.aplica_todos
+      const produtosFinal: string[] = produtos_ids != null
+        ? produtos_ids.map(String)
+        : Array.isArray(current.produtos_ids)
+          ? (current.produtos_ids as any[]).map(String)
+          : []
 
       const conflito = await verificarConflitoProdutos(pool, {
         id,
@@ -189,7 +195,11 @@ export async function promocoesRoutes(app: FastifyInstance) {
     }
 
     const keys   = Object.keys(data).filter(k => data[k as keyof typeof data] !== undefined)
-    const values = keys.map(k => (data as any)[k] ?? null)
+    const values = keys.map(k => {
+      const v = (data as any)[k]
+      if (k === 'categorias_alvo') return v != null ? JSON.stringify(v) : null
+      return v ?? null
+    })
     const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
 
     if (keys.length) {
