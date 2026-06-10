@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={inter.variable}>
-      <body><OceanBackground />{children}</body>
+      <body><OceanBackground /><div style={{ position: 'relative', zIndex: 1 }}>{children}</div></body>
     </html>
   )
 }

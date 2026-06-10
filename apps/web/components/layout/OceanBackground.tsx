@@ -77,7 +77,8 @@ export function OceanBackground() {
 
     const MAX = reduced ? 6 : 18
     for (let i = 0; i < MAX; i++) {
-      timeouts.push(window.setTimeout(spawn, Math.random() * (reduced ? 4000 : 2500)))
+      const delay = i < 4 ? 0 : Math.random() * (reduced ? 4000 : 2500)
+      timeouts.push(window.setTimeout(spawn, delay))
     }
 
     return () => {
@@ -94,13 +95,13 @@ export function OceanBackground() {
       ref={ref}
       className="ocean-bg"
       style={{
-        position: 'fixed', inset: 0, zIndex: -1, overflow: 'hidden', pointerEvents: 'none',
+        position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden', pointerEvents: 'none',
         background: 'linear-gradient(160deg, #14506b 0%, #11425e 35%, #0e3a52 65%, #0b2940 100%)',
       }}
     >
       <style>{`
         @keyframes sway { 0%,100% { transform: skewX(-4deg); opacity: 0.05; } 50% { transform: skewX(4deg); opacity: 0.13; } }
-        .ocean-bb { position:absolute; bottom:-80px; border-radius:50%; will-change:transform,opacity;
+        .ocean-bb { position:absolute; bottom:-80px; border-radius:50%; z-index:0; will-change:transform,opacity;
           background:radial-gradient(circle at 32% 26%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.35) 6%, rgba(150,230,255,0.12) 26%, rgba(40,130,180,0.05) 58%, rgba(190,240,255,0.10) 92%, rgba(255,255,255,0.18) 100%);
           border:1px solid rgba(185,238,255,0.28);
           box-shadow:inset -5px -7px 14px rgba(0,38,66,0.30), inset 7px 9px 16px rgba(255,255,255,0.18), 0 0 10px rgba(130,220,255,0.10); }
