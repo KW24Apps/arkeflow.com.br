@@ -814,6 +814,7 @@ export default function ConfigSistemaPage() {
             {/* List */}
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-1.5">
               {colaboradores
+                .filter(c => c.nivel !== 'dono_loja')
                 .filter(c => {
                   if (!supervisoresQ.trim()) return true
                   const q = supervisoresQ.toLowerCase()
