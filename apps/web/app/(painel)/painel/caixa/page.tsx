@@ -836,9 +836,6 @@ export default function CaixaPage() {
                               )
                             })()}
                           </p>
-                          {item.desconto_item > 0 && (
-                            <p className="text-mint-green text-xs">−{fmt(item.desconto_item)} promo</p>
-                          )}
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-center gap-1">
@@ -851,7 +848,7 @@ export default function CaixaPage() {
                         </td>
                         <td className="px-3 py-3 text-right text-steel hidden md:table-cell">{fmt(item.preco_unitario)}</td>
                         <td className="px-4 py-3 text-right text-sea-foam font-semibold">
-                          {fmt(item.preco_unitario * item.quantidade - item.desconto_item)}
+                          {fmt(item.preco_unitario * item.quantidade)}
                         </td>
                         <td className="pr-2">
                           <button

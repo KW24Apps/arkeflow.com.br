@@ -928,9 +928,12 @@ export function CheckoutModal({
                       byPromo.set(item.promocao_nome, (byPromo.get(item.promocao_nome) ?? 0) + item.desconto_item)
                     }
                     return Array.from(byPromo.entries()).map(([nome, val]) => (
-                      <div key={nome} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>{nome}</span>
-                        <span style={{ fontSize: '12px', color: 'rgba(240,100,100,0.75)' }}>− {fmt(val)}</span>
+                      <div key={nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'rgba(100,220,160,0.08)', border: '0.5px solid rgba(100,220,160,0.22)', borderRadius: '8px' }}>
+                        <span style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '12px', color: 'rgba(120,235,180,0.95)', fontWeight: 500 }}>{nome}</span>
+                          <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.6)' }}>promoção aplicada</span>
+                        </span>
+                        <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(120,235,180,0.95)' }}>− {fmt(val)}</span>
                       </div>
                     ))
                   })()}
