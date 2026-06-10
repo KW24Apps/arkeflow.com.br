@@ -167,6 +167,7 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
       supervisao_habilitada, senha_mestra_habilitada,
       exige_auth_fechar_falta, exige_auth_fechar_sobra, exige_auth_cancelar_item,
       sangria_limite_habilitado, sangria_limite_valor, sangria_fundo_troco, sangria_limite_modo,
+      atalhos_caixa,
       senha_mestra,
     } = req.body as any
 
@@ -178,6 +179,17 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     }
     if (sangria_fundo_troco !== undefined && Number(sangria_fundo_troco) < 0) {
       return reply.status(400).send({ error: 'sangria_fundo_troco deve ser ≥ 0.' })
+    }
+    if (atalhos_caixa !== undefined) {
+      if (typeof atalhos_caixa !== 'object' || atalhos_caixa === null || Array.isArray(atalhos_caixa)) {
+        return reply.status(400).send({ error: 'atalhos_caixa deve ser um objeto.' })
+      }
+      for (const [k, v] of Object.entries(atalhos_caixa as Record<string, unknown>)) {
+        if (typeof v !== 'string') return reply.status(400).send({ error: `atalhos_caixa.${k}: valor deve ser string.` })
+        if (v !== '' && !/^[A-Z0-9]$/.test((v as string).toUpperCase())) {
+          return reply.status(400).send({ error: `atalhos_caixa.${k}: use letra A–Z ou dígito 0–9.` })
+        }
+      }
     }
 
     // Atualiza configuracoes_loja no banco da loja
@@ -197,6 +209,7 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     if (sangria_limite_valor !== undefined)        { val.push(sangria_limite_valor);         upd.push(`sangria_limite_valor = $${val.length}`) }
     if (sangria_fundo_troco !== undefined)         { val.push(sangria_fundo_troco);          upd.push(`sangria_fundo_troco = $${val.length}`) }
     if (sangria_limite_modo !== undefined)         { val.push(sangria_limite_modo);          upd.push(`sangria_limite_modo = $${val.length}`) }
+    if (atalhos_caixa !== undefined)               { val.push(atalhos_caixa);                upd.push(`atalhos_caixa = $${val.length}`) }
     if (senha_mestra && typeof senha_mestra === 'string' && senha_mestra.trim()) {
       const hash = await bcrypt.hash(senha_mestra.trim(), 10)
       val.push(hash); upd.push(`senha_mestra_hash = $${val.length}`)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ImageIcon, Package, Tag, ShieldCheck, Banknote } from 'lucide-react'
+import { ImageIcon, Package, Tag, ShieldCheck, Banknote, Keyboard } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -25,6 +25,7 @@ interface SistemaConfig {
   sangria_limite_valor:       string | number
   sangria_fundo_troco:        string | number
   sangria_limite_modo:        string
+  atalhos_caixa:              Record<string, string>
 }
 
 async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
@@ -53,7 +54,18 @@ const LBL9: React.CSSProperties = {
 
 const DIV_HR: React.CSSProperties = { height: '0.5px', background: 'rgba(255,255,255,0.07)' }
 
-type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | null
+const ATALHO_ACTIONS = [
+  { actionKey: 'cliente',     label: 'Cliente',      fKey: 'F2'  },
+  { actionKey: 'vendedor',    label: 'Vendedor',      fKey: 'F3'  },
+  { actionKey: 'sacolas',     label: 'Sacolas',       fKey: 'F4'  },
+  { actionKey: 'provas',      label: 'Provas',        fKey: 'F6'  },
+  { actionKey: 'sangria',     label: 'Sangria',       fKey: 'F7'  },
+  { actionKey: 'suprimento',  label: 'Suprimento',    fKey: 'F8'  },
+  { actionKey: 'fecharVenda', label: 'Fechar venda',  fKey: 'F9'  },
+  { actionKey: 'fecharCaixa', label: 'Fechar caixa',  fKey: 'F10' },
+] as const
+
+type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | null
 
 export default function ConfigSistemaPage() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -95,6 +107,11 @@ export default function ConfigSistemaPage() {
   const [sangriLimiteModo,       setSangriLimiteModo]       = useState<'avisar' | 'obrigar'>('avisar')
   const [caixaSaved,             setCaixaSaved]             = useState(false)
 
+  // ── Atalhos state ─────────────────────────────────────────────────────────
+  const [atalhosCfg,   setAtalhosCfg]   = useState<Record<string, string>>({})
+  const [atalhosSaved, setAtalhosSaved] = useState(false)
+  const [atalhoFlash,  setAtalhoFlash]  = useState<string | null>(null)
+
   // ── Layout state ──────────────────────────────────────────────────────────
   const [secao, setSecao] = useState<Secao>(null)
 
@@ -124,6 +141,7 @@ export default function ConfigSistemaPage() {
       setSangriLimiteValorCents(Math.round(Number(d.sangria_limite_valor ?? 0) * 100))
       setSangriSaldoTrocoCents(Math.round(Number(d.sangria_fundo_troco ?? 0) * 100))
       setSangriLimiteModo((d.sangria_limite_modo ?? 'avisar') as 'avisar' | 'obrigar')
+      setAtalhosCfg((d.atalhos_caixa as Record<string, string>) ?? {})
     }).finally(() => setLoading(false))
   }, [])
 
@@ -275,6 +293,33 @@ export default function ConfigSistemaPage() {
     } catch { setSangriLimiteHabilitado(!v) }
   }
 
+  // ── Atalhos handlers ──────────────────────────────────────────────────────
+
+  function handleAtalhoKeyDown(e: React.KeyboardEvent<HTMLInputElement>, actionKey: string) {
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault()
+      setAtalhosCfg(prev => { const next = { ...prev }; delete next[actionKey]; return next })
+      return
+    }
+    const k = e.key.toUpperCase()
+    if (!/^[A-Z0-9]$/.test(k)) return
+    e.preventDefault()
+    if (Object.entries(atalhosCfg).some(([ak, v]) => ak !== actionKey && v === k)) {
+      setAtalhoFlash(actionKey)
+      setTimeout(() => setAtalhoFlash(null), 300)
+      return
+    }
+    setAtalhosCfg(prev => ({ ...prev, [actionKey]: k }))
+  }
+
+  async function handleSaveAtalhos() {
+    try {
+      await api.put('/dados-loja/sistema', { atalhos_caixa: atalhosCfg })
+      setAtalhosSaved(true)
+      setTimeout(() => setAtalhosSaved(false), 2000)
+    } catch {}
+  }
+
   async function handleToggleSupervisor(col: Colaborador) {
     const novoVal = !(col.is_supervisor ?? false)
     setColaboradores(prev => prev.map(c => c.id === col.id ? { ...c, is_supervisor: novoVal } : c))
@@ -292,16 +337,17 @@ export default function ConfigSistemaPage() {
   const supervisores = colaboradores.filter(c => c.is_supervisor)
   const semMetodoAuth = supervisaoHabilitada && !senhaMestraDefinida && supervisores.length === 0
 
-  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa'
+  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos'
   const PANEL_ICON: Record<SecaoNonNull, React.ReactNode> = {
     logo:       <ImageIcon   size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     estoque:    <Package     size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     desconto:   <Tag         size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     supervisao: <ShieldCheck size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     caixa:      <Banknote    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    atalhos:    <Keyboard    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
   }
   const PANEL_LABEL: Record<SecaoNonNull, string> = {
-    logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão', caixa: 'Limite de caixa',
+    logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão', caixa: 'Limite de caixa', atalhos: 'Atalhos do caixa',
   }
 
   return (
@@ -330,6 +376,7 @@ export default function ConfigSistemaPage() {
               {secao === 'desconto'   && descontoSaved   && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'supervisao' && supervisaoSaved && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'caixa'      && caixaSaved      && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
+              {secao === 'atalhos'    && atalhosSaved    && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
             </div>
 
             {/* Panel body */}
@@ -643,6 +690,46 @@ export default function ConfigSistemaPage() {
                 </div>
               )}
 
+              {/* ── Atalhos do caixa ────────────────────────────────── */}
+              {secao === 'atalhos' && (
+                <div className="flex flex-col gap-4">
+                  <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', lineHeight: 1.6 }}>
+                    Defina uma tecla extra (Alt + letra ou número) para cada ação do caixa. Os atalhos padrão (F2–F10) continuam funcionando.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {ATALHO_ACTIONS.map(({ actionKey, label, fKey }) => (
+                      <div key={actionKey} className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)' }}>{label}</span>
+                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '1px 5px' }}>{fKey}</span>
+                        </div>
+                        <input
+                          value={atalhosCfg[actionKey] ? `Alt + ${atalhosCfg[actionKey]}` : ''}
+                          readOnly
+                          placeholder="—"
+                          onKeyDown={e => handleAtalhoKeyDown(e, actionKey)}
+                          onBlur={handleSaveAtalhos}
+                          style={{
+                            width: '82px',
+                            minHeight: '38px',
+                            background: 'rgba(8,18,30,0.5)',
+                            border: `0.5px solid ${atalhoFlash === actionKey ? 'rgba(240,100,100,0.6)' : 'rgba(255,255,255,0.12)'}`,
+                            borderRadius: '8px',
+                            padding: '0 10px',
+                            fontSize: '12px',
+                            color: atalhosCfg[actionKey] ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.25)',
+                            outline: 'none',
+                            textAlign: 'center',
+                            cursor: 'default',
+                            caretColor: 'transparent',
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ── Supervisão ───────────────────────────────────────── */}
               {secao === 'supervisao' && (
                 <div className="flex flex-col gap-5">
@@ -853,6 +940,7 @@ export default function ConfigSistemaPage() {
               { key: 'desconto'   as const, label: 'Desconto',          Icon: Tag         },
               { key: 'supervisao' as const, label: 'Supervisão',        Icon: ShieldCheck },
               { key: 'caixa'      as const, label: 'Limite de caixa',   Icon: Banknote    },
+              { key: 'atalhos'    as const, label: 'Atalhos do caixa',  Icon: Keyboard    },
             ] satisfies { key: Secao; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => {
               const sel = secao === key
               return (

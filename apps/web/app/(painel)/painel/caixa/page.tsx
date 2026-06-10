@@ -194,6 +194,7 @@ export default function CaixaPage() {
   const [avisoLimite,        setAvisoLimite]        = useState(false)
   const [sangriaObrigatoria, setSangriaObrigatoria] = useState(false)
   const [movErro,            setMovErro]            = useState('')
+  const [atalhosCfg,         setAtalhosCfg]         = useState<Record<string, string>>({})
 
   // ── Derived cash state ────────────────────────────────────────────────────
   const dinheiroCaixa  = Number(turno?.dinheiro_em_caixa ?? 0)
@@ -213,6 +214,7 @@ export default function CaixaPage() {
       setDescontoCfg({ pct: Number(d.desconto_max_percentual ?? 0), valor: Number(d.desconto_max_valor ?? 0), promoAceita: !!d.promocao_aceita_desconto })
       setSupCfg({ habilitada: !!d.supervisao_habilitada, cancelarItem: !!d.exige_auth_cancelar_item, fecharFalta: !!d.exige_auth_fechar_falta, fecharSobra: !!d.exige_auth_fechar_sobra })
       setLimiteCfg({ habilitado: !!d.sangria_limite_habilitado, limite: Number(d.sangria_limite_valor ?? 0), fundo: Number(d.sangria_fundo_troco ?? 0), modo: d.sangria_limite_modo === 'obrigar' ? 'obrigar' : 'avisar' })
+      setAtalhosCfg((d.atalhos_caixa as Record<string, string>) ?? {})
     }).catch(() => {})
     autorizacoesApi.supervisores()
       .then(r => {
@@ -313,7 +315,7 @@ export default function CaixaPage() {
     setAvisoLimite(true)
   }, [vendaOK, overLimit, limiteCfg.modo])
 
-  // Global F-key shortcuts — only when register is open, no modal, not locked
+  // Global F-key + Alt+custom shortcuts — only when register is open, no modal, not locked
   useEffect(() => {
     if (status !== 'aberto') return
     function onKey(e: KeyboardEvent) {
@@ -322,17 +324,27 @@ export default function CaixaPage() {
         if (cliente_id) { setModalDadosCliente(true) }
         else { setClienteAutoAberto(false); setModalCliente(true) }
       }
-      const map: Record<string, { action: () => void; enabled: boolean }> = {
-        F2:  { action: abrirCliente,                                                              enabled: true               },
-        F3:  { action: () => setModalVendedor(true),                                              enabled: true               },
-        F4:  { action: () => setModalSacolas(true),                                               enabled: true               },
-        F6:  { action: () => router.push('/painel/prova-em-casa'),                                enabled: true               },
-        F7:  { action: () => { setValorMov(0); setMotivoMov(''); setModalMov('sangria') },        enabled: true               },
-        F8:  { action: () => { setValorMov(0); setMotivoMov(''); setModalMov('suprimento') },     enabled: true               },
-        F9:  { action: () => setModalCheckout(true),                                              enabled: itens.length > 0   },
-        F10: { action: () => handleFecharCaixa(),                                                 enabled: itens.length === 0 },
+      const actions: Record<string, { action: () => void; enabled: boolean }> = {
+        cliente:     { action: abrirCliente,                                                                   enabled: true               },
+        vendedor:    { action: () => setModalVendedor(true),                                                   enabled: true               },
+        sacolas:     { action: () => setModalSacolas(true),                                                    enabled: true               },
+        provas:      { action: () => router.push('/painel/prova-em-casa'),                                     enabled: true               },
+        sangria:     { action: () => { setValorMov(0); setMotivoMov(''); setModalMov('sangria') },             enabled: true               },
+        suprimento:  { action: () => { setValorMov(0); setMotivoMov(''); setModalMov('suprimento') },          enabled: true               },
+        fecharVenda: { action: () => setModalCheckout(true),                                                   enabled: itens.length > 0   },
+        fecharCaixa: { action: () => handleFecharCaixa(),                                                      enabled: itens.length === 0 },
       }
-      const entry = map[e.key]
+      const fkeys: Record<string, string> = {
+        F2: 'cliente', F3: 'vendedor', F4: 'sacolas', F6: 'provas',
+        F7: 'sangria', F8: 'suprimento', F9: 'fecharVenda', F10: 'fecharCaixa',
+      }
+      let actionKey: string | undefined = fkeys[e.key]
+      if (!actionKey && e.altKey && !e.ctrlKey && !e.metaKey) {
+        const pressed = e.key.toUpperCase()
+        actionKey = Object.entries(atalhosCfg).find(([, v]) => v === pressed)?.[0]
+      }
+      if (!actionKey) return
+      const entry = actions[actionKey]
       if (!entry) return
       e.preventDefault()
       e.stopPropagation()
@@ -340,7 +352,7 @@ export default function CaixaPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [status, itens.length, cliente_id, locked])
+  }, [status, itens.length, cliente_id, locked, atalhosCfg])
 
   // Global Esc — closes topmost open modal; mandatory sangria and lock state are immune
   useEffect(() => {
