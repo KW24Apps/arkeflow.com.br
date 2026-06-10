@@ -55,6 +55,7 @@ export function AuthorizationGateModal({
   const [erro,             setErro]             = useState('')
   const [loading,          setLoading]          = useState(false)
   const [submitting,       setSubmitting]       = useState(false)
+  const [pwReadOnly,       setPwReadOnly]       = useState(true)
 
   // Reset + fetch supervisors on open
   useEffect(() => {
@@ -66,6 +67,7 @@ export function AuthorizationGateModal({
     setSelectedId('')
     setSupervisores([])
     setSenhaMestraDisp(false)
+    setPwReadOnly(true)
     setLoading(true)
     autorizacoesApi.supervisores()
       .then(r => {
@@ -245,16 +247,19 @@ export function AuthorizationGateModal({
                     <input
                       type="password"
                       autoFocus
+                      readOnly={pwReadOnly}
                       autoComplete="new-password"
                       name="auth-otp"
                       autoCorrect="off"
                       spellCheck={false}
+                      data-1p-ignore="true"
+                      data-lpignore="true"
                       value={senha}
                       onChange={e => { setSenha(e.target.value); setErro('') }}
                       onKeyDown={e => { if (e.key === 'Enter') handleAuthorizar() }}
                       placeholder="••••••••"
                       style={{ ...INPUT, borderColor: erro ? 'rgba(240,100,100,0.5)' : 'rgba(255,255,255,0.12)' }}
-                      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                      onFocus={e => { setPwReadOnly(false); e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
                       onBlur={e => { e.currentTarget.style.borderColor = erro ? 'rgba(240,100,100,0.5)' : 'rgba(255,255,255,0.12)' }}
                     />
                   </div>
