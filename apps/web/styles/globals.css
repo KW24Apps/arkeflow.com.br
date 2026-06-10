@@ -23,3 +23,25 @@
   ::-webkit-scrollbar-track { background: var(--midnight); }
   ::-webkit-scrollbar-thumb { background: var(--ocean-depth); border-radius: 3px; }
 }
+
+.ocean-bb { position:absolute; bottom:-80px; border-radius:50%; z-index:0; will-change:transform,opacity;
+  background:radial-gradient(circle at 32% 26%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.35) 6%, rgba(150,230,255,0.12) 26%, rgba(40,130,180,0.05) 58%, rgba(190,240,255,0.10) 92%, rgba(255,255,255,0.18) 100%);
+  border:1px solid rgba(185,238,255,0.28);
+  box-shadow:inset -5px -7px 14px rgba(0,38,66,0.30), inset 7px 9px 16px rgba(255,255,255,0.18), 0 0 10px rgba(130,220,255,0.10); }
+.ocean-bb::before { content:""; position:absolute; top:14%; left:20%; width:26%; height:20%; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 70%); filter:blur(0.5px); }
+@keyframes ocean-rise {
+  0% { transform:translateY(0) translateX(0) scale(0.6); opacity:0; }
+  6% { opacity:var(--op); }
+  30% { transform:translateY(calc(-0.35 * var(--rise))) translateX(7px) scale(0.85); }
+  60% { transform:translateY(calc(-0.70 * var(--rise))) translateX(-6px) scale(0.95); }
+  100% { transform:translateY(calc(-1 * var(--rise))) translateX(0) scale(1); opacity:var(--op); }
+}
+.ocean-ring { position:absolute; border-radius:50%; border:1.5px solid rgba(195,242,255,0.6);
+  transform:translate(-50%,-50%); animation:ocean-ring-burst .5s ease-out forwards; pointer-events:none; }
+.ocean-drop { position:absolute; border-radius:50%; pointer-events:none;
+  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.95), rgba(150,225,255,0.3) 55%, rgba(255,255,255,0.12));
+  border:0.5px solid rgba(195,242,255,0.45); transform:translate(-50%,-50%) scale(1); animation:ocean-drop-fly .6s ease-out forwards; }
+@keyframes ocean-ring-burst { 0% { opacity:0.75; transform:translate(-50%,-50%) scale(0.4); } 100% { opacity:0; transform:translate(-50%,-50%) scale(2.4); } }
+@keyframes ocean-drop-fly { 0% { opacity:1; transform:translate(-50%,-50%) scale(1); } 100% { opacity:0; transform:translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0.35); } }
+@keyframes sway { 0%,100% { transform: skewX(-4deg); opacity: 0.05; } 50% { transform: skewX(4deg); opacity: 0.13; } }
