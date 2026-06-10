@@ -111,6 +111,7 @@ export default function ConfigSistemaPage() {
   const [atalhosCfg,   setAtalhosCfg]   = useState<Record<string, string>>({})
   const [atalhosSaved, setAtalhosSaved] = useState(false)
   const [atalhoFlash,  setAtalhoFlash]  = useState<string | null>(null)
+  const [atalhoFocus,  setAtalhoFocus]  = useState<string | null>(null)
 
   // ── Layout state ──────────────────────────────────────────────────────────
   const [secao, setSecao] = useState<Secao>(null)
@@ -704,24 +705,34 @@ export default function ConfigSistemaPage() {
                           <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.05)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '1px 5px' }}>{fKey}</span>
                         </div>
                         <input
-                          value={atalhosCfg[actionKey] ? `Alt + ${atalhosCfg[actionKey]}` : ''}
+                          value={
+                            atalhoFocus === actionKey && !atalhosCfg[actionKey]
+                              ? ''
+                              : atalhosCfg[actionKey] ? `Alt + ${atalhosCfg[actionKey]}` : ''
+                          }
                           readOnly
-                          placeholder="—"
+                          placeholder={atalhoFocus === actionKey && !atalhosCfg[actionKey] ? 'pressione uma tecla…' : '—'}
+                          onFocus={() => setAtalhoFocus(actionKey)}
                           onKeyDown={e => handleAtalhoKeyDown(e, actionKey)}
-                          onBlur={handleSaveAtalhos}
+                          onBlur={() => { setAtalhoFocus(null); handleSaveAtalhos() }}
                           style={{
                             width: '82px',
                             minHeight: '38px',
-                            background: 'rgba(8,18,30,0.5)',
-                            border: `0.5px solid ${atalhoFlash === actionKey ? 'rgba(240,100,100,0.6)' : 'rgba(255,255,255,0.12)'}`,
+                            background: atalhoFocus === actionKey ? 'rgba(0,239,255,0.06)' : 'rgba(8,18,30,0.5)',
+                            border: `0.5px solid ${
+                              atalhoFlash === actionKey ? 'rgba(240,100,100,0.6)'
+                              : atalhoFocus === actionKey ? 'rgba(0,239,255,0.5)'
+                              : 'rgba(255,255,255,0.12)'
+                            }`,
                             borderRadius: '8px',
                             padding: '0 10px',
                             fontSize: '12px',
-                            color: atalhosCfg[actionKey] ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.25)',
+                            color: atalhosCfg[actionKey] ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.35)',
                             outline: 'none',
                             textAlign: 'center',
                             cursor: 'default',
                             caretColor: 'transparent',
+                            transition: 'border-color 0.12s, background 0.12s',
                           }}
                         />
                       </div>
