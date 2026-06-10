@@ -235,6 +235,19 @@ function VendaRow({
                     <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Subtotal</span>
                     <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', fontVariantNumeric: 'tabular-nums' }}>{fmt(detail.subtotal ?? detail.total)}</span>
                   </div>
+                  {(() => {
+                    const byPromo = new Map<string, number>()
+                    for (const item of (detail.itens ?? [])) {
+                      if (!item.promocao_nome || Number(item.desconto_item) <= 0) continue
+                      byPromo.set(item.promocao_nome, (byPromo.get(item.promocao_nome) ?? 0) + Number(item.desconto_item))
+                    }
+                    return Array.from(byPromo.entries()).map(([nome, val]) => (
+                      <div key={nome} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>{nome}</span>
+                        <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)', fontVariantNumeric: 'tabular-nums' }}>− {fmt(val)}</span>
+                      </div>
+                    ))
+                  })()}
                   {Number(detail.desconto_pagamento ?? 0) > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>Desconto</span>

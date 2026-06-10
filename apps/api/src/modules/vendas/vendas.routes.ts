@@ -13,6 +13,7 @@ const itemSchema = z.object({
   quantidade:    z.coerce.number().int().positive(),
   preco_unitario:z.coerce.number().positive(),
   desconto_item: z.coerce.number().min(0).default(0),
+  promocao_nome: z.string().optional().nullable(),
 })
 
 const pagamentoSchema = z.object({
@@ -152,9 +153,9 @@ export async function vendasRoutes(app: FastifyInstance) {
       // Cria itens
       for (const item of data.itens) {
         await client.query(
-          `INSERT INTO itens_venda (venda_id, versao_id, quantidade, preco_unitario, desconto_item)
-           VALUES ($1,$2,$3,$4,$5)`,
-          [venda_id, item.versao_id, item.quantidade, item.preco_unitario, item.desconto_item]
+          `INSERT INTO itens_venda (venda_id, versao_id, quantidade, preco_unitario, desconto_item, promocao_nome)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [venda_id, item.versao_id, item.quantidade, item.preco_unitario, item.desconto_item, item.promocao_nome ?? null]
         )
       }
 

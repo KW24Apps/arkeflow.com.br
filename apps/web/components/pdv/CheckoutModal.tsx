@@ -448,7 +448,7 @@ export function CheckoutModal({
       const { vendedor_id, vendedor_nome } = usePDVStore.getState()
       const r = await vendasApi.registrar({
         cliente_id:         clienteId ?? null,
-        itens:              itensComDesconto.map(i => ({ versao_id: i.versao_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto_item: i.desconto_item })),
+        itens:              itensComDesconto.map(i => ({ versao_id: i.versao_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto_item: i.desconto_item, promocao_nome: i.promocao_nome ?? null })),
         pagamentos:         pagamentosParaAPI,
         cashback_usado:     cashbackAplicado,
         desconto_promocao:  totalDesconto,
@@ -487,7 +487,7 @@ export function CheckoutModal({
       const { vendedor_id, vendedor_nome } = usePDVStore.getState()
       const r = await vendasApi.registrar({
         cliente_id:         clienteId ?? null,
-        itens:              itensComDesconto.map(i => ({ versao_id: i.versao_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto_item: i.desconto_item })),
+        itens:              itensComDesconto.map(i => ({ versao_id: i.versao_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto_item: i.desconto_item, promocao_nome: i.promocao_nome ?? null })),
         pagamentos:         pags,
         cashback_usado:     cashbackAplicado,
         desconto_promocao:  totalDesconto,
