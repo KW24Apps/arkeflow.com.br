@@ -79,6 +79,7 @@ export default function PromocoesPage() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [salvando,   setSalvando]   = useState(false)
   const [erro,       setErro]       = useState('')
+  const [erroToggle, setErroToggle] = useState('')
   const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
   // Form state
@@ -173,8 +174,13 @@ export default function PromocoesPage() {
   }
 
   async function handleToggle(p: Promocao) {
-    await promocoesApi.update(p.id, { ativo: !p.ativo })
-    setPromos(prev => prev.map(x => x.id === p.id ? { ...x, ativo: !x.ativo } : x))
+    setErroToggle('')
+    try {
+      await promocoesApi.update(p.id, { ativo: !p.ativo })
+      setPromos(prev => prev.map(x => x.id === p.id ? { ...x, ativo: !x.ativo } : x))
+    } catch (err: any) {
+      setErroToggle(err?.response?.data?.error ?? 'Erro ao alterar promoção.')
+    }
   }
 
   function handleRemover() {
@@ -460,6 +466,9 @@ export default function PromocoesPage() {
         )}
 
         {/* ── Card grid ─────────────────────────────────────────────────────── */}
+        {erroToggle && (
+          <p style={{ fontSize: '12px', color: 'rgba(248,113,113,0.85)', marginBottom: '8px' }}>{erroToggle}</p>
+        )}
         {!loading && (
           <input
             value={busca}

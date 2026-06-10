@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import { Pool } from 'pg'
 import { authMiddleware } from '../../core/middlewares/auth'
 import { authorize } from '../../core/middlewares/authorize'
 import { getTenantPoolFromRequest } from '../../core/tenant/resolver'
@@ -26,6 +27,50 @@ const schema = z.object({
   produtos_ids:        z.array(z.string().uuid()).optional(),
   ativo:               z.boolean().default(true),
 })
+
+async function verificarConflitoProdutos(
+  pool: Pool,
+  promo: { id?: string; tipo: string; aplica_todos: boolean; produtos_ids: string[] },
+): Promise<string | null> {
+  if (promo.tipo === 'primeira_compra') return null
+  if (!promo.aplica_todos && promo.produtos_ids.length === 0) return null
+
+  const excludeClause = promo.id ? `AND p.id != $1` : ''
+  const excludeParam  = promo.id ? [promo.id] : []
+
+  if (promo.aplica_todos) {
+    const { rows } = await pool.query(
+      `SELECT p.nome FROM promocoes p
+       WHERE p.ativo = true AND p.tipo != 'primeira_compra'
+         AND (p.aplica_todos = true OR EXISTS (
+           SELECT 1 FROM promocoes_produtos pp WHERE pp.promocao_id = p.id
+         ))
+         ${excludeClause}
+       LIMIT 1`,
+      excludeParam,
+    )
+    if (rows.length > 0) {
+      return `Conflito: a promoção "${rows[0].nome}" já está ativa e se aplica a produtos que se sobreporiam.`
+    }
+  } else {
+    const offset = promo.id ? 2 : 1
+    const placeholders = promo.produtos_ids.map((_, i) => `$${i + offset}`).join(',')
+    const { rows } = await pool.query(
+      `SELECT p.nome FROM promocoes p
+       JOIN promocoes_produtos pp ON pp.promocao_id = p.id
+       WHERE p.ativo = true AND p.tipo != 'primeira_compra'
+         AND pp.produto_id IN (${placeholders})
+         ${excludeClause}
+       LIMIT 1`,
+      [...excludeParam, ...promo.produtos_ids],
+    )
+    if (rows.length > 0) {
+      return `Conflito: o produto já pertence à promoção ativa "${rows[0].nome}".`
+    }
+  }
+
+  return null
+}
 
 export async function promocoesRoutes(app: FastifyInstance) {
 
@@ -69,6 +114,15 @@ export async function promocoesRoutes(app: FastifyInstance) {
     const pool = getTenantPoolFromRequest(req)
     const { produtos_ids, ...data } = schema.parse(req.body)
 
+    if (data.ativo) {
+      const conflito = await verificarConflitoProdutos(pool, {
+        tipo:        data.tipo,
+        aplica_todos: data.aplica_todos ?? false,
+        produtos_ids: produtos_ids ?? [],
+      })
+      if (conflito) throw new AppError(conflito, 409)
+    }
+
     const { rows: [p] } = await pool.query(
       `INSERT INTO promocoes (
          nome, codigo, tipo, aplicacao, aplica_todos, categorias_alvo,
@@ -103,6 +157,36 @@ export async function promocoesRoutes(app: FastifyInstance) {
     const pool = getTenantPoolFromRequest(req)
     const { id } = req.params as { id: string }
     const { produtos_ids, ...data } = schema.partial().parse(req.body)
+
+    const needsConflictCheck =
+      data.ativo === true ||
+      produtos_ids !== undefined ||
+      data.aplica_todos !== undefined ||
+      data.tipo !== undefined
+
+    if (needsConflictCheck) {
+      const { rows: [current] } = await pool.query(
+        `SELECT tipo, aplica_todos,
+           COALESCE(
+             (SELECT ARRAY_AGG(produto_id) FROM promocoes_produtos WHERE promocao_id = $1),
+             ARRAY[]::uuid[]
+           ) AS produtos_ids
+         FROM promocoes WHERE id = $1`,
+        [id],
+      )
+
+      const tipoFinal        = data.tipo         ?? current.tipo
+      const aplicaTodosFinal = data.aplica_todos  ?? current.aplica_todos
+      const produtosFinal    = (produtos_ids       ?? current.produtos_ids) as string[]
+
+      const conflito = await verificarConflitoProdutos(pool, {
+        id,
+        tipo:         tipoFinal,
+        aplica_todos: aplicaTodosFinal,
+        produtos_ids: produtosFinal,
+      })
+      if (conflito) throw new AppError(conflito, 409)
+    }
 
     const keys   = Object.keys(data).filter(k => data[k as keyof typeof data] !== undefined)
     const values = keys.map(k => (data as any)[k] ?? null)
