@@ -30,14 +30,14 @@ import { autorizacoesApi } from '@/lib/api/autorizacoes'
 interface ProdutoSearch { id: string; nome: string; preco_base: string; total_versoes: number }
 
 const SHORTCUTS_META = [
-  { key: 'F2',  label: 'cliente'      },
-  { key: 'F3',  label: 'vendedor'     },
-  { key: 'F4',  label: 'sacolas'      },
-  { key: 'F6',  label: 'provas'       },
-  { key: 'F7',  label: 'sangria'      },
-  { key: 'F8',  label: 'suprimento'   },
-  { key: 'F9',  label: 'fechar venda' },
-  { key: 'F10', label: 'fechar caixa' },
+  { key: 'F2',  label: 'cliente',      action: 'cliente'     },
+  { key: 'F3',  label: 'vendedor',     action: 'vendedor'    },
+  { key: 'F4',  label: 'sacolas',      action: 'sacolas'     },
+  { key: 'F6',  label: 'provas',       action: 'provas'      },
+  { key: 'F7',  label: 'sangria',      action: 'sangria'     },
+  { key: 'F8',  label: 'suprimento',   action: 'suprimento'  },
+  { key: 'F9',  label: 'fechar venda', action: 'fecharVenda' },
+  { key: 'F10', label: 'fechar caixa', action: 'fecharCaixa' },
 ] as const
 
 function CaixaRow({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
@@ -874,12 +874,18 @@ export default function CaixaPage() {
 
           {/* Shortcut cheatsheet — absolute watermark, behind all flow content, no layout space */}
           <div style={{ position: 'absolute', right: '16px', bottom: '62px', zIndex: -1, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
-            {SHORTCUTS_META.map(({ key, label }) => (
-              <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.20)' }}>
-                {label}
-                <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.40)', border: '0.5px solid rgba(0,239,255,0.18)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>{key}</kbd>
-              </span>
-            ))}
+            {SHORTCUTS_META.map(({ key, label, action }) => {
+              const custom = atalhosCfg[action]
+              return (
+                <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.20)' }}>
+                  {label}
+                  <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.40)', border: '0.5px solid rgba(0,239,255,0.18)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>{key}</kbd>
+                  {custom && (
+                    <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.40)', border: '0.5px solid rgba(0,239,255,0.18)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>Alt+{custom}</kbd>
+                  )}
+                </span>
+              )
+            })}
           </div>
 
           {/* Input scanner */}
