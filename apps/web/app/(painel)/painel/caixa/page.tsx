@@ -144,7 +144,6 @@ export default function CaixaPage() {
   // ── Promoções + cliente ───────────────────────────────────────────────────
   const [promocoes,   setPromocoes]   = useState<any[]>([])
   const [clienteInfo, setClienteInfo] = useState<any>(null)
-  const [usarCB,      setUsarCB]      = useState(false)
 
   // ── Modais ────────────────────────────────────────────────────────────────
   const [modalCheckout, setModalCheckout] = useState(false)
@@ -195,6 +194,8 @@ export default function CaixaPage() {
   const [sangriaObrigatoria, setSangriaObrigatoria] = useState(false)
   const [movErro,            setMovErro]            = useState('')
   const [atalhosCfg,         setAtalhosCfg]         = useState<Record<string, string>>({})
+  const [saldoCashback,      setSaldoCashback]      = useState(0)
+  const [cashbackCfg, setCashbackCfg] = useState<{ habilitado: boolean; aceitaPromocao: boolean; aceitaDesconto: boolean; aceitaCrediario: boolean; limiteModo: string; limitePercentual: number }>({ habilitado: false, aceitaPromocao: false, aceitaDesconto: true, aceitaCrediario: false, limiteModo: 'livre', limitePercentual: 0 })
 
   // ── Derived cash state ────────────────────────────────────────────────────
   const dinheiroCaixa  = Number(turno?.dinheiro_em_caixa ?? 0)
@@ -215,6 +216,7 @@ export default function CaixaPage() {
       setSupCfg({ habilitada: !!d.supervisao_habilitada, cancelarItem: !!d.exige_auth_cancelar_item, fecharFalta: !!d.exige_auth_fechar_falta, fecharSobra: !!d.exige_auth_fechar_sobra })
       setLimiteCfg({ habilitado: !!d.sangria_limite_habilitado, limite: Number(d.sangria_limite_valor ?? 0), fundo: Number(d.sangria_fundo_troco ?? 0), modo: d.sangria_limite_modo === 'obrigar' ? 'obrigar' : 'avisar' })
       setAtalhosCfg((d.atalhos_caixa as Record<string, string>) ?? {})
+      setCashbackCfg({ habilitado: !!d.cashback_habilitado, aceitaPromocao: !!d.cashback_aceita_promocao, aceitaDesconto: d.cashback_aceita_desconto !== false, aceitaCrediario: !!d.cashback_aceita_crediario, limiteModo: d.cashback_limite_modo ?? 'livre', limitePercentual: Number(d.cashback_limite_percentual ?? 0) })
     }).catch(() => {})
     autorizacoesApi.supervisores()
       .then(r => {
@@ -232,8 +234,15 @@ export default function CaixaPage() {
 
   useEffect(() => {
     if (cliente_id) clientesApi.get(cliente_id).then(setClienteInfo).catch(() => {})
-    else { setClienteInfo(null); setUsarCB(false) }
+    else { setClienteInfo(null) }
   }, [cliente_id])
+
+  useEffect(() => {
+    if (!cliente_id || !cashbackCfg.habilitado) { setSaldoCashback(0); return }
+    api.get(`/cashback-regras/saldo/${cliente_id}`)
+      .then(r => setSaldoCashback(Number(r.data.saldo_disponivel ?? 0)))
+      .catch(() => setSaldoCashback(0))
+  }, [cliente_id, cashbackCfg.habilitado])
 
   // Fetch vendas when fechar modal opens
   useEffect(() => {
@@ -382,10 +391,8 @@ export default function CaixaPage() {
 
   // ── Cálculos ──────────────────────────────────────────────────────────────
   const { itensComDesconto, totalDesconto } = calcularDescontos(itens, promocoes, !clienteInfo?.total_compras, {})
-  const subtotal     = itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
-  const cashbackDisp = clienteInfo ? Number(clienteInfo.saldo_cashback) : 0
-  const cashbackUsar = usarCB ? Math.min(cashbackDisp, subtotal - totalDesconto) : 0
-  const baseTotal    = Math.max(0, subtotal - totalDesconto - cashbackUsar)
+  const subtotal  = itens.reduce((s, i) => s + i.preco_unitario * i.quantidade, 0)
+  const baseTotal = Math.max(0, subtotal - totalDesconto)
 
   // Desconto global do caixa — display only
   const baseElegivel = itensComDesconto.reduce((s, i) => {
@@ -1192,7 +1199,13 @@ export default function CaixaPage() {
         itensComDesconto={itensComDesconto}
         baseTotal={baseTotal}
         totalDesconto={totalDesconto}
-        cashbackUsar={cashbackUsar}
+        saldoCashback={saldoCashback}
+        cashbackHabilitado={cashbackCfg.habilitado}
+        cashbackAceitaPromocao={cashbackCfg.aceitaPromocao}
+        cashbackAceitaDesconto={cashbackCfg.aceitaDesconto}
+        cashbackAceitaCrediario={cashbackCfg.aceitaCrediario}
+        cashbackLimiteModo={cashbackCfg.limiteModo}
+        cashbackLimitePercentual={cashbackCfg.limitePercentual}
         clienteId={cliente_id}
         clienteNome={cliente_nome}
         vendedorNome={vendedor ? vendedor.nome : (vendedor_nome ?? null)}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ImageIcon, Package, Tag, ShieldCheck, Banknote, Keyboard } from 'lucide-react'
+import { ImageIcon, Package, Tag, ShieldCheck, Banknote, Keyboard, Gift } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -26,6 +26,14 @@ interface SistemaConfig {
   sangria_fundo_troco:        string | number
   sangria_limite_modo:        string
   atalhos_caixa:              Record<string, string>
+  cashback_habilitado:        boolean
+  cashback_aceita_promocao:   boolean
+  cashback_aceita_desconto:   boolean
+  cashback_aceita_crediario:  boolean
+  cashback_limite_modo:       string
+  cashback_limite_percentual: string | number
+  cashback_carencia_dias:     string | number
+  cashback_validade_meses:    string | number
 }
 
 async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
@@ -65,7 +73,7 @@ const ATALHO_ACTIONS = [
   { actionKey: 'fecharCaixa', label: 'Fechar caixa',  fKey: 'F10' },
 ] as const
 
-type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | null
+type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | null
 
 export default function ConfigSistemaPage() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -107,6 +115,17 @@ export default function ConfigSistemaPage() {
   const [sangriLimiteModo,       setSangriLimiteModo]       = useState<'avisar' | 'obrigar'>('avisar')
   const [caixaSaved,             setCaixaSaved]             = useState(false)
 
+  // ── Cashback state ────────────────────────────────────────────────────────
+  const [cashbackHabilitado,      setCashbackHabilitado]      = useState(false)
+  const [cashbackAceitaPromocao,  setCashbackAceitaPromocao]  = useState(false)
+  const [cashbackAceitaDesconto,  setCashbackAceitaDesconto]  = useState(true)
+  const [cashbackAceitaCrediario, setCashbackAceitaCrediario] = useState(false)
+  const [cashbackLimiteModo,      setCashbackLimiteModo]      = useState<'livre' | 'percentual'>('livre')
+  const [cashbackLimitePct,       setCashbackLimitePct]       = useState(0)
+  const [cashbackCarenciaDias,    setCashbackCarenciaDias]    = useState(0)
+  const [cashbackValidadeMeses,   setCashbackValidadeMeses]   = useState(0)
+  const [cashbackSaved,           setCashbackSaved]           = useState(false)
+
   // ── Atalhos state ─────────────────────────────────────────────────────────
   const [atalhosCfg,      setAtalhosCfg]      = useState<Record<string, string>>({})
   const [atalhosSaved,    setAtalhosSaved]    = useState(false)
@@ -145,6 +164,14 @@ export default function ConfigSistemaPage() {
       setSangriSaldoTrocoCents(Math.round(Number(d.sangria_fundo_troco ?? 0) * 100))
       setSangriLimiteModo((d.sangria_limite_modo ?? 'avisar') as 'avisar' | 'obrigar')
       setAtalhosCfg((d.atalhos_caixa as Record<string, string>) ?? {})
+      setCashbackHabilitado(d.cashback_habilitado ?? false)
+      setCashbackAceitaPromocao(d.cashback_aceita_promocao ?? false)
+      setCashbackAceitaDesconto(d.cashback_aceita_desconto ?? true)
+      setCashbackAceitaCrediario(d.cashback_aceita_crediario ?? false)
+      setCashbackLimiteModo((d.cashback_limite_modo ?? 'livre') as 'livre' | 'percentual')
+      setCashbackLimitePct(Number(d.cashback_limite_percentual ?? 0))
+      setCashbackCarenciaDias(Number(d.cashback_carencia_dias ?? 0))
+      setCashbackValidadeMeses(Number(d.cashback_validade_meses ?? 0))
     }).finally(() => setLoading(false))
   }, [])
 
@@ -296,6 +323,45 @@ export default function ConfigSistemaPage() {
     } catch { setSangriLimiteHabilitado(!v) }
   }
 
+  // ── Cashback handlers ────────────────────────────────────────────────────
+
+  async function handleSaveCashback(fields: Record<string, any>) {
+    try {
+      await api.put('/dados-loja/sistema', fields)
+      setCashbackSaved(true); setTimeout(() => setCashbackSaved(false), 2000)
+    } catch {}
+  }
+
+  async function handleToggleCashbackHabilitado() {
+    const v = !cashbackHabilitado
+    setCashbackHabilitado(v)
+    try {
+      await api.put('/dados-loja/sistema', { cashback_habilitado: v })
+      setCashbackSaved(true); setTimeout(() => setCashbackSaved(false), 2000)
+    } catch { setCashbackHabilitado(!v) }
+  }
+
+  async function handleToggleCashbackAceitaPromocao() {
+    const v = !cashbackAceitaPromocao
+    setCashbackAceitaPromocao(v)
+    try { await api.put('/dados-loja/sistema', { cashback_aceita_promocao: v }); setCashbackSaved(true); setTimeout(() => setCashbackSaved(false), 2000) }
+    catch { setCashbackAceitaPromocao(!v) }
+  }
+
+  async function handleToggleCashbackAceitaDesconto() {
+    const v = !cashbackAceitaDesconto
+    setCashbackAceitaDesconto(v)
+    try { await api.put('/dados-loja/sistema', { cashback_aceita_desconto: v }); setCashbackSaved(true); setTimeout(() => setCashbackSaved(false), 2000) }
+    catch { setCashbackAceitaDesconto(!v) }
+  }
+
+  async function handleToggleCashbackAceitaCrediario() {
+    const v = !cashbackAceitaCrediario
+    setCashbackAceitaCrediario(v)
+    try { await api.put('/dados-loja/sistema', { cashback_aceita_crediario: v }); setCashbackSaved(true); setTimeout(() => setCashbackSaved(false), 2000) }
+    catch { setCashbackAceitaCrediario(!v) }
+  }
+
   // ── Atalhos handlers ──────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -352,7 +418,7 @@ export default function ConfigSistemaPage() {
   const supervisores = colaboradores.filter(c => c.is_supervisor)
   const semMetodoAuth = supervisaoHabilitada && !senhaMestraDefinida && supervisores.length === 0
 
-  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos'
+  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback'
   const PANEL_ICON: Record<SecaoNonNull, React.ReactNode> = {
     logo:       <ImageIcon   size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     estoque:    <Package     size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
@@ -360,9 +426,11 @@ export default function ConfigSistemaPage() {
     supervisao: <ShieldCheck size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     caixa:      <Banknote    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     atalhos:    <Keyboard    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    cashback:   <Gift        size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
   }
   const PANEL_LABEL: Record<SecaoNonNull, string> = {
-    logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão', caixa: 'Limite de caixa', atalhos: 'Atalhos do caixa',
+    logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão',
+    caixa: 'Limite de caixa', atalhos: 'Atalhos do caixa', cashback: 'Cashback',
   }
 
   return (
@@ -392,6 +460,7 @@ export default function ConfigSistemaPage() {
               {secao === 'supervisao' && supervisaoSaved && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'caixa'      && caixaSaved      && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'atalhos'    && atalhosSaved    && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
+              {secao === 'cashback'   && cashbackSaved   && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
             </div>
 
             {/* Panel body */}
@@ -746,6 +815,140 @@ export default function ConfigSistemaPage() {
                 </div>
               )}
 
+              {/* ── Cashback ─────────────────────────────────────────── */}
+              {secao === 'cashback' && (
+                <div className="flex flex-col gap-5">
+
+                  {/* Master toggle */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: cashbackHabilitado ? 'rgba(0,239,255,0.9)' : 'rgba(255,255,255,0.75)' }}>
+                        Cashback habilitado
+                      </p>
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                        Clientes acumulam saldo ao comprar conforme a regra de cashback.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleToggleCashbackHabilitado}
+                      className="relative transition-colors shrink-0"
+                      style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: cashbackHabilitado ? 'rgba(0,212,212,0.85)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                    >
+                      <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: cashbackHabilitado ? '21px' : '3px' }} />
+                    </button>
+                  </div>
+
+                  <div style={{ opacity: cashbackHabilitado ? 1 : 0.38, pointerEvents: cashbackHabilitado ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
+                    <div className="flex flex-col gap-5">
+
+                      {/* Regras de uso */}
+                      <div className="flex flex-col gap-3">
+                        <p style={LBL9}>Regras de uso</p>
+                        <div style={DIV_HR} />
+
+                        <div className="flex items-center justify-between gap-3">
+                          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', flex: 1 }}>Pode usar em produtos com promoção</p>
+                          <button type="button" onClick={handleToggleCashbackAceitaPromocao} className="relative shrink-0"
+                            style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: cashbackAceitaPromocao ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}>
+                            <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: cashbackAceitaPromocao ? '21px' : '3px' }} />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3">
+                          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', flex: 1 }}>Pode usar quando há desconto de caixa</p>
+                          <button type="button" onClick={handleToggleCashbackAceitaDesconto} className="relative shrink-0"
+                            style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: cashbackAceitaDesconto ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}>
+                            <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: cashbackAceitaDesconto ? '21px' : '3px' }} />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3">
+                          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', flex: 1 }}>Pode usar no crediário</p>
+                          <button type="button" onClick={handleToggleCashbackAceitaCrediario} className="relative shrink-0"
+                            style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: cashbackAceitaCrediario ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}>
+                            <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: cashbackAceitaCrediario ? '21px' : '3px' }} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Limite de uso */}
+                      <div className="flex flex-col gap-3">
+                        <p style={LBL9}>Limite de uso por compra</p>
+                        <div style={DIV_HR} />
+                        <div className="flex gap-2">
+                          {(['livre', 'percentual'] as const).map(v => {
+                            const lbl = v === 'livre' ? 'Livre' : 'Até % da compra'
+                            const sel = cashbackLimiteModo === v
+                            return (
+                              <button key={v} type="button"
+                                onClick={() => { setCashbackLimiteModo(v); handleSaveCashback({ cashback_limite_modo: v }) }}
+                                style={{ flex: 1, minHeight: '36px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px',
+                                  border: sel ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
+                                  background: sel ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
+                                  color: sel ? '#0ef' : 'rgba(255,255,255,0.45)',
+                                }}>
+                                {lbl}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {cashbackLimiteModo === 'percentual' && (
+                          <div className="flex flex-col gap-1.5">
+                            <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Percentual máximo</label>
+                            <div className="relative" style={{ maxWidth: '120px' }}>
+                              <input type="number" min="0" max="100" step="0.1"
+                                value={cashbackLimitePct}
+                                onChange={e => setCashbackLimitePct(parseFloat(e.target.value) || 0)}
+                                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; handleSaveCashback({ cashback_limite_percentual: cashbackLimitePct }) }}
+                                className="w-full min-h-[38px] px-3 pr-7 outline-none"
+                                style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                              />
+                              <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}>%</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tempo */}
+                      <div className="flex flex-col gap-3">
+                        <p style={LBL9}>Tempo</p>
+                        <div style={DIV_HR} />
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1.5">
+                            <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Carência (dias)</label>
+                            <input type="number" min="0" step="1"
+                              value={cashbackCarenciaDias}
+                              onChange={e => setCashbackCarenciaDias(parseInt(e.target.value) || 0)}
+                              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; handleSaveCashback({ cashback_carencia_dias: cashbackCarenciaDias }) }}
+                              className="w-full min-h-[38px] px-3 outline-none"
+                              style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <label style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Validade (meses)</label>
+                            <input type="number" min="0" step="1"
+                              value={cashbackValidadeMeses}
+                              onChange={e => setCashbackValidadeMeses(parseInt(e.target.value) || 0)}
+                              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; handleSaveCashback({ cashback_validade_meses: cashbackValidadeMeses }) }}
+                              className="w-full min-h-[38px] px-3 outline-none"
+                              style={{ background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '13px' }}
+                            />
+                          </div>
+                        </div>
+                        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
+                          0 = sem carência / sem validade.
+                        </p>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ── Supervisão ───────────────────────────────────────── */}
               {secao === 'supervisao' && (
                 <div className="flex flex-col gap-5">
@@ -957,6 +1160,7 @@ export default function ConfigSistemaPage() {
               { key: 'supervisao' as const, label: 'Supervisão',        Icon: ShieldCheck },
               { key: 'caixa'      as const, label: 'Limite de caixa',   Icon: Banknote    },
               { key: 'atalhos'    as const, label: 'Atalhos do caixa',  Icon: Keyboard    },
+              { key: 'cashback'   as const, label: 'Cashback',          Icon: Gift        },
             ] satisfies { key: Secao; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => {
               const sel = secao === key
               return (

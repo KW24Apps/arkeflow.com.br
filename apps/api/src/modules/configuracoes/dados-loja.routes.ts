@@ -168,9 +168,23 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
       exige_auth_fechar_falta, exige_auth_fechar_sobra, exige_auth_cancelar_item,
       sangria_limite_habilitado, sangria_limite_valor, sangria_fundo_troco, sangria_limite_modo,
       atalhos_caixa,
+      cashback_habilitado, cashback_aceita_promocao, cashback_aceita_desconto, cashback_aceita_crediario,
+      cashback_limite_modo, cashback_limite_percentual, cashback_carencia_dias, cashback_validade_meses,
       senha_mestra,
     } = req.body as any
 
+    if (cashback_limite_modo !== undefined && !['livre', 'percentual'].includes(cashback_limite_modo)) {
+      return reply.status(400).send({ error: 'cashback_limite_modo inválido.' })
+    }
+    if (cashback_limite_percentual !== undefined && Number(cashback_limite_percentual) < 0) {
+      return reply.status(400).send({ error: 'cashback_limite_percentual deve ser ≥ 0.' })
+    }
+    if (cashback_carencia_dias !== undefined && Number(cashback_carencia_dias) < 0) {
+      return reply.status(400).send({ error: 'cashback_carencia_dias deve ser ≥ 0.' })
+    }
+    if (cashback_validade_meses !== undefined && Number(cashback_validade_meses) < 0) {
+      return reply.status(400).send({ error: 'cashback_validade_meses deve ser ≥ 0.' })
+    }
     if (sangria_limite_modo !== undefined && !['avisar', 'obrigar'].includes(sangria_limite_modo)) {
       return reply.status(400).send({ error: 'sangria_limite_modo inválido.' })
     }
@@ -210,6 +224,14 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     if (sangria_fundo_troco !== undefined)         { val.push(sangria_fundo_troco);          upd.push(`sangria_fundo_troco = $${val.length}`) }
     if (sangria_limite_modo !== undefined)         { val.push(sangria_limite_modo);          upd.push(`sangria_limite_modo = $${val.length}`) }
     if (atalhos_caixa !== undefined)               { val.push(atalhos_caixa);                upd.push(`atalhos_caixa = $${val.length}`) }
+    if (cashback_habilitado !== undefined)        { val.push(cashback_habilitado);          upd.push(`cashback_habilitado = $${val.length}`) }
+    if (cashback_aceita_promocao !== undefined)   { val.push(cashback_aceita_promocao);     upd.push(`cashback_aceita_promocao = $${val.length}`) }
+    if (cashback_aceita_desconto !== undefined)   { val.push(cashback_aceita_desconto);     upd.push(`cashback_aceita_desconto = $${val.length}`) }
+    if (cashback_aceita_crediario !== undefined)  { val.push(cashback_aceita_crediario);    upd.push(`cashback_aceita_crediario = $${val.length}`) }
+    if (cashback_limite_modo !== undefined)       { val.push(cashback_limite_modo);         upd.push(`cashback_limite_modo = $${val.length}`) }
+    if (cashback_limite_percentual !== undefined) { val.push(cashback_limite_percentual);   upd.push(`cashback_limite_percentual = $${val.length}`) }
+    if (cashback_carencia_dias !== undefined)     { val.push(cashback_carencia_dias);       upd.push(`cashback_carencia_dias = $${val.length}`) }
+    if (cashback_validade_meses !== undefined)    { val.push(cashback_validade_meses);      upd.push(`cashback_validade_meses = $${val.length}`) }
     if (senha_mestra && typeof senha_mestra === 'string' && senha_mestra.trim()) {
       const hash = await bcrypt.hash(senha_mestra.trim(), 10)
       val.push(hash); upd.push(`senha_mestra_hash = $${val.length}`)

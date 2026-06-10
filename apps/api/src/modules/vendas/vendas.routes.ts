@@ -45,11 +45,15 @@ export async function vendasRoutes(app: FastifyInstance) {
     const user = req.user as JwtPayload
     const data = vendaSchema.parse(req.body)
 
-    // Verifica configuração global de estoque
+    // Verifica configuração global de estoque e cashback
     const { rows: [cfg] } = await pool.query(
-      `SELECT controle_estoque FROM configuracoes_loja LIMIT 1`
+      `SELECT controle_estoque, cashback_habilitado, cashback_carencia_dias, cashback_validade_meses
+       FROM configuracoes_loja LIMIT 1`
     )
-    const controleGlobal = cfg?.controle_estoque ?? true
+    const controleGlobal     = cfg?.controle_estoque ?? true
+    const cashbackHabilitado = !!(cfg?.cashback_habilitado)
+    const carenciaDias       = Number(cfg?.cashback_carencia_dias ?? 0)
+    const validadeMeses      = Number(cfg?.cashback_validade_meses ?? 0)
 
     // Lê config de juros do crediário direto da forma_pagamento
     const { rows: [crediarioFp] } = await pool.query(
@@ -100,14 +104,14 @@ export async function vendasRoutes(app: FastifyInstance) {
 
       // Calcula cashback gerado
       let cashback_gerado = 0
-      if (data.cliente_id) {
+      if (data.cliente_id && cashbackHabilitado) {
         const { rows: [cli] } = await client.query(
           `SELECT c.saldo_cashback, rc.percentual
            FROM clientes c LEFT JOIN regras_cashback rc ON rc.id = c.regra_cashback_id
            WHERE c.id = $1`, [data.cliente_id]
         )
         if (cli?.percentual) {
-          cashback_gerado = total * (Number(cli.percentual) / 100)
+          cashback_gerado = Math.round(total * (Number(cli.percentual) / 100) * 100) / 100
         }
       }
 
@@ -219,15 +223,25 @@ export async function vendasRoutes(app: FastifyInstance) {
           )
         }
         // Adiciona cashback gerado
-        if (cashback_gerado > 0) {
+        if (cashbackHabilitado && cashback_gerado > 0) {
+          const hoje = new Date()
+          const dispDe = new Date(hoje)
+          if (carenciaDias > 0) dispDe.setDate(dispDe.getDate() + carenciaDias)
+          let expiraEm: Date | null = null
+          if (validadeMeses > 0) {
+            expiraEm = new Date(dispDe)
+            expiraEm.setMonth(expiraEm.getMonth() + validadeMeses)
+          }
           await client.query(
             `UPDATE clientes SET saldo_cashback = saldo_cashback + $1 WHERE id = $2`,
             [cashback_gerado, data.cliente_id]
           )
           await client.query(
-            `INSERT INTO historico_cashback (cliente_id, venda_id, tipo, valor)
-             VALUES ($1,$2,'ganho',$3)`,
-            [data.cliente_id, venda_id, cashback_gerado]
+            `INSERT INTO historico_cashback (cliente_id, venda_id, tipo, valor, disponivel_a_partir_de, expira_em)
+             VALUES ($1,$2,'ganho',$3,$4,$5)`,
+            [data.cliente_id, venda_id, cashback_gerado,
+             dispDe.toISOString().split('T')[0],
+             expiraEm ? expiraEm.toISOString().split('T')[0] : null]
           )
         }
       }

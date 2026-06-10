@@ -68,4 +68,23 @@ export async function cashbackRoutes(app: FastifyInstance) {
     await pool.query(`UPDATE regras_cashback SET ativo = false WHERE id = $1`, [id])
     return reply.status(204).send()
   })
+
+  app.get('/saldo/:clienteId', { preHandler: auth }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { clienteId } = req.params as { clienteId: string }
+    const { rows: [row] } = await pool.query(
+      `SELECT
+         COALESCE(SUM(valor) FILTER (
+           WHERE tipo = 'ganho'
+             AND (disponivel_a_partir_de IS NULL OR disponivel_a_partir_de <= CURRENT_DATE)
+             AND (expira_em IS NULL OR expira_em >= CURRENT_DATE)
+         ), 0)
+         - COALESCE(SUM(valor) FILTER (WHERE tipo = 'resgate'), 0)
+         AS saldo_disponivel
+       FROM historico_cashback
+       WHERE cliente_id = $1`,
+      [clienteId]
+    )
+    return reply.send({ saldo_disponivel: Math.max(0, Number(row?.saldo_disponivel ?? 0)) })
+  })
 }

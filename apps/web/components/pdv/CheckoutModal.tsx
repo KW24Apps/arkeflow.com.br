@@ -64,23 +64,29 @@ export interface CheckoutResult {
 }
 
 interface Props {
-  open:                boolean
-  onClose:             () => void
-  onSuccess:           (r: CheckoutResult) => void
-  itensComDesconto:    ItemComDesconto[]
-  baseTotal:           number
-  totalDesconto:       number
-  cashbackUsar:        number
-  clienteId:           string | null
-  clienteNome:         string | null
-  vendedorNome:        string | null
-  vendedorRemovivel:   boolean
-  formasPagamento?:    FormaPagamento[]
-  onAbrirCliente:      () => void
-  onAbrirVendedor:     () => void
-  onAbrirDadosCliente: () => void
-  onRemoverCliente:    () => void
-  onRemoverVendedor:   () => void
+  open:                     boolean
+  onClose:                  () => void
+  onSuccess:                (r: CheckoutResult) => void
+  itensComDesconto:         ItemComDesconto[]
+  baseTotal:                number
+  totalDesconto:            number
+  saldoCashback:            number
+  cashbackHabilitado:       boolean
+  cashbackAceitaPromocao:   boolean
+  cashbackAceitaDesconto:   boolean
+  cashbackAceitaCrediario:  boolean
+  cashbackLimiteModo:       string
+  cashbackLimitePercentual: number
+  clienteId:                string | null
+  clienteNome:              string | null
+  vendedorNome:             string | null
+  vendedorRemovivel:        boolean
+  formasPagamento?:         FormaPagamento[]
+  onAbrirCliente:           () => void
+  onAbrirVendedor:          () => void
+  onAbrirDadosCliente:      () => void
+  onRemoverCliente:         () => void
+  onRemoverVendedor:        () => void
 }
 
 function defaultPrimeiraParcela(): string {
@@ -100,8 +106,10 @@ function validateParcelasStr(str: string, max: number): string {
 
 export function CheckoutModal({
   open, onClose, onSuccess,
-  itensComDesconto, baseTotal, totalDesconto, cashbackUsar, clienteId,
-  clienteNome, vendedorNome, vendedorRemovivel, formasPagamento,
+  itensComDesconto, baseTotal, totalDesconto,
+  saldoCashback, cashbackHabilitado, cashbackAceitaPromocao, cashbackAceitaDesconto,
+  cashbackAceitaCrediario, cashbackLimiteModo, cashbackLimitePercentual,
+  clienteId, clienteNome, vendedorNome, vendedorRemovivel, formasPagamento,
   onAbrirCliente, onAbrirVendedor, onAbrirDadosCliente, onRemoverCliente, onRemoverVendedor,
 }: Props) {
   // ── Refs ─────────────────────────────────────────────────────────────────
@@ -130,6 +138,9 @@ export function CheckoutModal({
   const [creditoLiberado, setCreditoLiberado] = useState(false)
   const [creditoInfo,     setCreditoInfo]     = useState<CreditoInfo>({ limite: 0, ocupado: 0, disponivel: 0 })
 
+  // ── Cashback state ───────────────────────────────────────────────────────
+  const [usarCashback, setUsarCashback] = useState(false)
+
   // ── Crediário state ──────────────────────────────────────────────────────
   const [crediarioCfg,            setCrediarioCfg]            = useState<CrediarioCfg | null>(null)
   const [entrada,                  setEntrada]                 = useState(0)
@@ -142,6 +153,7 @@ export function CheckoutModal({
   useEffect(() => {
     if (!open) return
     setPagamentos([]); setValorAtual(''); setParcelasStr('1'); setParcelasErro(''); setErro(''); setComDesconto(false)
+    setUsarCashback(false)
     setCreditoLiberado(false); setCreditoInfo({ limite: 0, ocupado: 0, disponivel: 0 })
     setCrediarioParcelasStr('1'); setCrediarioParcelasErro(''); setPrimeiraParcela(defaultPrimeiraParcela())
     setEntrada(0); setFormaEntradaId(null)
@@ -236,6 +248,26 @@ export function CheckoutModal({
     ? Math.round((baseTotal - descontoCaixa) * 100) / 100
     : baseTotal
 
+  // ── Cashback derived values ──────────────────────────────────────────────
+  const isCrediario     = formaAtual?.tipo === 'crediario'
+  const hasPromo        = totalDesconto > 0
+  const cashbackElegivel = !!(
+    cashbackHabilitado
+    && saldoCashback > 0
+    && clienteId
+    && (!hasPromo        || cashbackAceitaPromocao)
+    && (!comDesconto     || cashbackAceitaDesconto)
+    && (!isCrediario     || cashbackAceitaCrediario)
+  )
+  const cashbackAplicado = (usarCashback && cashbackElegivel) ? (() => {
+    if (cashbackLimiteModo === 'percentual' && cashbackLimitePercentual > 0) {
+      const maxPct = Math.round(totalEfetivo * (cashbackLimitePercentual / 100) * 100) / 100
+      return Math.round(Math.min(saldoCashback, maxPct, totalEfetivo) * 100) / 100
+    }
+    return Math.round(Math.min(saldoCashback, totalEfetivo) * 100) / 100
+  })() : 0
+  const totalFinal = Math.max(0, Math.round((totalEfetivo - cashbackAplicado) * 100) / 100)
+
   // ── Allowed forms ────────────────────────────────────────────────────────
   const formasPermitidas = formas.filter(f => {
     if (!f.ativo) return false
@@ -247,7 +279,7 @@ export function CheckoutModal({
   // ── Common payment calculations ──────────────────────────────────────────
   const fmt         = (v: number) => `R$ ${v.toFixed(2)}`
   const totalJaPago = pagamentos.reduce((s, p) => s + p.valor, 0)
-  const restante    = Math.max(0, totalEfetivo - totalJaPago)
+  const restante    = Math.max(0, totalFinal - totalJaPago)
   const valAtual    = parseFloat(valorAtual) || 0
   const troco       = valAtual > restante ? valAtual - restante : 0
   const usadasIds   = pagamentos.map(p => p.forma.id)
@@ -256,8 +288,8 @@ export function CheckoutModal({
   const todoPago = restante <= 0.01 && pagamentos.length > 0 && formaAtual?.tipo !== 'crediario'
 
   // ── Crediário derived values ─────────────────────────────────────────────
-  const entradaMinima  = crediarioCfg ? Math.round(totalEfetivo * (crediarioCfg.entrada_min_pct / 100) * 100) / 100 : 0
-  const financiado     = Math.round(Math.max(0, totalEfetivo - entrada) * 100) / 100
+  const entradaMinima  = crediarioCfg ? Math.round(totalFinal * (crediarioCfg.entrada_min_pct / 100) * 100) / 100 : 0
+  const financiado     = Math.round(Math.max(0, totalFinal - entrada) * 100) / 100
   const crediarioParcelas = Math.max(1, parseInt(crediarioParcelasStr, 10) || 0)
   const N              = crediarioParcelas
   const jurosParcelado = (() => {
@@ -276,7 +308,6 @@ export function CheckoutModal({
     return formas.filter(f => f.ativo && f.tipo !== 'crediario')
   })()
 
-  const isCrediario      = formaAtual?.tipo === 'crediario'
   const nomeFormaEntrada = formasEntrada.find(f => f.id === (formaEntradaId ?? formasEntrada[0]?.id))?.nome ?? ''
 
   // ── Cartão de crédito derived values ────────────────────────────────────
@@ -297,11 +328,12 @@ export function CheckoutModal({
   const cartaoParcelaValor = cartaoN > 0 && cartaoValorComJuros > 0 ? cartaoValorComJuros / cartaoN : 0
 
   // ── Entra no caixa agora ─────────────────────────────────────────────────
-  const caixaAgora = isCrediario ? entrada : totalEfetivo
+  const caixaAgora = isCrediario ? entrada : totalFinal
 
   // ── Discount toggle ──────────────────────────────────────────────────────
   function handleComDesconto(novoValor: boolean) {
     setComDesconto(novoValor)
+    if (novoValor && usarCashback && !cashbackAceitaDesconto) setUsarCashback(false)
     setPagamentos([]); setValorAtual(''); setParcelasStr('1'); setParcelasErro(''); setErro('')
     const novasPermitidas = formas.filter(f => {
       if (!f.ativo) return false
@@ -317,6 +349,7 @@ export function CheckoutModal({
   // ── Switch payment form ──────────────────────────────────────────────────
   function handleFormaChange(f: FormaPagamento) {
     const switchingToCrediario = f.tipo === 'crediario' && formaAtual?.tipo !== 'crediario'
+    if (switchingToCrediario && usarCashback && !cashbackAceitaCrediario) setUsarCashback(false)
     setFormaAtual(f)
     setErro('')
     setParcelasStr('1')
@@ -324,7 +357,7 @@ export function CheckoutModal({
     if (switchingToCrediario) {
       setPagamentos([])
       setValorAtual('')
-      const min = crediarioCfg ? Math.round(totalEfetivo * (crediarioCfg.entrada_min_pct / 100) * 100) / 100 : 0
+      const min = crediarioCfg ? Math.round(totalFinal * (crediarioCfg.entrada_min_pct / 100) * 100) / 100 : 0
       setEntrada(min)
       setCrediarioParcelasStr('1')
       setCrediarioParcelasErro('')
@@ -335,7 +368,7 @@ export function CheckoutModal({
 
   // ── Build API payments for common flow ───────────────────────────────────
   function construirPagamentosParaAPI(lista: PagamentoParcial[]) {
-    const totalAlvo  = totalEfetivo
+    const totalAlvo  = totalFinal
     const rounded    = lista.map(p => Math.round(p.valor * 100) / 100)
     const currentSum = rounded.reduce((s, v) => s + v, 0)
     const diff       = Math.round((totalAlvo - currentSum) * 100) / 100
@@ -387,7 +420,7 @@ export function CheckoutModal({
 
     const novoPag: PagamentoParcial = { forma: formaAtual, valor: valAtual, parcelas, juros: jurosValue }
     const novaLista    = [...pagamentos, novoPag]
-    const novoRestante = Math.max(0, totalEfetivo - novaLista.reduce((s, p) => s + p.valor, 0))
+    const novoRestante = Math.max(0, totalFinal - novaLista.reduce((s, p) => s + p.valor, 0))
 
     setPagamentos(novaLista)
     setValorAtual('')
@@ -417,7 +450,7 @@ export function CheckoutModal({
         cliente_id:         clienteId ?? null,
         itens:              itensComDesconto.map(i => ({ versao_id: i.versao_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto_item: i.desconto_item })),
         pagamentos:         pagamentosParaAPI,
-        cashback_usado:     cashbackUsar,
+        cashback_usado:     cashbackAplicado,
         desconto_promocao:  totalDesconto,
         desconto_pagamento: D,
         vendedor_id:        vendedor_id ?? null,
@@ -428,7 +461,7 @@ export function CheckoutModal({
         return { nome: original?.forma.nome ?? '', tipo: original?.forma.tipo ?? '', valor: p.valor, troco: p.troco ?? 0, parcelas: p.parcelas, juros: original?.juros ?? 0 }
       })
       resetState()
-      onSuccess({ ...r, pagamentos: pagamentosRecap, desconto_promocao: totalDesconto, desconto_pagamento: D, cashback_usado: cashbackUsar })
+      onSuccess({ ...r, pagamentos: pagamentosRecap, desconto_promocao: totalDesconto, desconto_pagamento: D, cashback_usado: cashbackAplicado })
     } catch (e: any) {
       setErro(e?.response?.data?.error ?? 'Erro ao registrar venda.')
       setProcessando(false)
@@ -456,7 +489,7 @@ export function CheckoutModal({
         cliente_id:         clienteId ?? null,
         itens:              itensComDesconto.map(i => ({ versao_id: i.versao_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto_item: i.desconto_item })),
         pagamentos:         pags,
-        cashback_usado:     cashbackUsar,
+        cashback_usado:     cashbackAplicado,
         desconto_promocao:  totalDesconto,
         desconto_pagamento: D,
         vendedor_id:        vendedor_id ?? null,
@@ -477,7 +510,7 @@ export function CheckoutModal({
         primeira_parcela: primeiraParcela,
       }
       resetState()
-      onSuccess({ ...r, pagamentos: pagamentosRecap, crediario, desconto_promocao: totalDesconto, desconto_pagamento: D, cashback_usado: cashbackUsar })
+      onSuccess({ ...r, pagamentos: pagamentosRecap, crediario, desconto_promocao: totalDesconto, desconto_pagamento: D, cashback_usado: cashbackAplicado })
     } catch (e: any) {
       setErro(e?.response?.data?.error ?? 'Erro ao registrar venda.')
       setProcessando(false)
@@ -486,7 +519,7 @@ export function CheckoutModal({
 
   function resetState() {
     setPagamentos([]); setValorAtual(''); setParcelasStr('1'); setParcelasErro(''); setErro('')
-    setProcessando(false); setFormaAtual(null); setComDesconto(false)
+    setProcessando(false); setFormaAtual(null); setComDesconto(false); setUsarCashback(false)
     setEntrada(0); setCrediarioParcelasStr('1'); setCrediarioParcelasErro(''); setPrimeiraParcela(defaultPrimeiraParcela())
     setFormaEntradaId(null); valorPrefillActive.current = false
   }
@@ -614,6 +647,36 @@ export function CheckoutModal({
                   />
                 </div>
 
+                {/* ── Cashback toggle ───────────────────────────────────── */}
+                {cashbackElegivel && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(100,220,160,0.06)', border: '0.5px solid rgba(100,220,160,0.2)', borderRadius: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                      <div>
+                        <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.8)', margin: 0 }}>Usar cashback</p>
+                        <p style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)', margin: '2px 0 0' }}>
+                          R$ {saldoCashback.toFixed(2)} disponível
+                        </p>
+                      </div>
+                      <button type="button"
+                        onClick={() => {
+                          const v = !usarCashback
+                          setUsarCashback(v)
+                          setPagamentos([]); setValorAtual(''); setParcelasStr('1'); setParcelasErro(''); setErro('')
+                          setTimeout(() => selectRef.current?.focus(), 50)
+                        }}
+                        style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: usarCashback ? 'rgba(100,220,160,0.85)' : 'rgba(255,255,255,0.12)', cursor: 'pointer', position: 'relative', flexShrink: 0 }}
+                      >
+                        <span style={{ position: 'absolute', top: '3px', width: '16px', height: '16px', background: 'white', borderRadius: '50%', left: usarCashback ? '21px' : '3px', transition: 'left 0.12s' }} />
+                      </button>
+                    </div>
+                    {usarCashback && cashbackAplicado > 0 && (
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(100,220,160,0.9)', marginTop: '8px', marginBottom: 0 }}>
+                        − R$ {cashbackAplicado.toFixed(2)} aplicado
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* ── CREDIÁRIO PANEL ────────────────────────────────────── */}
                 {isCrediario && crediarioCfg && (
                   <>
@@ -625,7 +688,7 @@ export function CheckoutModal({
                       <CurrencyInput
                         ref={entradaRef}
                         value={Math.round(entrada * 100)}
-                        onChange={cents => setEntrada(Math.min(cents / 100, totalEfetivo - 0.01))}
+                        onChange={cents => setEntrada(Math.min(cents / 100, totalFinal - 0.01))}
                         onEnter={() => setTimeout(() => crediarioParcelasRef.current?.focus(), 50)}
                         style={{ ...inputStyle, minHeight: '48px', fontSize: '18px', fontWeight: 600,
                           border: `0.5px solid ${crediarioCfg.entrada_obrigatoria && entrada < entradaMinima - 0.005 ? 'rgba(240,100,100,0.55)' : 'rgba(255,255,255,0.12)'}` }}
@@ -804,7 +867,7 @@ export function CheckoutModal({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Total</span>
-                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)' }}>{fmt(totalEfetivo)}</span>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)' }}>{fmt(totalFinal)}</span>
                   </div>
                   {entrada > 0.005 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -864,21 +927,21 @@ export function CheckoutModal({
                       <span style={{ fontSize: '12px', color: 'rgba(240,100,100,0.75)' }}>− {fmt(totalDesconto)}</span>
                     </div>
                   )}
-                  {cashbackUsar > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Cashback</span>
-                      <span style={{ fontSize: '12px', color: 'rgba(100,220,160,0.7)' }}>− {fmt(cashbackUsar)}</span>
-                    </div>
-                  )}
                   {comDesconto && descontoCaixa > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Desc. caixa</span>
                       <span style={{ fontSize: '12px', color: 'rgba(100,220,160,0.7)' }}>− {fmt(descontoCaixa)}</span>
                     </div>
                   )}
+                  {cashbackAplicado > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.45)' }}>Cashback</span>
+                      <span style={{ fontSize: '12px', color: 'rgba(100,220,160,0.7)' }}>− {fmt(cashbackAplicado)}</span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '6px', borderTop: '0.5px solid rgba(255,255,255,0.09)', marginTop: '2px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.65)' }}>Total</span>
-                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#0ef' }}>{fmt(totalEfetivo)}</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#0ef' }}>{fmt(totalFinal)}</span>
                   </div>
                 </div>
 
