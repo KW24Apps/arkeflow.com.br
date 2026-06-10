@@ -241,6 +241,12 @@ function VendaRow({
                       <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)', fontVariantNumeric: 'tabular-nums' }}>− {fmt(detail.desconto_pagamento)}</span>
                     </div>
                   )}
+                  {Number(detail.cashback_usado ?? 0) > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)' }}>Cashback usado</span>
+                      <span style={{ fontSize: '11px', color: 'rgba(100,220,160,0.8)', fontVariantNumeric: 'tabular-nums' }}>− {fmt(detail.cashback_usado)}</span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Total</span>
                     <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmt(detail.total)}</span>
