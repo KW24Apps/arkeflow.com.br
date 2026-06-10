@@ -1,6 +1,8 @@
 import { LoginForm } from './LoginForm'
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: { searchParams: { expired?: string } }) {
+  const sessionExpired = !!searchParams?.expired
+
   return (
     <main className="min-h-screen bg-transparent flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -17,6 +19,15 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-deep-ocean border border-ocean-depth rounded-2xl p-8">
           <h2 className="text-sea-foam text-lg font-semibold mb-6">Acesse sua conta</h2>
+
+          {sessionExpired && (
+            <div style={{ background: 'rgba(234,179,8,0.08)', border: '0.5px solid rgba(234,179,8,0.3)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px' }}>
+              <p style={{ fontSize: '12px', color: 'rgba(234,179,8,0.85)', textAlign: 'center', margin: 0 }}>
+                Sua sessão expirou. Faça login novamente.
+              </p>
+            </div>
+          )}
+
           <LoginForm />
         </div>
 
