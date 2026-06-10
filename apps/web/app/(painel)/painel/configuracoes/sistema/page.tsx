@@ -300,6 +300,7 @@ export default function ConfigSistemaPage() {
 
   useEffect(() => {
     if (!atalhoCapturing) return
+    const capturing = atalhoCapturing
     async function persist(cfg: Record<string, string>) {
       try {
         await api.put('/dados-loja/sistema', { atalhos_caixa: cfg })
@@ -313,7 +314,7 @@ export default function ConfigSistemaPage() {
       }
       if (e.key === 'Backspace') {
         e.preventDefault()
-        const next = { ...atalhosCfg }; delete next[atalhoCapturing]
+        const next = { ...atalhosCfg }; delete next[capturing]
         setAtalhosCfg(next); setAtalhoCapturing(null); setAtalhoDisplayKey('')
         persist(next); return
       }
@@ -321,12 +322,12 @@ export default function ConfigSistemaPage() {
       if (!/^[A-Z0-9]$/.test(k)) return
       e.preventDefault()
       setAtalhoDisplayKey(k)
-      if (Object.entries(atalhosCfg).some(([ak, v]) => ak !== atalhoCapturing && v === k)) {
+      if (Object.entries(atalhosCfg).some(([ak, v]) => ak !== capturing && v === k)) {
         setAtalhoConflict(true)
         setTimeout(() => setAtalhoConflict(false), 300)
         return
       }
-      const next = { ...atalhosCfg, [atalhoCapturing]: k }
+      const next = { ...atalhosCfg, [capturing]: k }
       setAtalhosCfg(next); setAtalhoCapturing(null); setAtalhoDisplayKey('')
       persist(next)
     }
