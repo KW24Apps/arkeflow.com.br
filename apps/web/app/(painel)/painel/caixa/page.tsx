@@ -525,6 +525,44 @@ export default function CaixaPage() {
     if (!modalAbertoRef.current) scanRef.current?.focus()
   }
 
+  // ── Gestão do caixa — card grid (reused in both sidebar states) ───────────
+  const gestaoCaixaCards = (
+    <div style={MOD}>
+      <span style={MOD_LABEL}>Gestão do caixa</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px' }}>
+        {([
+          { key: 'sacolas',    icon: <ShoppingBag size={18} />, label: 'Sacolas',    onClick: () => setModalSacolas(true) },
+          { key: 'provas',     icon: <Home        size={18} />, label: 'Provas',     onClick: () => router.push('/painel/prova-em-casa') },
+          { key: 'sangria',    icon: <ArrowUp     size={18} />, label: 'Sangria',    onClick: () => { setValorMov(0); setMotivoMov(''); setModalMov('sangria') } },
+          { key: 'suprimento', icon: <ArrowDown   size={18} />, label: 'Suprimento', onClick: () => { setValorMov(0); setMotivoMov(''); setModalMov('suprimento') } },
+        ] as const).map(btn => (
+          <button
+            key={btn.key}
+            onClick={btn.onClick}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '12px 6px', borderRadius: '9px', cursor: 'pointer', background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)' }}
+          >
+            <span style={{ color: 'rgba(0,239,255,0.7)', display: 'flex', alignItems: 'center' }}>{btn.icon}</span>
+            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{btn.label}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => handleFecharCaixa()}
+          style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '11px', borderRadius: '9px', cursor: 'pointer', background: 'rgba(240,100,100,0.06)', border: '0.5px solid rgba(240,100,100,0.2)', opacity: itens.length > 0 ? 0.5 : 1 }}
+        >
+          <span style={{ color: 'rgba(240,130,130,0.7)', display: 'flex', alignItems: 'center' }}>
+            {itens.length > 0 ? <Ban size={15} /> : <Lock size={15} />}
+          </span>
+          <span style={{ fontSize: '9px', color: 'rgba(240,130,130,0.7)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>Fechar caixa</span>
+        </button>
+      </div>
+      {fechWarning && (
+        <p style={{ fontSize: '10px', color: 'rgba(240,130,130,0.8)', textAlign: 'center', marginTop: '6px', lineHeight: 1.4 }}>
+          Finalize ou cancele a venda atual antes de fechar o caixa.
+        </p>
+      )}
+    </div>
+  )
+
   // ── LOADING ───────────────────────────────────────────────────────────────
   if (status === 'desconhecido' && !cxErro) return (
     <>
@@ -904,6 +942,8 @@ export default function CaixaPage() {
               <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textAlign: 'center', lineHeight: 1.4 }}>
                 Passe um produto para iniciar a próxima venda
               </p>
+
+              {gestaoCaixaCards}
             </div>
           ) : (
             <>
@@ -957,83 +997,56 @@ export default function CaixaPage() {
                 {/* Module 2 — Atribuição da venda */}
                 <div style={MOD}>
                   <span style={MOD_LABEL}>Atribuição da venda</span>
-                  {/* Cliente */}
-                  <div
-                    role="button"
-                    onClick={() => {
-                      if (cliente_id) { setModalDadosCliente(true) }
-                      else { setClienteAutoAberto(false); setModalCliente(true) }
-                    }}
-                    className="atrib-row"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
-                  >
-                    <User size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: '12px', color: cliente_nome ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {cliente_nome ?? 'Adicionar cliente'}
-                    </span>
-                    {cliente_nome && (
-                      <button onClick={e => { e.stopPropagation(); setCliente(null, null) }}
-                        className="atrib-row-x"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-                  {/* Vendedor */}
-                  <div
-                    role="button"
-                    onClick={() => setModalVendedor(true)}
-                    className="atrib-row"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
-                  >
-                    <Briefcase size={14} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: '12px', color: vendedor ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {vendedor ? vendedor.nome : 'Adicionar vendedor'}
-                    </span>
-                    {vendedor && (
-                      <button onClick={e => { e.stopPropagation(); setVendedor(null); setVendedorStore(null, null) }}
-                        className="atrib-row-x"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, flexShrink: 0 }}>
-                        <X size={12} />
-                      </button>
-                    )}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px' }}>
+                    {/* Cliente card */}
+                    <div
+                      role="button"
+                      onClick={() => { if (cliente_id) { setModalDadosCliente(true) } else { setClienteAutoAberto(false); setModalCliente(true) } }}
+                      style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '14px 4px', borderRadius: '9px', cursor: 'pointer', overflow: 'hidden', background: cliente_id ? 'rgba(0,239,255,0.07)' : 'rgba(255,255,255,0.03)', border: cliente_id ? '0.5px solid rgba(0,239,255,0.35)' : '0.5px dashed rgba(255,255,255,0.14)' }}
+                    >
+                      <User size={19} style={{ color: cliente_id ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                      <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Cliente</span>
+                      {cliente_nome && (
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', padding: '0 14px', textAlign: 'center' }}>
+                          {cliente_nome}
+                        </span>
+                      )}
+                      {cliente_id && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setCliente(null, null) }}
+                          style={{ position: 'absolute', top: '5px', right: '5px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px' }}
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                    {/* Vendedor card */}
+                    <div
+                      role="button"
+                      onClick={() => setModalVendedor(true)}
+                      style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '14px 4px', borderRadius: '9px', cursor: 'pointer', overflow: 'hidden', background: vendedor ? 'rgba(0,239,255,0.07)' : 'rgba(255,255,255,0.03)', border: vendedor ? '0.5px solid rgba(0,239,255,0.35)' : '0.5px dashed rgba(255,255,255,0.14)' }}
+                    >
+                      <Briefcase size={19} style={{ color: vendedor ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                      <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Vendedor</span>
+                      {vendedor && (
+                        <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', padding: '0 14px', textAlign: 'center' }}>
+                          {vendedor.nome}
+                        </span>
+                      )}
+                      {vendedor && !vendedorDaSacola && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setVendedor(null); setVendedorStore(null, null) }}
+                          style={{ position: 'absolute', top: '5px', right: '5px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px' }}
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Module 3 — Gestão do caixa */}
-                <div style={MOD}>
-                  <span style={MOD_LABEL}>Gestão do caixa</span>
-                  <div style={{ display: 'flex' }}>
-                    {[
-                      { key: 'sacolas',    icon: <ShoppingBag size={18} />,                                               label: 'Sacolas',  title: 'Sacolas',     onClick: () => setModalSacolas(true),                                              danger: false },
-                      { key: 'provas',     icon: <Home        size={18} />,                                               label: 'Provas',   title: 'Provas',      onClick: () => router.push('/painel/prova-em-casa'),                               danger: false },
-                      { key: 'sangria',    icon: <ArrowUp     size={18} />,                                               label: 'Sangria',  title: 'Sangria',     onClick: () => { setValorMov(0); setMotivoMov(''); setModalMov('sangria') },       danger: false },
-                      { key: 'suprimento', icon: <ArrowDown   size={18} />,                                               label: 'Suprim…',  title: 'Suprimento',  onClick: () => { setValorMov(0); setMotivoMov(''); setModalMov('suprimento') },    danger: false },
-                      { key: 'fechar',     icon: itens.length > 0 ? <Ban size={18} /> : <Lock size={18} />,               label: 'Fechar',   title: 'Fechar caixa', onClick: () => handleFecharCaixa(),                                               danger: true  },
-                    ].map(btn => (
-                      <button
-                        key={btn.key}
-                        onClick={btn.onClick}
-                        title={btn.title}
-                        className={btn.danger ? 'gestao-btn gestao-btn-danger' : 'gestao-btn'}
-                        style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-                          flex: 1, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px',
-                          opacity: btn.danger && itens.length > 0 ? 0.5 : 1,
-                          color: btn.danger ? 'rgba(240,130,130,0.7)' : 'rgba(0,239,255,0.7)',
-                        }}
-                      >
-                        <span style={{ color: 'inherit' }}>{btn.icon}</span>
-                        <span style={{ fontSize: '9px', color: btn.danger ? 'rgba(240,130,130,0.7)' : 'rgba(255,255,255,0.55)' }}>{btn.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {fechWarning && (
-                    <p style={{ fontSize: '10px', color: 'rgba(240,130,130,0.8)', textAlign: 'center', marginTop: '6px', lineHeight: 1.4 }}>
-                      Finalize ou cancele a venda atual antes de fechar o caixa.
-                    </p>
-                  )}
-                </div>
+                {gestaoCaixaCards}
               </div>
 
               {/* BOTTOM: Module 4 — Finalizar venda */}
