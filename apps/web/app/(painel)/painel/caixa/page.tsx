@@ -29,6 +29,17 @@ import { autorizacoesApi } from '@/lib/api/autorizacoes'
 
 interface ProdutoSearch { id: string; nome: string; preco_base: string; total_versoes: number }
 
+const SHORTCUTS_META = [
+  { key: 'F2',  label: 'cliente'      },
+  { key: 'F3',  label: 'vendedor'     },
+  { key: 'F4',  label: 'sacolas'      },
+  { key: 'F6',  label: 'provas'       },
+  { key: 'F7',  label: 'sangria'      },
+  { key: 'F8',  label: 'suprimento'   },
+  { key: 'F9',  label: 'fechar venda' },
+  { key: 'F10', label: 'fechar caixa' },
+] as const
+
 function CaixaRow({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
   const [hov, setHov] = useState(false)
   const color = danger
@@ -301,6 +312,35 @@ export default function CaixaPage() {
     if (vendaOK === null || !overLimit || limiteCfg.modo !== 'avisar') return
     setAvisoLimite(true)
   }, [vendaOK, overLimit, limiteCfg.modo])
+
+  // Global F-key shortcuts — only when register is open, no modal, not locked
+  useEffect(() => {
+    if (status !== 'aberto') return
+    function onKey(e: KeyboardEvent) {
+      if (modalAbertoRef.current || locked) return
+      const abrirCliente = () => {
+        if (cliente_id) { setModalDadosCliente(true) }
+        else { setClienteAutoAberto(false); setModalCliente(true) }
+      }
+      const map: Record<string, { action: () => void; enabled: boolean }> = {
+        F2:  { action: abrirCliente,                                                              enabled: true               },
+        F3:  { action: () => setModalVendedor(true),                                              enabled: true               },
+        F4:  { action: () => setModalSacolas(true),                                               enabled: true               },
+        F6:  { action: () => router.push('/painel/prova-em-casa'),                                enabled: true               },
+        F7:  { action: () => { setValorMov(0); setMotivoMov(''); setModalMov('sangria') },        enabled: true               },
+        F8:  { action: () => { setValorMov(0); setMotivoMov(''); setModalMov('suprimento') },     enabled: true               },
+        F9:  { action: () => setModalCheckout(true),                                              enabled: itens.length > 0   },
+        F10: { action: () => handleFecharCaixa(),                                                 enabled: itens.length === 0 },
+      }
+      const entry = map[e.key]
+      if (!entry) return
+      e.preventDefault()
+      e.stopPropagation()
+      if (entry.enabled) entry.action()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [status, itens.length, cliente_id, locked])
 
   function handleClienteSelecionado(c: Cliente) {
     setCliente(c.id, c.nome)
@@ -798,6 +838,14 @@ export default function CaixaPage() {
             className="shrink-0 relative"
             style={{ background: 'rgba(8,18,30,0.35)', borderTop: '0.5px solid rgba(255,255,255,0.07)', padding: '10px 12px' }}
           >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', marginBottom: '10px' }}>
+              {SHORTCUTS_META.map(({ key, label }) => (
+                <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.25)' }}>
+                  {label}
+                  <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.45)', border: '0.5px solid rgba(0,239,255,0.2)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>{key}</kbd>
+                </span>
+              ))}
+            </div>
             {scanErro && <p className="text-red-400 text-xs mb-2 text-center">{scanErro}</p>}
             <div className="flex gap-2">
               <div className="flex-1 relative">
