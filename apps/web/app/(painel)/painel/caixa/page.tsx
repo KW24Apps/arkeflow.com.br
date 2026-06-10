@@ -342,6 +342,26 @@ export default function CaixaPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [status, itens.length, cliente_id, locked])
 
+  // Global Esc — closes topmost open modal; mandatory sangria and lock state are immune
+  useEffect(() => {
+    function onEsc(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      if (modalVariacao) return  // variant modal owns its Esc
+      if (sangriaObrigatoria || locked) { e.preventDefault(); return }
+      if (modalBusca)        { e.preventDefault(); setModalBusca(false);        setTimeout(() => focusScanSafe(), 100); return }
+      if (modalCheckout)     { e.preventDefault(); setModalCheckout(false);     setTimeout(() => focusScanSafe(), 100); return }
+      if (modalCliente)      { e.preventDefault(); setModalCliente(false); setClienteAutoAberto(false); setTimeout(() => focusScanSafe(), 100); return }
+      if (modalVendedor)     { e.preventDefault(); setModalVendedor(false);     setTimeout(() => focusScanSafe(), 100); return }
+      if (modalSacolas)      { e.preventDefault(); setModalSacolas(false);      setTimeout(() => focusScanSafe(), 100); return }
+      if (modalDadosCliente) { e.preventDefault(); setModalDadosCliente(false); return }
+      if (modalFechar)       { e.preventDefault(); setModalFechar(false);       return }
+      if (modalMov)          { e.preventDefault(); closeModalMov();             setTimeout(() => focusScanSafe(), 100); return }
+      if (avisoLimite)       { e.preventDefault(); setAvisoLimite(false);       return }
+    }
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [modalBusca, modalCheckout, modalCliente, modalVendedor, modalSacolas, modalDadosCliente, modalFechar, modalMov, avisoLimite, sangriaObrigatoria, locked, modalVariacao])
+
   function handleClienteSelecionado(c: Cliente) {
     setCliente(c.id, c.nome)
     setModalCliente(false)
@@ -833,19 +853,21 @@ export default function CaixaPage() {
             )}
           </div>
 
+          {/* Shortcut cheatsheet — absolute watermark, behind all flow content, no layout space */}
+          <div style={{ position: 'absolute', right: '16px', bottom: '62px', zIndex: -1, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+            {SHORTCUTS_META.map(({ key, label }) => (
+              <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.20)' }}>
+                {label}
+                <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.40)', border: '0.5px solid rgba(0,239,255,0.18)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>{key}</kbd>
+              </span>
+            ))}
+          </div>
+
           {/* Input scanner */}
           <div
             className="shrink-0 relative"
             style={{ background: 'rgba(8,18,30,0.35)', borderTop: '0.5px solid rgba(255,255,255,0.07)', padding: '10px 12px' }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', marginBottom: '10px' }}>
-              {SHORTCUTS_META.map(({ key, label }) => (
-                <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.25)' }}>
-                  {label}
-                  <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.45)', border: '0.5px solid rgba(0,239,255,0.2)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>{key}</kbd>
-                </span>
-              ))}
-            </div>
             {scanErro && <p className="text-red-400 text-xs mb-2 text-center">{scanErro}</p>}
             <div className="flex gap-2">
               <div className="flex-1 relative">
