@@ -24,6 +24,7 @@ import { SacolasModal }           from '@/components/pdv/SacolasModal'
 import type { Cliente } from '@/lib/api/clientes'
 import type { Colaborador } from '@/lib/api/colaboradores'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
+import { AuthorizationGateModal } from '@/components/pdv/AuthorizationGateModal'
 
 interface ProdutoSearch { id: string; nome: string; preco_base: string; total_versoes: number }
 
@@ -165,6 +166,10 @@ export default function CaixaPage() {
   const [formasDesc,       setFormasDesc]       = useState<string[]>([])
   const [formasPagamento,  setFormasPagamento]  = useState<FormaPagamento[]>([])
 
+  // ── Supervisão ────────────────────────────────────────────────────────────
+  const [supCfg,   setSupCfg]   = useState<{ habilitada: boolean; cancelarItem: boolean }>({ habilitada: false, cancelarItem: false })
+  const [gateItem, setGateItem] = useState<{ versaoId: string; nome: string } | null>(null)
+
   // ── Boas-vindas ───────────────────────────────────────────────────────────
   const [modalBoasVindas,  setModalBoasVindas]  = useState(false)
   const boasVindasRef      = useRef<{ msg: string; hora: string } | null>(null)
@@ -180,6 +185,7 @@ export default function CaixaPage() {
     api.get('/dados-loja/sistema').then(r => {
       const d = r.data
       setDescontoCfg({ pct: Number(d.desconto_max_percentual ?? 0), valor: Number(d.desconto_max_valor ?? 0), promoAceita: !!d.promocao_aceita_desconto })
+      setSupCfg({ habilitada: !!d.supervisao_habilitada, cancelarItem: !!d.exige_auth_cancelar_item })
     }).catch(() => {})
     financeiroApi.formasPagamento().then(fs => {
       setFormasPagamento(fs)
@@ -484,7 +490,7 @@ export default function CaixaPage() {
   const MOD_LABEL: React.CSSProperties = { fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '10px' }
 
   // Keep modalAbertoRef current on every render so setTimeout callbacks read live state
-  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente
+  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente || !!gateItem
 
   function focusScanSafe() {
     if (!modalAbertoRef.current) scanRef.current?.focus()
@@ -668,7 +674,14 @@ export default function CaixaPage() {
                           {fmt(item.preco_unitario * item.quantidade - item.desconto_item)}
                         </td>
                         <td className="pr-2">
-                          <button onClick={() => removeItem(item.versao_id)}
+                          <button
+                            onClick={() => {
+                              if (supCfg.habilitada && supCfg.cancelarItem) {
+                                setGateItem({ versaoId: item.versao_id, nome: item.nome })
+                              } else {
+                                removeItem(item.versao_id)
+                              }
+                            }}
                             className="w-8 h-8 text-steel hover:text-red-400 rounded-lg flex items-center justify-center">×</button>
                         </td>
                       </tr>
@@ -1063,6 +1076,18 @@ export default function CaixaPage() {
         clienteId={cliente_id}
         onClose={() => setModalDadosCliente(false)}
         onSaved={(c) => setCliente(c.id, c.nome)}
+      />
+
+      <AuthorizationGateModal
+        open={!!gateItem}
+        acao="cancelar_item"
+        acaoLabel="Cancelar item do caixa"
+        acaoTom="danger"
+        exigeJustificativa={false}
+        turnoId={turno?.id ?? null}
+        detalhe={gateItem ? { versao_id: gateItem.versaoId, nome: gateItem.nome } : {}}
+        onClose={() => setGateItem(null)}
+        onAuthorized={() => { if (gateItem) removeItem(gateItem.versaoId); setGateItem(null) }}
       />
 
       {/* Modal Boas-vindas */}
