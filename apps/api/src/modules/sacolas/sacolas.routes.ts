@@ -134,7 +134,7 @@ export async function sacolasRoutes(app: FastifyInstance) {
       await client.query('BEGIN')
 
       const { rows: [config] } = await client.query(
-        `SELECT controle_estoque FROM configuracoes LIMIT 1`
+        `SELECT controle_estoque FROM configuracoes_loja LIMIT 1`
       )
       const controleGlobal = config?.controle_estoque ?? true
 
@@ -227,7 +227,7 @@ export async function sacolasRoutes(app: FastifyInstance) {
       await restoreStock(client, id)
 
       const { rows: [config] } = await client.query(
-        `SELECT controle_estoque FROM configuracoes LIMIT 1`
+        `SELECT controle_estoque FROM configuracoes_loja LIMIT 1`
       )
       const controleGlobal = config?.controle_estoque ?? true
 
