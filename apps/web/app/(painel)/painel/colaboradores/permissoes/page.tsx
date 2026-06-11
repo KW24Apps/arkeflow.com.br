@@ -210,28 +210,29 @@ export default function ModelosPermissaoPage() {
               )
             })}
 
-            {/* "+" add card */}
-            <button
-              type="button"
-              onClick={abrirNovo}
-              className="flex flex-col items-center justify-center gap-2 active:scale-[0.97]"
-              style={{
-                minHeight: '110px', padding: '20px 12px',
-                background: 'transparent', border: '1px dashed rgba(255,255,255,0.18)',
-                borderRadius: '10px', cursor: 'pointer', outline: 'none',
-                transition: 'background 120ms, border-color 120ms, box-shadow 120ms, transform 100ms',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.30)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}
-              onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.2)' }}
-              onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
-            >
-              <span style={{ fontSize: '22px', lineHeight: 1, color: 'rgba(255,255,255,0.3)' }}>+</span>
-              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>Novo modelo</span>
-            </button>
           </div>
         )}
 
+        {/* FAB */}
+        <button
+          onClick={abrirNovo}
+          className="fixed bottom-6 right-6 z-50 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          style={{
+            width: '48px', height: '48px',
+            background: 'rgba(0,239,255,0.9)',
+            borderRadius: '50%',
+            color: '#0a0a1a',
+            fontSize: '24px', fontWeight: 700,
+            border: 'none',
+            outline: 'none',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.75)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.9)' }}
+          onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,239,255,0.35)' }}
+          onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
+        >
+          +
+        </button>
       </main>
       <ConfirmModal
         isOpen={modal.open}
