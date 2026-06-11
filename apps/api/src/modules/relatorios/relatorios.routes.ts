@@ -1,0 +1,448 @@
+import type { FastifyInstance } from 'fastify'
+import { authMiddleware } from '../../core/middlewares/auth'
+import { authorize } from '../../core/middlewares/authorize'
+import { getTenantPoolFromRequest } from '../../core/tenant/resolver'
+
+const dono = [authMiddleware, authorize('dono_loja')]
+
+function range(q: any) {
+  const now = new Date()
+  const ini = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  const fim = now.toISOString().split('T')[0]
+  return { inicio: (q.inicio as string) || ini, fim: (q.fim as string) || fim }
+}
+
+export async function relatoriosRoutes(app: FastifyInstance) {
+
+  // ── 1. Dashboard executivo ──────────────────────────────────────────────────
+  app.get('/dashboard', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { inicio, fim } = range(req.query)
+
+    const [kpiRes, porDiaRes, formaRes, topVendRes, topProdRes, contasRes, cbSaldoRes] = await Promise.all([
+      pool.query(`
+        SELECT
+          COALESCE(SUM(v.total), 0)                                   AS faturamento,
+          COUNT(DISTINCT v.id)                                         AS qtd_vendas,
+          COALESCE(AVG(v.total), 0)                                    AS ticket_medio,
+          COALESCE(SUM(iv.quantidade), 0)                              AS qtd_itens,
+          COALESCE(SUM(v.subtotal), 0)                                 AS subtotal_total,
+          COALESCE(SUM(v.subtotal - v.total - v.cashback_usado), 0)   AS desconto_total,
+          COALESCE(SUM(v.cashback_gerado), 0)                          AS cashback_gerado,
+          COALESCE(SUM(v.cashback_usado), 0)                           AS cashback_usado
+        FROM vendas v
+        LEFT JOIN itens_venda iv ON iv.venda_id = v.id
+        WHERE v.status = 'finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+      `, [inicio, fim]),
+
+      pool.query(`
+        SELECT DATE(criado_em) AS dia, SUM(total) AS faturamento, COUNT(*) AS qtd
+        FROM vendas
+        WHERE status = 'finalizada' AND DATE(criado_em) BETWEEN $1 AND $2
+        GROUP BY DATE(criado_em) ORDER BY dia
+      `, [inicio, fim]),
+
+      pool.query(`
+        SELECT fp.nome, fp.tipo, SUM(pv.valor) AS total
+        FROM pagamentos_venda pv
+        JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id
+        JOIN vendas v ON v.id = pv.venda_id
+        WHERE v.status = 'finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+        GROUP BY fp.id, fp.nome, fp.tipo ORDER BY total DESC
+      `, [inicio, fim]),
+
+      pool.query(`
+        SELECT v.vendedor_nome,
+          COUNT(DISTINCT v.id) AS qtd_vendas,
+          SUM(v.total) AS faturamento
+        FROM vendas v
+        WHERE v.status = 'finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+          AND v.vendedor_nome IS NOT NULL
+        GROUP BY v.vendedor_nome ORDER BY faturamento DESC LIMIT 5
+      `, [inicio, fim]),
+
+      pool.query(`
+        SELECT p.nome, SUM(iv.quantidade * iv.preco_unitario - iv.desconto_item) AS faturamento,
+          SUM(iv.quantidade) AS qtd
+        FROM itens_venda iv
+        JOIN versoes vr ON vr.id = iv.versao_id
+        JOIN produtos p ON p.id = vr.produto_id
+        JOIN vendas v ON v.id = iv.venda_id
+        WHERE v.status = 'finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+        GROUP BY p.id, p.nome ORDER BY faturamento DESC LIMIT 5
+      `, [inicio, fim]),
+
+      pool.query(`
+        SELECT COUNT(*) AS qtd, COALESCE(SUM(valor), 0) AS total,
+          COUNT(*) FILTER (WHERE vencimento < CURRENT_DATE) AS vencidas,
+          COALESCE(SUM(valor) FILTER (WHERE vencimento < CURRENT_DATE), 0) AS total_vencido
+        FROM parcelas_crediario WHERE status != 'pago'
+      `),
+
+      pool.query(`
+        SELECT COALESCE(SUM(saldo_cashback), 0) AS saldo
+        FROM clientes WHERE ativo = true AND arquivado = false
+      `),
+    ])
+
+    const k = kpiRes.rows[0]
+    const qtdV = Number(k.qtd_vendas)
+    const sub = Number(k.subtotal_total)
+    const desc = Number(k.desconto_total)
+
+    return reply.send({
+      periodo: { inicio, fim },
+      kpis: {
+        faturamento:    Number(k.faturamento),
+        qtd_vendas:     qtdV,
+        ticket_medio:   Number(k.ticket_medio),
+        qtd_itens:      Number(k.qtd_itens),
+        pa:             qtdV > 0 ? Number(k.qtd_itens) / qtdV : 0,
+        desconto_total: desc,
+        markdown_pct:   sub > 0 ? desc / sub * 100 : 0,
+        cashback_gerado: Number(k.cashback_gerado),
+        cashback_usado:  Number(k.cashback_usado),
+      },
+      faturamento_por_dia: porDiaRes.rows.map(r => ({
+        dia: r.dia, faturamento: Number(r.faturamento), qtd: Number(r.qtd),
+      })),
+      por_forma: formaRes.rows.map(r => ({ nome: r.nome, tipo: r.tipo, total: Number(r.total) })),
+      top_vendedores: topVendRes.rows.map(r => ({
+        nome: r.vendedor_nome, qtd_vendas: Number(r.qtd_vendas), faturamento: Number(r.faturamento),
+      })),
+      top_produtos: topProdRes.rows.map(r => ({
+        nome: r.nome, faturamento: Number(r.faturamento), qtd: Number(r.qtd),
+      })),
+      contas_receber: {
+        qtd:          Number(contasRes.rows[0].qtd),
+        total:        Number(contasRes.rows[0].total),
+        vencidas:     Number(contasRes.rows[0].vencidas),
+        total_vencido:Number(contasRes.rows[0].total_vencido),
+      },
+      cashback_saldo: Number(cbSaldoRes.rows[0].saldo),
+    })
+  })
+
+  // ── 2. Vendas ───────────────────────────────────────────────────────────────
+  app.get('/vendas', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { inicio, fim } = range(req.query)
+    const pg = Math.max(1, parseInt((req.query as any).page || '1'))
+    const PER = 50
+
+    const [kpiRes, formaRes, vendRes, listaRes, cntRes] = await Promise.all([
+      pool.query(`
+        SELECT COALESCE(SUM(v.total),0) AS faturamento, COUNT(DISTINCT v.id) AS qtd_vendas,
+          COALESCE(AVG(v.total),0) AS ticket_medio, COALESCE(SUM(iv.quantidade),0) AS qtd_itens
+        FROM vendas v LEFT JOIN itens_venda iv ON iv.venda_id = v.id
+        WHERE v.status='finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+      `, [inicio, fim]),
+      pool.query(`
+        SELECT fp.nome, fp.tipo, SUM(pv.valor) AS total, COUNT(DISTINCT pv.venda_id) AS qtd
+        FROM pagamentos_venda pv
+        JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id
+        JOIN vendas v ON v.id = pv.venda_id
+        WHERE v.status='finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+        GROUP BY fp.id, fp.nome, fp.tipo ORDER BY total DESC
+      `, [inicio, fim]),
+      pool.query(`
+        SELECT v.vendedor_nome, COUNT(DISTINCT v.id) AS qtd_vendas,
+          SUM(v.total) AS faturamento, AVG(v.total) AS ticket_medio,
+          SUM(iv.quantidade) AS qtd_itens
+        FROM vendas v LEFT JOIN itens_venda iv ON iv.venda_id = v.id
+        WHERE v.status='finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+          AND v.vendedor_nome IS NOT NULL
+        GROUP BY v.vendedor_nome ORDER BY faturamento DESC
+      `, [inicio, fim]),
+      pool.query(`
+        SELECT v.id, v.criado_em, v.total, v.vendedor_nome, c.nome AS cliente_nome
+        FROM vendas v LEFT JOIN clientes c ON c.id = v.cliente_id
+        WHERE v.status='finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+        ORDER BY v.criado_em DESC LIMIT $3 OFFSET $4
+      `, [inicio, fim, PER, (pg - 1) * PER]),
+      pool.query(`
+        SELECT COUNT(*) FROM vendas WHERE status='finalizada' AND DATE(criado_em) BETWEEN $1 AND $2
+      `, [inicio, fim]),
+    ])
+
+    const fat = Number(kpiRes.rows[0].faturamento)
+    const qv = Number(kpiRes.rows[0].qtd_vendas)
+
+    return reply.send({
+      periodo: { inicio, fim },
+      kpis: {
+        faturamento: fat, qtd_vendas: qv,
+        ticket_medio: Number(kpiRes.rows[0].ticket_medio),
+        qtd_itens: Number(kpiRes.rows[0].qtd_itens),
+      },
+      por_forma: formaRes.rows.map(r => ({
+        nome: r.nome, tipo: r.tipo, total: Number(r.total),
+        qtd: Number(r.qtd), pct: fat > 0 ? Number(r.total) / fat * 100 : 0,
+      })),
+      por_vendedor: vendRes.rows.map(r => {
+        const q = Number(r.qtd_vendas), f = Number(r.faturamento)
+        return {
+          nome: r.vendedor_nome, qtd_vendas: q, faturamento: f,
+          ticket_medio: Number(r.ticket_medio),
+          pa: q > 0 ? Number(r.qtd_itens) / q : 0,
+          pct: fat > 0 ? f / fat * 100 : 0,
+        }
+      }),
+      vendas: listaRes.rows.map(r => ({
+        id: r.id, criado_em: r.criado_em, total: Number(r.total),
+        vendedor: r.vendedor_nome, cliente: r.cliente_nome,
+      })),
+      paginacao: { total: Number(cntRes.rows[0].count), page: pg, per_page: PER },
+    })
+  })
+
+  // ── 3. Giro de grade ────────────────────────────────────────────────────────
+  app.get('/giro-grade', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { inicio, fim } = range(req.query)
+    const prod_id = (req.query as any).produto_id
+    const params: any[] = [inicio, fim]
+    const filter = prod_id ? (params.push(prod_id), `AND p.id = $${params.length}`) : ''
+
+    const { rows } = await pool.query(`
+      SELECT
+        p.id AS produto_id, p.nome AS produto_nome, vr.id AS versao_id,
+        COALESCE(vr.atributos_json->>'Cor', vr.atributos_json->>'cor', '') AS cor,
+        COALESCE(vr.atributos_json->>'Tamanho', vr.atributos_json->>'tamanho',
+                 vr.atributos_json->>'Size', '') AS tamanho,
+        vr.estoque_atual,
+        COALESCE(s.qtd, 0) AS qtd_vendida
+      FROM versoes vr
+      JOIN produtos p ON p.id = vr.produto_id
+      LEFT JOIN (
+        SELECT iv.versao_id, SUM(iv.quantidade) AS qtd
+        FROM itens_venda iv JOIN vendas v ON v.id = iv.venda_id
+        WHERE v.status='finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+        GROUP BY iv.versao_id
+      ) s ON s.versao_id = vr.id
+      WHERE vr.arquivado=false AND p.arquivado=false ${filter}
+      ORDER BY p.nome, cor, tamanho
+    `, params)
+
+    return reply.send({
+      periodo: { inicio, fim },
+      grade: rows.map(r => {
+        const v = Number(r.qtd_vendida), e = Number(r.estoque_atual)
+        return {
+          produto_id: r.produto_id, produto_nome: r.produto_nome, versao_id: r.versao_id,
+          cor: r.cor, tamanho: r.tamanho, estoque_atual: e, qtd_vendida: v,
+          sell_through: (v + e) > 0 ? v / (v + e) : 0,
+        }
+      }),
+    })
+  })
+
+  // ── 4. Aging de estoque ─────────────────────────────────────────────────────
+  app.get('/aging-estoque', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+
+    const { rows } = await pool.query(`
+      SELECT
+        p.id AS produto_id, p.nome AS produto_nome, vr.id AS versao_id,
+        COALESCE(vr.preco_especifico, p.preco_base) AS preco,
+        COALESCE(vr.atributos_json->>'Cor', vr.atributos_json->>'cor', '') AS cor,
+        COALESCE(vr.atributos_json->>'Tamanho', vr.atributos_json->>'tamanho', '') AS tamanho,
+        vr.estoque_atual,
+        uv.ultima_venda_em,
+        CASE
+          WHEN uv.ultima_venda_em IS NOT NULL
+            THEN CURRENT_DATE - uv.ultima_venda_em::date
+          WHEN ae.entrada_em IS NOT NULL
+            THEN CURRENT_DATE - ae.entrada_em::date
+          ELSE NULL
+        END AS dias_parado
+      FROM versoes vr
+      JOIN produtos p ON p.id = vr.produto_id
+      LEFT JOIN (
+        SELECT iv.versao_id, MAX(v.criado_em) AS ultima_venda_em
+        FROM itens_venda iv JOIN vendas v ON v.id = iv.venda_id
+        WHERE v.status='finalizada' GROUP BY iv.versao_id
+      ) uv ON uv.versao_id = vr.id
+      LEFT JOIN (
+        SELECT versao_id, MAX(criado_em) AS entrada_em
+        FROM ajustes_estoque WHERE tipo='entrada' GROUP BY versao_id
+      ) ae ON ae.versao_id = vr.id
+      WHERE vr.estoque_atual > 0 AND vr.arquivado=false AND p.arquivado=false
+      ORDER BY dias_parado DESC NULLS LAST, p.nome
+    `)
+
+    return reply.send({
+      itens: rows.map(r => {
+        const dias = r.dias_parado !== null ? Number(r.dias_parado) : null
+        const preco = Number(r.preco), estoque = Number(r.estoque_atual)
+        const bucket = dias === null ? '+90' :
+          dias <= 30 ? '0-30' : dias <= 60 ? '31-60' : dias <= 90 ? '61-90' : '+90'
+        return {
+          produto_id: r.produto_id, produto_nome: r.produto_nome, versao_id: r.versao_id,
+          cor: r.cor, tamanho: r.tamanho, estoque_atual: estoque,
+          preco, valor_parado: preco * estoque,
+          ultima_venda_em: r.ultima_venda_em,
+          dias_parado: dias, bucket,
+        }
+      }),
+    })
+  })
+
+  // ── 5. Cesta de compras ─────────────────────────────────────────────────────
+  app.get('/cesta', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { inicio, fim } = range(req.query)
+
+    const { rows } = await pool.query(`
+      SELECT p1.nome AS produto_a, p2.nome AS produto_b, COUNT(*) AS contagem
+      FROM itens_venda iv1
+      JOIN versoes v1 ON v1.id = iv1.versao_id JOIN produtos p1 ON p1.id = v1.produto_id
+      JOIN itens_venda iv2 ON iv2.venda_id = iv1.venda_id AND iv1.id < iv2.id
+      JOIN versoes v2 ON v2.id = iv2.versao_id JOIN produtos p2 ON p2.id = v2.produto_id
+      JOIN vendas vn ON vn.id = iv1.venda_id
+      WHERE vn.status='finalizada' AND DATE(vn.criado_em) BETWEEN $1 AND $2 AND p1.id < p2.id
+      GROUP BY p1.nome, p2.nome ORDER BY contagem DESC LIMIT 30
+    `, [inicio, fim])
+
+    return reply.send({
+      periodo: { inicio, fim },
+      pares: rows.map(r => ({
+        produto_a: r.produto_a, produto_b: r.produto_b, contagem: Number(r.contagem),
+      })),
+    })
+  })
+
+  // ── 6. Financeiro ───────────────────────────────────────────────────────────
+  app.get('/financeiro', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { inicio, fim } = range(req.query)
+
+    const [contasRes, cbRes, cbSaldoRes, cbExpirandoRes, turnosRes] = await Promise.all([
+      pool.query(`
+        SELECT status, COUNT(*) AS qtd, COALESCE(SUM(valor),0) AS total
+        FROM parcelas_crediario GROUP BY status
+      `),
+      pool.query(`
+        SELECT tipo, COALESCE(SUM(valor),0) AS total
+        FROM historico_cashback WHERE DATE(criado_em) BETWEEN $1 AND $2 GROUP BY tipo
+      `, [inicio, fim]),
+      pool.query(`SELECT COALESCE(SUM(saldo_cashback),0) AS saldo FROM clientes WHERE ativo=true AND arquivado=false`),
+      pool.query(`
+        SELECT COALESCE(SUM(valor),0) AS total FROM historico_cashback
+        WHERE tipo='ganho' AND expira_em IS NOT NULL
+          AND expira_em BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+      `),
+      pool.query(`
+        SELECT t.id, t.aberto_em, t.fechado_em, t.status,
+          t.saldo_inicial, t.saldo_final, t.divergencia,
+          COALESCE(mc.sangrias,0) AS total_sangrias,
+          COALESCE(mc.suprimentos,0) AS total_suprimentos,
+          COALESCE(
+            (SELECT SUM(pv.valor)
+             FROM vendas v JOIN pagamentos_venda pv ON pv.venda_id = v.id
+             JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id
+             WHERE v.status='finalizada' AND fp.tipo='dinheiro'
+               AND v.criado_em >= t.aberto_em
+               AND (t.fechado_em IS NULL OR v.criado_em <= t.fechado_em)
+            ), 0) AS total_dinheiro
+        FROM turnos_caixa t
+        LEFT JOIN (
+          SELECT turno_id,
+            SUM(valor) FILTER (WHERE tipo='sangria') AS sangrias,
+            SUM(valor) FILTER (WHERE tipo='suprimento') AS suprimentos
+          FROM movimentos_caixa GROUP BY turno_id
+        ) mc ON mc.turno_id = t.id
+        WHERE DATE(t.aberto_em) BETWEEN $1 AND $2
+        ORDER BY t.aberto_em DESC LIMIT 50
+      `, [inicio, fim]),
+    ])
+
+    const contasPorStatus: Record<string, { qtd: number; total: number }> = {}
+    for (const r of contasRes.rows) contasPorStatus[r.status] = { qtd: Number(r.qtd), total: Number(r.total) }
+    const cbGerado = cbRes.rows.find(r => r.tipo === 'ganho')
+    const cbUsado = cbRes.rows.find(r => r.tipo === 'resgate')
+
+    return reply.send({
+      periodo: { inicio, fim },
+      contas_receber: {
+        por_status: contasPorStatus,
+        total_pendente: (contasPorStatus['pendente']?.total ?? 0) + (contasPorStatus['vencido']?.total ?? 0),
+      },
+      cashback: {
+        gerado_periodo:  Number(cbGerado?.total ?? 0),
+        usado_periodo:   Number(cbUsado?.total ?? 0),
+        saldo_aberto:    Number(cbSaldoRes.rows[0].saldo),
+        expirando_30d:   Number(cbExpirandoRes.rows[0].total),
+      },
+      turnos: turnosRes.rows.map(t => ({
+        id: t.id, aberto_em: t.aberto_em, fechado_em: t.fechado_em, status: t.status,
+        saldo_inicial: Number(t.saldo_inicial),
+        total_dinheiro: Number(t.total_dinheiro),
+        total_sangrias: Number(t.total_sangrias),
+        total_suprimentos: Number(t.total_suprimentos),
+        saldo_final: t.saldo_final !== null ? Number(t.saldo_final) : null,
+        divergencia: t.divergencia !== null ? Number(t.divergencia) : null,
+      })),
+    })
+  })
+
+  // ── 7. Clientes RFM ─────────────────────────────────────────────────────────
+  app.get('/clientes-rfm', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { inicio, fim } = range(req.query)
+
+    const { rows } = await pool.query(`
+      WITH rfm AS (
+        SELECT c.id, c.nome,
+          CURRENT_DATE - MAX(v.criado_em)::date AS recencia_dias,
+          COUNT(DISTINCT v.id)                   AS frequencia,
+          COALESCE(SUM(v.total), 0)              AS valor
+        FROM clientes c JOIN vendas v ON v.cliente_id = c.id
+        WHERE v.status='finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
+        GROUP BY c.id, c.nome
+      ),
+      scored AS (
+        SELECT *,
+          NTILE(5) OVER (ORDER BY recencia_dias ASC)  AS r_score,
+          NTILE(5) OVER (ORDER BY frequencia DESC)     AS f_score,
+          NTILE(5) OVER (ORDER BY valor DESC)           AS m_score
+        FROM rfm
+      )
+      SELECT *, (r_score + f_score + m_score) AS total_score FROM scored
+      ORDER BY total_score DESC
+    `, [inicio, fim])
+
+    const clientes = rows.map(r => {
+      const rs = Number(r.r_score), fs = Number(r.f_score), ms = Number(r.m_score)
+      const ts = rs + fs + ms
+      const segmento =
+        ts >= 13 ? 'Campeões' :
+        ts >= 10 ? 'Leais' :
+        rs >= 4 && fs <= 2 ? 'Novos' :
+        rs <= 2 && fs >= 3 ? 'Em risco' :
+        ts <= 5 ? 'Perdidos' : 'Em desenvolvimento'
+      return {
+        id: r.id, nome: r.nome,
+        recencia_dias: Number(r.recencia_dias),
+        frequencia: Number(r.frequencia),
+        valor: Number(r.valor),
+        r_score: rs, f_score: fs, m_score: ms, segmento,
+      }
+    })
+
+    const porSegmento: Record<string, { qtd: number; valor: number }> = {}
+    for (const c of clientes) {
+      if (!porSegmento[c.segmento]) porSegmento[c.segmento] = { qtd: 0, valor: 0 }
+      porSegmento[c.segmento].qtd++
+      porSegmento[c.segmento].valor += c.valor
+    }
+
+    return reply.send({
+      periodo: { inicio, fim },
+      clientes,
+      por_segmento: Object.entries(porSegmento)
+        .map(([segmento, d]) => ({ segmento, ...d }))
+        .sort((a, b) => b.valor - a.valor),
+    })
+  })
+}

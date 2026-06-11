@@ -23,6 +23,7 @@ import { caixaRoutes }              from './modules/caixa/caixa.routes'
 import { sacolasRoutes }            from './modules/sacolas/sacolas.routes'
 import { fornecedoresRoutes }       from './modules/fornecedores/fornecedores.routes'
 import { autorizacoesRoutes }       from './modules/autorizacoes/autorizacoes.routes'
+import { relatoriosRoutes }         from './modules/relatorios/relatorios.routes'
 
 export function buildApp() {
   const app = Fastify({ logger: env.NODE_ENV === 'development' })
@@ -53,6 +54,7 @@ export function buildApp() {
   app.register(sacolasRoutes,          { prefix: '/sacolas' })
   app.register(fornecedoresRoutes,     { prefix: '/fornecedores' })
   app.register(autorizacoesRoutes,     { prefix: '/autorizacoes' })
+  app.register(relatoriosRoutes,       { prefix: '/relatorios' })
 
   return app
 }
