@@ -11,10 +11,10 @@ const auth = [authMiddleware, authorize('dono_loja', 'vendedor')]
 
 const schema = z.object({
   nome:                z.string().min(1),
-  codigo:              z.string().optional().nullable(),   // código promocional futuro
+  codigo:              z.string().optional().nullable(),
   tipo:                z.enum(['desconto_percentual','desconto_fixo','segunda_peca','compre_ganhe','primeira_compra']),
   aplica_todos:        z.boolean().default(false),
-  categorias_alvo:     z.array(z.string()).optional(),     // múltiplas categorias
+  categorias_alvo:     z.array(z.string()).optional(),
   aplicacao:           z.enum(['produtos_selecionados','categoria','todos']).default('todos'),
   valor_desconto:      z.coerce.number().min(0).optional().nullable(),
   unidade:             z.enum(['percentual','reais']).optional().nullable(),
@@ -23,7 +23,7 @@ const schema = z.object({
   percentual_brinde:   z.coerce.number().min(0).max(100).optional().nullable(),
   inicio:              z.string().optional().nullable(),
   fim:                 z.string().optional().nullable(),
-  categoria_alvo:      z.string().optional().nullable(),   // legado
+  categoria_alvo:      z.string().optional().nullable(),
   produtos_ids:        z.array(z.string().uuid()).optional(),
   ativo:               z.boolean().default(true),
 })
@@ -72,26 +72,50 @@ async function verificarConflitoProdutos(
   return null
 }
 
+const STATUS_CASE = `
+  CASE
+    WHEN p.encerrada = true THEN 'encerrada'
+    WHEN p.ativo = false    THEN 'encerrada'
+    WHEN p.ativo = true
+         AND (p.inicio IS NULL OR p.inicio <= CURRENT_DATE)
+         AND (p.fim    IS NULL OR p.fim    >= CURRENT_DATE) THEN 'ativa'
+    WHEN p.ativo = true AND p.inicio IS NOT NULL AND p.inicio > CURRENT_DATE THEN 'agendada'
+    ELSE 'encerrada'
+  END AS status
+`
+
 export async function promocoesRoutes(app: FastifyInstance) {
 
-  // Lista promoções ativas (para PDV e relatórios)
-  app.get('/', { preHandler: auth }, async (req, reply) => {
+  // ── PDV: only currently active promotions ────────────────────────────
+  app.get('/ativas', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
-    const { todas } = req.query as { todas?: string }
-    const where = todas === 'true' ? '' :
-      `WHERE p.ativo = true AND (p.fim IS NULL OR p.fim >= CURRENT_DATE)`
-
-    const { rows: promos } = await pool.query(
-      `SELECT p.*, COALESCE(
-         JSON_AGG(pp.produto_id) FILTER (WHERE pp.produto_id IS NOT NULL), '[]'
-       ) AS produtos_ids
+    const { rows } = await pool.query(
+      `SELECT p.*,
+         COALESCE(JSON_AGG(pp.produto_id) FILTER (WHERE pp.produto_id IS NOT NULL), '[]') AS produtos_ids
        FROM promocoes p
        LEFT JOIN promocoes_produtos pp ON pp.promocao_id = p.id
-       ${where}
+       WHERE p.ativo = true AND p.encerrada = false
+         AND (p.inicio IS NULL OR p.inicio <= CURRENT_DATE)
+         AND (p.fim    IS NULL OR p.fim    >= CURRENT_DATE)
        GROUP BY p.id
        ORDER BY p.nome`
     )
-    return reply.send(promos)
+    return reply.send(rows)
+  })
+
+  // ── Management: all promos with computed status ───────────────────────
+  app.get('/', { preHandler: auth }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { rows } = await pool.query(
+      `SELECT p.*,
+         COALESCE(JSON_AGG(pp.produto_id) FILTER (WHERE pp.produto_id IS NOT NULL), '[]') AS produtos_ids,
+         ${STATUS_CASE}
+       FROM promocoes p
+       LEFT JOIN promocoes_produtos pp ON pp.promocao_id = p.id
+       GROUP BY p.id
+       ORDER BY p.nome`
+    )
+    return reply.send(rows)
   })
 
   app.get('/conflitos', { preHandler: auth }, async (req, reply) => {
@@ -135,7 +159,7 @@ export async function promocoesRoutes(app: FastifyInstance) {
 
     if (data.ativo) {
       const conflito = await verificarConflitoProdutos(pool, {
-        tipo:        data.tipo,
+        tipo:         data.tipo,
         aplica_todos: data.aplica_todos ?? false,
         produtos_ids: produtos_ids ?? [],
       })
@@ -170,6 +194,13 @@ export async function promocoesRoutes(app: FastifyInstance) {
     }
 
     return reply.status(201).send(p)
+  })
+
+  app.put('/:id/encerrar', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { id } = req.params as { id: string }
+    await pool.query(`UPDATE promocoes SET ativo = false, encerrada = true WHERE id = $1`, [id])
+    return reply.send({ ok: true })
   })
 
   app.put('/:id', { preHandler: dono }, async (req, reply) => {
@@ -238,6 +269,38 @@ export async function promocoesRoutes(app: FastifyInstance) {
     }
 
     return reply.send(await pool.query(`SELECT * FROM promocoes WHERE id = $1`, [id]).then(r => r.rows[0]))
+  })
+
+  app.post('/:id/duplicar', { preHandler: dono }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { id } = req.params as { id: string }
+    const { rows: [src] } = await pool.query(`SELECT * FROM promocoes WHERE id = $1`, [id])
+    if (!src) throw new AppError('Promoção não encontrada', 404)
+
+    const { rows: [nova] } = await pool.query(
+      `INSERT INTO promocoes (
+         nome, codigo, tipo, aplicacao, aplica_todos, categorias_alvo,
+         valor_desconto, unidade, quantidade_compre, quantidade_brinde, percentual_brinde,
+         categoria_alvo, ativo, encerrada
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [
+        src.nome + ' (cópia)', src.codigo, src.tipo, src.aplicacao, src.aplica_todos, src.categorias_alvo,
+        src.valor_desconto, src.unidade, src.quantidade_compre, src.quantidade_brinde, src.percentual_brinde,
+        src.categoria_alvo, true, false,
+      ]
+    )
+
+    const { rows: srcProds } = await pool.query(
+      `SELECT produto_id FROM promocoes_produtos WHERE promocao_id = $1`, [id]
+    )
+    for (const { produto_id } of srcProds) {
+      await pool.query(
+        `INSERT INTO promocoes_produtos (promocao_id, produto_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+        [nova.id, produto_id]
+      ).catch(() => {})
+    }
+
+    return reply.status(201).send({ ...nova, produtos_ids: srcProds.map((r: any) => r.produto_id) })
   })
 
   app.delete('/:id', { preHandler: dono }, async (req, reply) => {

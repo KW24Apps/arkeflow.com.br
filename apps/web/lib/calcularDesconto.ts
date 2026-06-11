@@ -14,8 +14,10 @@ export interface Promocao {
   produtos_ids?: string[]
   codigo?: string | null
   ativo?: boolean
+  encerrada?: boolean
   inicio?: string | null
   fim?: string | null
+  status?: 'ativa' | 'agendada' | 'encerrada'
 }
 
 export interface ItemComDesconto extends SacolaItem {

@@ -9,6 +9,7 @@ import { promocoesApi, type Promocao } from '@/lib/api/promocoes'
 import { formatCurrency, parseCurrency } from '@/lib/utils/currency'
 
 type Tipo = 'desconto_percentual' | 'desconto_fixo' | 'segunda_peca' | 'compre_ganhe' | 'primeira_compra'
+type Aba  = 'ativas' | 'finalizadas'
 
 const TIPOS: { value: Tipo; label: string }[] = [
   { value: 'desconto_percentual', label: 'Desconto %' },
@@ -71,15 +72,34 @@ function TipoIcon({ tipo, size = 20 }: { tipo: string; size?: number }) {
   }
 }
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', margin: '8px 0 4px' }}>
+      {children}
+    </p>
+  )
+}
+
+function diasAteInicio(inicio: string): number {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0)
+  const ini  = new Date(inicio + 'T00:00:00')
+  return Math.ceil((ini.getTime() - hoje.getTime()) / 86400000)
+}
+
+function formatDataBR(iso: string): string {
+  const parts = iso.split('-')
+  return `${parts[2]}/${parts[1]}`
+}
+
 export default function PromocoesPage() {
   const [promos,     setPromos]     = useState<Promocao[]>([])
   const [loading,    setLoading]    = useState(true)
   const [busca,      setBusca]      = useState('')
+  const [aba,        setAba]        = useState<Aba>('ativas')
   const [formOpen,   setFormOpen]   = useState(false)
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [salvando,   setSalvando]   = useState(false)
   const [erro,       setErro]       = useState('')
-  const [erroToggle,  setErroToggle]  = useState('')
   const [avisoSalvar, setAvisoSalvar] = useState<any | null>(null)
   const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
@@ -98,7 +118,7 @@ export default function PromocoesPage() {
 
   async function load() {
     setLoading(true)
-    try { setPromos(await promocoesApi.list(true)) }
+    try { setPromos(await promocoesApi.list()) }
     finally { setLoading(false) }
   }
 
@@ -184,24 +204,23 @@ export default function PromocoesPage() {
     if (!aplicacao.aplica_todos && aplicacao.produtos_ids.length > 0) {
       try {
         const { conflitos } = await promocoesApi.conflitos(aplicacao.produtos_ids, editandoId ?? undefined)
-        if (conflitos.length > 0) {
-          setAvisoSalvar(payload)
-          return
-        }
-      } catch { /* ignore — proceed to save */ }
+        if (conflitos.length > 0) { setAvisoSalvar(payload); return }
+      } catch { /* ignore */ }
     }
 
     await doSalvar(payload)
   }
 
-  async function handleToggle(p: Promocao) {
-    setErroToggle('')
-    try {
-      await promocoesApi.update(p.id, { ativo: !p.ativo })
-      setPromos(prev => prev.map(x => x.id === p.id ? { ...x, ativo: !x.ativo } : x))
-    } catch (err: any) {
-      setErroToggle(err?.response?.data?.error ?? 'Erro ao alterar promoção.')
-    }
+  async function handleEncerrar(id: string) {
+    if (!window.confirm('Encerrar esta promoção? Ela não poderá ser reativada automaticamente.')) return
+    await promocoesApi.encerrar(id)
+    await load()
+  }
+
+  async function handleDuplicar(id: string) {
+    await promocoesApi.duplicar(id)
+    setAba('ativas')
+    await load()
   }
 
   function handleRemover() {
@@ -216,22 +235,21 @@ export default function PromocoesPage() {
     })
   }
 
-  // Sort: active first; within active sort by fim asc (null fim = no expiry = last)
-  const promosOrdenadas = [...promos].sort((a, b) => {
-    if (!!a.ativo !== !!b.ativo) return a.ativo ? -1 : 1
-    if (a.ativo && b.ativo) {
-      if (!a.fim && !b.fim) return 0
-      if (!a.fim) return 1
-      if (!b.fim) return -1
-      return a.fim.localeCompare(b.fim)
-    }
-    return 0
-  })
-
+  // ── Derived lists ─────────────────────────────────────────────────────
   const q = busca.trim().toLowerCase()
   const promosFiltradas = q
-    ? promosOrdenadas.filter(p => p.nome.toLowerCase().includes(q))
-    : promosOrdenadas
+    ? promos.filter(p => p.nome.toLowerCase().includes(q))
+    : promos
+
+  const emExecucao = promosFiltradas.filter(p => p.status === 'ativa')
+  const agendadas  = promosFiltradas
+    .filter(p => p.status === 'agendada')
+    .sort((a, b) => {
+      if (!a.inicio) return 1
+      if (!b.inicio) return -1
+      return a.inicio.localeCompare(b.inicio)
+    })
+  const encerradas = promosFiltradas.filter(p => p.status === 'encerrada')
 
   function descricao(p: Promocao): string {
     switch (p.tipo) {
@@ -242,6 +260,13 @@ export default function PromocoesPage() {
       case 'primeira_compra':     return `${p.valor_desconto}% na primeira compra`
       default: return ''
     }
+  }
+
+  const GRID: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 220px))',
+    gap: '12px',
+    justifyContent: 'start',
   }
 
   return (
@@ -486,10 +511,7 @@ export default function PromocoesPage() {
           </div>
         )}
 
-        {/* ── Card grid ─────────────────────────────────────────────────────── */}
-        {erroToggle && (
-          <p style={{ fontSize: '12px', color: 'rgba(248,113,113,0.85)', marginBottom: '8px' }}>{erroToggle}</p>
-        )}
+        {/* ── Search ──────────────────────────────────────────────────────────── */}
         {!loading && (
           <input
             value={busca}
@@ -503,33 +525,111 @@ export default function PromocoesPage() {
               fontSize: '13px',
               color: 'rgba(255,255,255,0.75)',
               width: '100%',
-              marginBottom: '12px',
               outline: 'none',
             }}
             onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
           />
         )}
+
+        {/* ── Tabs ────────────────────────────────────────────────────────────── */}
+        {!loading && (
+          <div style={{ display: 'flex', gap: '4px', background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px', width: 'fit-content' }}>
+            {(['ativas', 'finalizadas'] as const).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setAba(t)}
+                style={{
+                  padding: '6px 18px', fontSize: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                  background: aba === t ? 'rgba(0,239,255,0.15)' : 'transparent',
+                  color: aba === t ? '#0ef' : 'rgba(255,255,255,0.4)',
+                  fontWeight: aba === t ? 500 : 400,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {t === 'ativas' ? 'Ativas' : 'Finalizadas'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Content ─────────────────────────────────────────────────────────── */}
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : promosFiltradas.length === 0 ? (
-          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', textAlign: 'center', paddingTop: '48px' }}>
-            {busca.trim() ? `Nenhuma promoção encontrada para "${busca}"` : 'Nenhuma promoção cadastrada'}
-          </p>
+        ) : aba === 'ativas' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            {/* Em execução */}
+            <SectionTitle>Em execução</SectionTitle>
+            {emExecucao.length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', padding: '12px 0 16px' }}>
+                Nenhuma promoção em execução
+              </p>
+            ) : (
+              <div style={{ ...GRID, marginBottom: '20px' }}>
+                {emExecucao.map(p => (
+                  <PromoCard
+                    key={p.id}
+                    promo={p}
+                    descricao={descricao(p)}
+                    tipoLabel={TIPO_LABEL[p.tipo] ?? p.tipo}
+                    status="ativa"
+                    onClick={() => abrirEdicao(p.id)}
+                    onEncerrar={() => handleEncerrar(p.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Agendadas */}
+            {agendadas.length > 0 && (
+              <>
+                <SectionTitle>Agendadas</SectionTitle>
+                <div style={GRID}>
+                  {agendadas.map(p => (
+                    <PromoCard
+                      key={p.id}
+                      promo={p}
+                      descricao={descricao(p)}
+                      tipoLabel={TIPO_LABEL[p.tipo] ?? p.tipo}
+                      status="agendada"
+                      onClick={() => abrirEdicao(p.id)}
+                      onEncerrar={() => handleEncerrar(p.id)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {emExecucao.length === 0 && agendadas.length === 0 && busca.trim() && (
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', paddingTop: '24px' }}>
+                Nenhuma promoção encontrada para "{busca}"
+              </p>
+            )}
+          </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 220px))', gap: '12px', justifyContent: 'start' }}>
-            {promosFiltradas.map(p => (
-              <PromoCard
-                key={p.id}
-                promo={p}
-                descricao={descricao(p)}
-                onClick={() => abrirEdicao(p.id)}
-                onToggle={() => handleToggle(p)}
-                tipoLabel={TIPO_LABEL[p.tipo] ?? p.tipo}
-              />
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            <SectionTitle>Histórico</SectionTitle>
+            {encerradas.length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', padding: '12px 0' }}>
+                {busca.trim() ? `Nenhuma promoção encontrada para "${busca}"` : 'Nenhuma promoção encerrada'}
+              </p>
+            ) : (
+              <div style={GRID}>
+                {encerradas.map(p => (
+                  <PromoCard
+                    key={p.id}
+                    promo={p}
+                    descricao={descricao(p)}
+                    tipoLabel={TIPO_LABEL[p.tipo] ?? p.tipo}
+                    status="encerrada"
+                    onDuplicar={() => handleDuplicar(p.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -544,7 +644,7 @@ export default function PromocoesPage() {
 
       </main>
 
-      {/* ── Aviso 2 — confirmar transferência antes de salvar ── */}
+      {/* ── Aviso 2 — confirmar transferência ── */}
       {avisoSalvar !== null && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 800, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           <div style={{ background: '#0d1a26', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '12px', width: '100%', maxWidth: '340px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -591,77 +691,127 @@ export default function PromocoesPage() {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function PromoCard({
-  promo, descricao, tipoLabel, onClick, onToggle,
+  promo, descricao, tipoLabel, status, onClick, onEncerrar, onDuplicar,
 }: {
   promo: Promocao
   descricao: string
   tipoLabel: string
-  onClick: () => void
-  onToggle: () => void
+  status: 'ativa' | 'agendada' | 'encerrada'
+  onClick?: () => void
+  onEncerrar?: () => void
+  onDuplicar?: () => void
 }) {
   const [hovered, setHovered] = useState(false)
+  const isEncerrada = status === 'encerrada'
+  const isAgendada  = status === 'agendada'
+
+  const borderColor = isEncerrada
+    ? 'rgba(255,255,255,0.06)'
+    : isAgendada
+      ? (hovered ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.12)')
+      : (hovered ? 'rgba(0,239,255,0.25)' : 'rgba(255,255,255,0.12)')
+
+  const dias = isAgendada && promo.inicio ? diasAteInicio(promo.inicio) : null
 
   return (
     <div
-      role="button"
-      tabIndex={0}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
-      onKeyDown={e => e.key === 'Enter' && onClick()}
+      onKeyDown={e => e.key === 'Enter' && onClick?.()}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         background: 'rgba(8,18,30,0.48)',
         backdropFilter: 'blur(8px)',
-        border: `0.5px solid ${hovered ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.09)'}`,
+        border: `0.5px solid ${borderColor}`,
         borderRadius: '10px',
-        padding: '16px',
+        padding: '14px',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        gap: '8px',
-        textAlign: 'center',
-        cursor: 'pointer',
-        opacity: promo.ativo ? 1 : 0.55,
+        gap: '7px',
+        cursor: onClick ? 'pointer' : 'default',
+        opacity: isEncerrada ? 0.65 : 1,
         transition: 'border-color 0.15s, opacity 0.15s',
+        position: 'relative',
       }}
     >
+      {/* Agendada badge top-right */}
+      {isAgendada && promo.inicio && (
+        <span style={{
+          position: 'absolute', top: '10px', right: '10px',
+          fontSize: '10px', background: 'rgba(251,191,36,0.12)', color: 'rgba(251,191,36,0.85)',
+          border: '0.5px solid rgba(251,191,36,0.3)', borderRadius: '6px', padding: '2px 7px',
+          lineHeight: 1.4,
+        }}>
+          {formatDataBR(promo.inicio)}{dias !== null && dias >= 0 ? ` · ${dias}d` : ''}
+        </span>
+      )}
+
       {/* Icon */}
-      <div style={{ width: '44px', height: '44px', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <div style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.04)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <TipoIcon tipo={promo.tipo} />
       </div>
 
       {/* Nome */}
-      <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 500, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {promo.nome}
       </p>
 
       {/* Tipo badge */}
-      <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)', borderRadius: '10px', padding: '2px 7px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)', borderRadius: '10px', padding: '2px 7px', textTransform: 'uppercase', letterSpacing: '0.05em', alignSelf: 'flex-start' }}>
         {tipoLabel}
       </span>
 
       {/* Descrição */}
-      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {descricao}
       </p>
 
-      {/* Toggle ativo */}
-      <button
-        type="button"
-        onClick={e => { e.stopPropagation(); onToggle() }}
-        title={promo.ativo ? 'Desativar' : 'Ativar'}
-        style={{
-          width: '34px', height: '18px', borderRadius: '9px', border: 'none', cursor: 'pointer',
-          position: 'relative', flexShrink: 0, marginTop: '2px',
-          background: promo.ativo ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.12)',
-          transition: 'background 0.2s',
-        }}
-      >
-        <span style={{
-          position: 'absolute', top: '3px', width: '12px', height: '12px', borderRadius: '50%', background: '#fff',
-          left: promo.ativo ? '19px' : '3px', transition: 'left 0.2s',
-        }} />
-      </button>
+      {/* Bottom row: status label + action */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+        {status === 'ativa' && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'rgba(74,222,128,0.85)' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(74,222,128,0.85)', display: 'inline-block', flexShrink: 0 }} />
+            Em execução
+          </span>
+        )}
+        {status === 'agendada' && (
+          <span style={{ fontSize: '10px', color: 'rgba(251,191,36,0.8)' }}>🕐 Agendada</span>
+        )}
+        {status === 'encerrada' && (
+          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>Encerrada</span>
+        )}
+
+        {onEncerrar && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onEncerrar() }}
+            style={{
+              fontSize: '10px', color: 'rgba(248,113,113,0.75)',
+              border: '0.5px solid rgba(248,113,113,0.25)',
+              background: 'rgba(248,113,113,0.06)',
+              borderRadius: '6px', padding: '3px 10px', cursor: 'pointer',
+            }}
+          >
+            Encerrar
+          </button>
+        )}
+        {onDuplicar && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); onDuplicar() }}
+            style={{
+              fontSize: '10px', color: 'rgba(0,239,255,0.6)',
+              border: '0.5px solid rgba(0,239,255,0.2)',
+              background: 'rgba(0,239,255,0.05)',
+              borderRadius: '6px', padding: '3px 10px', cursor: 'pointer',
+            }}
+          >
+            Duplicar
+          </button>
+        )}
+      </div>
     </div>
   )
 }

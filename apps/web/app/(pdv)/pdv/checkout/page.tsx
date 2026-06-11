@@ -32,7 +32,7 @@ export default function PDVCheckout() {
 
     Promise.all([
       financeiroApi.formasPagamento(),
-      promocoesApi.list(false),
+      promocoesApi.listAtivas(),
       cliente_id ? clientesApi.get(cliente_id) : Promise.resolve(null),
     ]).then(([fs, ps, cli]) => {
       setFormas(fs)

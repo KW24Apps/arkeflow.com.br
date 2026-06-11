@@ -209,7 +209,7 @@ export default function CaixaPage() {
 
   useEffect(() => {
     if (status !== 'aberto') return
-    promocoesApi.list(false).then(setPromocoes).catch(() => {})
+    promocoesApi.listAtivas().then(setPromocoes).catch(() => {})
     api.get('/dados-loja/sistema').then(r => {
       const d = r.data
       setDescontoCfg({ pct: Number(d.desconto_max_percentual ?? 0), valor: Number(d.desconto_max_valor ?? 0), promoAceita: !!d.promocao_aceita_desconto })

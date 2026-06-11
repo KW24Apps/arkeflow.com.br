@@ -32,7 +32,7 @@ export function SeletorAplicacao({ value, onChange }: Props) {
       const nm: Record<string, string> = {}
       const cm: Record<string, string> = {}
       ps.forEach(p => {
-        if (p) { nm[p.id] = p.nome; cm[p.id] = p.categoria ?? 'Sem categoria' }
+        if (p) { nm[p.id] = p.nome; cm[p.id] = p.tipo_nome ?? 'Sem tipo' }
       })
       setNomeMap(prev => ({ ...prev, ...nm }))
       setCatMap(prev => ({ ...prev, ...cm }))
@@ -67,7 +67,7 @@ export function SeletorAplicacao({ value, onChange }: Props) {
       setProdutos(ps)
       const nm: Record<string, string> = {}
       const cm2: Record<string, string> = {}
-      ps.forEach(p => { nm[p.id] = p.nome; cm2[p.id] = p.categoria ?? 'Sem categoria' })
+      ps.forEach(p => { nm[p.id] = p.nome; cm2[p.id] = p.tipo_nome ?? 'Sem tipo' })
       setNomeMap(prev => ({ ...prev, ...nm }))
       setCatMap(prev => ({ ...prev, ...cm2 }))
       if (ps.length) {
@@ -90,11 +90,11 @@ export function SeletorAplicacao({ value, onChange }: Props) {
     const filtered = produtos.filter(p =>
       !q ||
       p.nome.toLowerCase().includes(q) ||
-      (p.categoria ?? '').toLowerCase().includes(q)
+      (p.tipo_nome ?? '').toLowerCase().includes(q)
     )
     const map = new Map<string, Produto[]>()
     filtered.forEach(p => {
-      const cat = p.categoria ?? 'Sem categoria'
+      const cat = p.tipo_nome ?? 'Sem tipo'
       if (!map.has(cat)) map.set(cat, [])
       map.get(cat)!.push(p)
     })
@@ -107,7 +107,7 @@ export function SeletorAplicacao({ value, onChange }: Props) {
   const catSummary = useMemo<[string, number][]>(() => {
     const counts: Record<string, number> = {}
     value.produtos_ids.forEach(id => {
-      const cat = catMap[id] ?? 'Sem categoria'
+      const cat = catMap[id] ?? 'Sem tipo'
       counts[cat] = (counts[cat] ?? 0) + 1
     })
     return Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]))

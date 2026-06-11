@@ -4,6 +4,7 @@ export interface Produto {
   id: string
   nome: string
   categoria: string | null
+  tipo_nome: string | null
   marca: string | null
   descricao: string | null
   preco_base: string
