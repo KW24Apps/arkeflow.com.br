@@ -70,8 +70,23 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         `, [inicio])
       : Promise.resolve({ rows: [{ hora_inicio: null as number | null }] })
 
+    const kpiHojeQuery = pool.query(`
+      SELECT
+        COALESCE(SUM(v.total), 0) AS faturamento,
+        COUNT(DISTINCT v.id)       AS qtd_vendas,
+        COALESCE(AVG(v.total), 0)  AS ticket_medio
+      FROM vendas v
+      WHERE v.status = 'finalizada' AND DATE(v.criado_em) = CURRENT_DATE
+    `)
+
+    const despesasQuery = pool.query(`
+      SELECT COUNT(*) AS qtd, COALESCE(SUM(valor), 0) AS total
+      FROM lancamentos WHERE tipo = 'saida' AND data BETWEEN $1 AND $2
+    `, [inicio, fim])
+
     const [kpiRes, porDiaRes, formaRes, topVendRes, topProdRes,
-           contasRes, cbSaldoRes, promoRes, caixasRes, cfgRes, horaInicioRes] = await Promise.all([
+           contasRes, cbSaldoRes, promoRes, caixasRes, cfgRes, horaInicioRes,
+           kpiHojeRes, despesasRes] = await Promise.all([
 
       pool.query(`
         SELECT
@@ -174,6 +189,8 @@ export async function relatoriosRoutes(app: FastifyInstance) {
       pool.query(`SELECT inatividade_minutos FROM configuracoes_loja LIMIT 1`),
 
       horaInicioQuery,
+      kpiHojeQuery,
+      despesasQuery,
     ])
 
     // ── Round 2: platform queries (need inatividade_minutos + operator ids) ─
@@ -199,14 +216,10 @@ export async function relatoriosRoutes(app: FastifyInstance) {
     ])
 
     // ── Build response ──────────────────────────────────────────────────────
-    const k     = kpiRes.rows[0]
-    const qtdV  = Number(k.qtd_vendas)
-    const sub   = Number(k.subtotal_total)
-    const desc  = Number(k.desconto_total)
-
     const opNomes: Record<string, string> = {}
     for (const op of operadoresRes.rows) opNomes[op.id] = op.nome
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const faturamento_por_dia = granularity === 'hour'
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (porDiaRes.rows as any[]).map(r => ({ hora: Number(r.hora), faturamento: Number(r.faturamento) }))
@@ -217,40 +230,30 @@ export async function relatoriosRoutes(app: FastifyInstance) {
     const hora_inicio   = horaInicioVal !== null && horaInicioVal !== undefined
       ? Number(horaInicioVal) : null
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const kh  = (kpiHojeRes as any).rows[0]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dsp = (despesasRes as any).rows[0]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const formaTotal = (formaRes.rows as any[]).reduce((s, r) => s + Number(r.total), 0)
+
     return reply.send({
       periodo: { inicio, fim, nome: periodo },
       granularity,
       hora_inicio,
-      kpis: {
-        faturamento:     Number(k.faturamento),
-        qtd_vendas:      qtdV,
-        ticket_medio:    Number(k.ticket_medio),
-        qtd_itens:       Number(k.qtd_itens),
-        pa:              qtdV > 0 ? Number(k.qtd_itens) / qtdV : 0,
-        desconto_total:  desc,
-        markdown_pct:    sub > 0 ? desc / sub * 100 : 0,
-        cashback_gerado: Number(k.cashback_gerado),
-        cashback_usado:  Number(k.cashback_usado),
+      // Zone 1 — always today
+      kpis_hoje: {
+        faturamento:  Number(kh.faturamento),
+        qtd_vendas:   Number(kh.qtd_vendas),
+        ticket_medio: Number(kh.ticket_medio),
       },
-      faturamento_por_dia,
-      por_forma: formaRes.rows.map(r => ({ nome: r.nome, tipo: r.tipo, total: Number(r.total) })),
-      top_vendedores: topVendRes.rows.map(r => ({
-        nome: r.vendedor_nome, qtd_vendas: Number(r.qtd_vendas), faturamento: Number(r.faturamento),
-      })),
-      top_produtos: topProdRes.rows.map(r => ({
-        nome: r.nome, faturamento: Number(r.faturamento), qtd: Number(r.qtd),
-      })),
-      contas_receber: {
-        qtd:           Number(contasRes.rows[0].qtd),
-        total:         Number(contasRes.rows[0].total),
-        vencidas:      Number(contasRes.rows[0].vencidas),
-        total_vencido: Number(contasRes.rows[0].total_vencido),
+      a_receber: {
+        total:    Number(contasRes.rows[0].total),
+        vencidas: Number(contasRes.rows[0].vencidas),
+        qtd:      Number(contasRes.rows[0].qtd),
       },
-      cashback_saldo: Number(cbSaldoRes.rows[0].saldo),
       online_agora: onlineRes.rows.map(u => ({
-        nome:          u.nome,
-        nivel:         u.nivel,
-        ultimo_acesso: u.ultimo_acesso,
+        nome: u.nome, nivel: u.nivel, ultimo_acesso: u.ultimo_acesso,
       })),
       promocoes_ativas: promoRes.rows.map(p => ({
         id: p.id, nome: p.nome, tipo: p.tipo, inicio: p.inicio, fim: p.fim,
@@ -260,6 +263,23 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         aberto_em:     t.aberto_em,
         valor_rodando: t.saldo_inicial + t.vendas_dinheiro + t.total_suprimentos - t.total_sangrias,
       })),
+      // Zone 2 — period-dependent
+      faturamento_por_dia,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      por_forma: (formaRes.rows as any[]).map(r => ({
+        nome: r.nome, tipo: r.tipo, total: Number(r.total),
+        pct: formaTotal > 0 ? Number(r.total) / formaTotal * 100 : 0,
+      })),
+      top_vendedores: topVendRes.rows.map(r => ({
+        nome: r.vendedor_nome, qtd_vendas: Number(r.qtd_vendas), faturamento: Number(r.faturamento),
+      })),
+      top_produtos: topProdRes.rows.map(r => ({
+        nome: r.nome, faturamento: Number(r.faturamento), qtd: Number(r.qtd),
+      })),
+      despesas: {
+        total: Number(dsp.total),
+        qtd:   Number(dsp.qtd),
+      },
     })
   })
 
