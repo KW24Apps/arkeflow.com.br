@@ -79,7 +79,8 @@ export default function PromocoesPage() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [salvando,   setSalvando]   = useState(false)
   const [erro,       setErro]       = useState('')
-  const [erroToggle, setErroToggle] = useState('')
+  const [erroToggle,  setErroToggle]  = useState('')
+  const [avisoSalvar, setAvisoSalvar] = useState<any | null>(null)
   const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
   // Form state
@@ -138,39 +139,59 @@ export default function PromocoesPage() {
     setFormOpen(false); setEditandoId(null); setErro('')
   }
 
+  function buildPayload() {
+    return {
+      nome,
+      codigo:            codigo.trim().toUpperCase() || null,
+      tipo,
+      aplica_todos:      tipo === 'primeira_compra' ? true : aplicacao.aplica_todos,
+      categorias_alvo:   aplicacao.categorias_alvo,
+      produtos_ids:      aplicacao.produtos_ids,
+      aplicacao:         (tipo === 'primeira_compra' || aplicacao.aplica_todos) ? 'todos'
+                       : aplicacao.categorias_alvo.length ? 'categoria'
+                       : 'produtos_selecionados',
+      valor_desconto:    ['desconto_percentual', 'desconto_fixo', 'primeira_compra'].includes(tipo)
+                         ? (tipo === 'desconto_fixo' ? parseCurrency(valor) : parseFloat(valor)) : null,
+      unidade:           tipo === 'desconto_percentual' ? 'percentual'
+                       : tipo === 'desconto_fixo'       ? 'reais' : null,
+      percentual_brinde: tipo === 'segunda_peca'  ? parseFloat(percentBrinde) : null,
+      quantidade_compre: tipo === 'compre_ganhe'  ? parseInt(compre)          : null,
+      quantidade_brinde: tipo === 'compre_ganhe'  ? parseInt(ganhe)           : null,
+      inicio: !semVencimento && inicio ? inicio : null,
+      fim:    !semVencimento && fim    ? fim    : null,
+    }
+  }
+
+  async function doSalvar(payload: any) {
+    setSalvando(true)
+    try {
+      if (editandoId) await promocoesApi.update(editandoId, payload)
+      else await promocoesApi.create({ ...payload, ativo: true })
+      fecharForm(); await load()
+    } catch (err: any) {
+      setErro(err?.response?.data?.error ?? 'Erro ao salvar.')
+    } finally { setSalvando(false) }
+  }
+
   async function handleSalvar() {
     setErro('')
     if (!nome.trim()) { setErro('Nome é obrigatório.'); return }
     const nenhuma = !aplicacao.aplica_todos && !aplicacao.categorias_alvo.length && !aplicacao.produtos_ids.length
     if (nenhuma && tipo !== 'primeira_compra') { setErro('Selecione onde a promoção será aplicada.'); return }
-    setSalvando(true)
-    try {
-      const data: any = {
-        nome,
-        codigo:          codigo.trim().toUpperCase() || null,
-        tipo,
-        aplica_todos:    tipo === 'primeira_compra' ? true : aplicacao.aplica_todos,
-        categorias_alvo: aplicacao.categorias_alvo,
-        produtos_ids:    aplicacao.produtos_ids,
-        aplicacao:       (tipo === 'primeira_compra' || aplicacao.aplica_todos) ? 'todos'
-                       : aplicacao.categorias_alvo.length ? 'categoria'
-                       : 'produtos_selecionados',
-        valor_desconto: ['desconto_percentual', 'desconto_fixo', 'primeira_compra'].includes(tipo)
-                        ? (tipo === 'desconto_fixo' ? parseCurrency(valor) : parseFloat(valor)) : null,
-        unidade:        tipo === 'desconto_percentual' ? 'percentual'
-                      : tipo === 'desconto_fixo'       ? 'reais' : null,
-        percentual_brinde: tipo === 'segunda_peca'  ? parseFloat(percentBrinde) : null,
-        quantidade_compre: tipo === 'compre_ganhe'  ? parseInt(compre)          : null,
-        quantidade_brinde: tipo === 'compre_ganhe'  ? parseInt(ganhe)           : null,
-        inicio: !semVencimento && inicio ? inicio : null,
-        fim:    !semVencimento && fim    ? fim    : null,
-      }
-      if (editandoId) await promocoesApi.update(editandoId, data)
-      else await promocoesApi.create({ ...data, ativo: true })
-      fecharForm(); await load()
-    } catch (err: any) {
-      setErro(err?.response?.data?.error ?? 'Erro ao salvar.')
-    } finally { setSalvando(false) }
+
+    const payload = buildPayload()
+
+    if (!aplicacao.aplica_todos && aplicacao.produtos_ids.length > 0) {
+      try {
+        const { conflitos } = await promocoesApi.conflitos(aplicacao.produtos_ids, editandoId ?? undefined)
+        if (conflitos.length > 0) {
+          setAvisoSalvar(payload)
+          return
+        }
+      } catch { /* ignore — proceed to save */ }
+    }
+
+    await doSalvar(payload)
   }
 
   async function handleToggle(p: Promocao) {
@@ -522,6 +543,37 @@ export default function PromocoesPage() {
         </button>
 
       </main>
+
+      {/* ── Aviso 2 — confirmar transferência antes de salvar ── */}
+      {avisoSalvar !== null && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 800, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: '#0d1a26', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '12px', width: '100%', maxWidth: '340px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '18px', color: '#0ef', flexShrink: 0 }}>⇄</span>
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginBottom: '6px' }}>Confirmar transferência</p>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>
+                  Alguns produtos selecionados serão desvinculados de suas promoções atuais e transferidos para esta. Deseja continuar?
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setAvisoSalvar(null)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={salvando}
+                onClick={async () => { const p = avisoSalvar; setAvisoSalvar(null); await doSalvar(p) }}
+                style={{ background: 'rgba(0,239,255,0.85)', color: '#0a0a1a', fontWeight: 600, borderRadius: '8px', padding: '8px 14px', fontSize: '12px', border: 'none', cursor: 'pointer', opacity: salvando ? 0.6 : 1 }}
+              >
+                {salvando ? 'Salvando…' : 'Confirmar e salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={modal.open}

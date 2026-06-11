@@ -94,6 +94,25 @@ export async function promocoesRoutes(app: FastifyInstance) {
     return reply.send(promos)
   })
 
+  app.get('/conflitos', { preHandler: auth }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { ids, promocao_id } = req.query as { ids?: string; promocao_id?: string }
+    if (!ids) return reply.send({ conflitos: [] })
+    const idList = ids.split(',').map(s => s.trim()).filter(Boolean)
+    if (!idList.length) return reply.send({ conflitos: [] })
+
+    const { rows } = await pool.query(
+      `SELECT pp.produto_id, pr.nome AS promocao_nome, pr.id AS promocao_id
+       FROM promocoes_produtos pp
+       JOIN promocoes pr ON pr.id = pp.promocao_id
+       WHERE pp.produto_id = ANY($1::uuid[])
+         AND pr.ativo = true
+         ${promocao_id ? 'AND pr.id != $2' : ''}`,
+      promocao_id ? [idList, promocao_id] : [idList],
+    )
+    return reply.send({ conflitos: rows })
+  })
+
   app.get('/:id', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
     const { id } = req.params as { id: string }
@@ -204,11 +223,17 @@ export async function promocoesRoutes(app: FastifyInstance) {
 
     if (produtos_ids !== undefined) {
       await pool.query(`DELETE FROM promocoes_produtos WHERE promocao_id = $1`, [id])
-      for (const pid of produtos_ids) {
+      if (produtos_ids.length) {
         await pool.query(
-          `INSERT INTO promocoes_produtos (promocao_id, produto_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
-          [id, pid]
-        ).catch(() => {})
+          `DELETE FROM promocoes_produtos WHERE produto_id = ANY($1::uuid[]) AND promocao_id != $2`,
+          [produtos_ids, id],
+        )
+        for (const pid of produtos_ids) {
+          await pool.query(
+            `INSERT INTO promocoes_produtos (promocao_id, produto_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+            [id, pid]
+          ).catch(() => {})
+        }
       }
     }
 

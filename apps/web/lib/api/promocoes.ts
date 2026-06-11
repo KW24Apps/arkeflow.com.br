@@ -14,4 +14,10 @@ export const promocoesApi = {
     api.put<Promocao>(`/promocoes/${id}`, data).then(r => r.data),
   remove: (id: string) =>
     api.delete(`/promocoes/${id}`),
+
+  conflitos: (ids: string[], promocaoId?: string) =>
+    api.get<{ conflitos: { produto_id: string; promocao_nome: string }[] }>(
+      '/promocoes/conflitos',
+      { params: { ids: ids.join(','), ...(promocaoId ? { promocao_id: promocaoId } : {}) } },
+    ).then(r => r.data),
 }
