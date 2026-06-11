@@ -34,10 +34,12 @@ export const sacolasApi = {
     api.get<SacolaRemota>(`/sacolas/${id}`).then(r => r.data),
 
   create: (data: {
-    cliente_id?:   string | null
-    cliente_nome?: string | null
-    observacao?:   string
-    itens:         SacolaItemRemoto[]
+    cliente_id?:    string | null
+    cliente_nome?:  string | null
+    vendedor_id?:   string | null
+    vendedor_nome?: string | null
+    observacao?:    string
+    itens:          SacolaItemRemoto[]
   }) => api.post<SacolaRemota>('/sacolas', data).then(r => r.data),
 
   updateStatus: (id: string, status: SacolaStatus) =>

@@ -1,14 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, RefreshCw, ShoppingBag } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { CustomerSearchModal } from '@/components/pdv/CustomerSearchModal'
+import { SalespersonSearchModal } from '@/components/pdv/SalespersonSearchModal'
 import { sacolasApi, type SacolaRemota, type SacolaItemRemoto } from '@/lib/api/sacolas'
 import { api } from '@/lib/api/client'
 import { useAuthStore } from '@/store/auth.store'
 
-// ── Local item type (no `id`, fully typed) ────────────────────────────────────
 interface SacolaItem {
   versao_id:      string
   produto_id:     string
@@ -64,34 +64,41 @@ const PANEL: React.CSSProperties = {
 export default function SacolasPage() {
   const usuario = useAuthStore(s => s.usuario)
 
-  // view
+  // ── View ────────────────────────────────────────────────────────────────────
   const [view,      setView]      = useState<'grid' | 'builder'>('grid')
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  // grid
+  // ── Grid ────────────────────────────────────────────────────────────────────
   const [sacolas,    setSacolas]    = useState<SacolaRemota[]>([])
   const [loading,    setLoading]    = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  // builder
-  const [itens,       setItens]       = useState<SacolaItem[]>([])
-  const [clienteId,   setClienteId]   = useState<string | null>(null)
-  const [clienteNome, setClienteNome] = useState<string | null>(null)
-  const [salvando,    setSalvando]    = useState(false)
-  const [builderErro, setBuilderErro] = useState('')
+  // ── Builder ─────────────────────────────────────────────────────────────────
+  const [itens,        setItens]        = useState<SacolaItem[]>([])
+  const [clienteId,    setClienteId]    = useState<string | null>(null)
+  const [clienteNome,  setClienteNome]  = useState<string | null>(null)
+  const [vendedorId,   setVendedorId]   = useState<string | null>(null)
+  const [vendedorNome, setVendedorNome] = useState<string | null>(null)
+  const [salvando,     setSalvando]     = useState(false)
+  const [builderErro,  setBuilderErro]  = useState('')
 
-  // modals
+  // ── Auto-open client flag (resets on each new builder session) ──────────────
+  const [autoClienteAberto, setAutoClienteAberto] = useState(false)
+
+  // ── Modals ──────────────────────────────────────────────────────────────────
   const [modalCliente,  setModalCliente]  = useState(false)
+  const [modalVendedor, setModalVendedor] = useState(false)
   const [modalVariacao, setModalVariacao] = useState<{ produto: any; qty: number } | null>(null)
+  const [focadoIdx,     setFocadoIdx]     = useState(0)
 
-  // search
-  const scanRef        = useRef<HTMLInputElement>(null)
-  const [scan,          setScan]          = useState('')
-  const [resultados,    setResultados]    = useState<ProdutoSearch[]>([])
-  const [highlightIdx,  setHighlightIdx]  = useState(-1)
-  const [scanErro,      setScanErro]      = useState('')
+  // ── Search ──────────────────────────────────────────────────────────────────
+  const scanRef = useRef<HTMLInputElement>(null)
+  const [scan,         setScan]         = useState('')
+  const [resultados,   setResultados]   = useState<ProdutoSearch[]>([])
+  const [highlightIdx, setHighlightIdx] = useState(-1)
+  const [scanErro,     setScanErro]     = useState('')
 
-  // ── Load grid ───────────────────────────────────────────────────────────────
+  // ── Load grid ────────────────────────────────────────────────────────────────
   async function loadGrid(soft = false) {
     soft ? setRefreshing(true) : setLoading(true)
     try { setSacolas(await sacolasApi.list('aguardando')) }
@@ -100,11 +107,13 @@ export default function SacolasPage() {
 
   useEffect(() => { loadGrid() }, [])
 
-  // ── Open builder ────────────────────────────────────────────────────────────
+  // ── Open builder ─────────────────────────────────────────────────────────────
   function openCreate() {
     setItens([]); setClienteId(null); setClienteNome(null)
+    setVendedorId(usuario?.id ?? null); setVendedorNome(usuario?.nome ?? null)
+    setAutoClienteAberto(false)
     setEditingId(null); setScan(''); setResultados([])
-    setScanErro(''); setBuilderErro('')
+    setScanErro(''); setBuilderErro(''); setModalVariacao(null)
     setView('builder')
   }
 
@@ -120,13 +129,70 @@ export default function SacolasPage() {
     })))
     setClienteId(s.cliente_id)
     setClienteNome(s.cliente_nome)
+    setVendedorId(s.criado_por)
+    setVendedorNome(s.nome_vendedor)
+    setAutoClienteAberto(false)
     setEditingId(s.id)
     setScan(''); setResultados([])
-    setScanErro(''); setBuilderErro('')
+    setScanErro(''); setBuilderErro(''); setModalVariacao(null)
     setView('builder')
   }
 
   function backToGrid() { setView('grid'); loadGrid(true) }
+
+  // ── Auto-open CustomerSearchModal on first item (FIX 3) ──────────────────────
+  useEffect(() => {
+    if (view !== 'builder') return
+    if (itens.length === 1 && !clienteId && !autoClienteAberto) {
+      setAutoClienteAberto(true)
+      setModalCliente(true)
+    }
+  }, [itens.length, clienteId, view])
+
+  // ── Auto-focus first non-esgotado card when variation modal opens (FIX 2) ───
+  useEffect(() => {
+    if (!modalVariacao) return
+    const versoes: any[] = modalVariacao.produto.versoes ?? []
+    const first = versoes.findIndex(
+      (v: any) => !(modalVariacao.produto.controle_estoque && (v.estoque_atual ?? Infinity) <= 0)
+    )
+    setFocadoIdx(first >= 0 ? first : 0)
+  }, [modalVariacao])
+
+  // ── Keyboard nav for variation modal (FIX 2) ─────────────────────────────────
+  useEffect(() => {
+    if (!modalVariacao) return
+    function onKey(e: KeyboardEvent) {
+      const versoes: any[]   = modalVariacao!.produto.versoes ?? []
+      const disponivel = versoes
+        .map((v: any, i: number) => ({ v, i }))
+        .filter(({ v }) => !(modalVariacao!.produto.controle_estoque && (v.estoque_atual ?? Infinity) <= 0))
+
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setModalVariacao(null)
+        setTimeout(() => scanRef.current?.focus(), 100)
+        return
+      }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault()
+        const curr  = disponivel.findIndex(({ i }) => i === focadoIdx)
+        const delta = e.key === 'ArrowRight' ? 1 : -1
+        const next  = disponivel[(curr + delta + disponivel.length) % disponivel.length]
+        if (next) setFocadoIdx(next.i)
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        const versao = versoes[focadoIdx]
+        if (!versao) return
+        if (modalVariacao!.produto.controle_estoque && (versao.estoque_atual ?? Infinity) <= 0) return
+        selecionarVariacao(versao, modalVariacao!.produto, modalVariacao!.qty)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [modalVariacao, focadoIdx])
 
   // ── Item helpers ─────────────────────────────────────────────────────────────
   function addItem(item: Omit<SacolaItem, 'quantidade'>, qty = 1) {
@@ -146,7 +212,7 @@ export default function SacolasPage() {
     setItens(prev => prev.map(i => i.versao_id === versao_id ? { ...i, quantidade: qtd } : i))
   }
 
-  // ── Product search ───────────────────────────────────────────────────────────
+  // ── Product search ────────────────────────────────────────────────────────────
   async function buscarBarcode(codigo: string, qty: number): Promise<boolean> {
     try {
       const { data } = await api.get<any>(`/produtos/barcode/${encodeURIComponent(codigo)}`)
@@ -231,7 +297,7 @@ export default function SacolasPage() {
     setModalVariacao(null); setScan(''); scanRef.current?.focus()
   }
 
-  // ── Save / cancel ────────────────────────────────────────────────────────────
+  // ── Save / cancel ─────────────────────────────────────────────────────────────
   async function handleSalvar() {
     if (!clienteId || itens.length === 0) return
     setSalvando(true); setBuilderErro('')
@@ -239,7 +305,11 @@ export default function SacolasPage() {
       if (editingId) {
         await sacolasApi.updateItens(editingId, itens as SacolaItemRemoto[], clienteId, clienteNome)
       } else {
-        await sacolasApi.create({ cliente_id: clienteId, cliente_nome: clienteNome, itens: itens as SacolaItemRemoto[] })
+        await sacolasApi.create({
+          cliente_id: clienteId, cliente_nome: clienteNome,
+          vendedor_id: vendedorId, vendedor_nome: vendedorNome,
+          itens: itens as SacolaItemRemoto[],
+        })
       }
       backToGrid()
     } catch (e: any) {
@@ -272,7 +342,6 @@ export default function SacolasPage() {
         /* ══════════════════════════════════ GRID VIEW ══════════════════════════ */
         <main className="flex-1 min-h-0 overflow-y-auto p-4 md:p-5 pb-24 flex flex-col gap-4">
 
-          {/* Header row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
               Sacolas aguardando atendimento. O caixa pode puxar direto para o carrinho.
@@ -396,7 +465,6 @@ export default function SacolasPage() {
                             {attrText && <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>{attrText}</p>}
                             <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>{fmtR(item.preco_unitario)} un.</p>
                           </div>
-                          {/* qty controls */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                             <button
                               onClick={() => setQtd(item.versao_id, item.quantidade - 1)}
@@ -465,7 +533,7 @@ export default function SacolasPage() {
               </div>
             </div>
 
-            {/* ── RIGHT: client + total + actions ── */}
+            {/* ── RIGHT: client + vendedor + total + actions ── */}
             <div style={{ width: '256px', flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px', gap: '10px', overflowY: 'auto' }}>
 
               {/* Cliente */}
@@ -495,11 +563,25 @@ export default function SacolasPage() {
                 )}
               </div>
 
-              {/* Vendedor */}
+              {/* Vendedor — editable in create mode, read-only in edit mode (FIX 4) */}
               <div style={{ ...PANEL, padding: '12px' }}>
                 <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '6px' }}>Vendedor</p>
-                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{usuario?.nome ?? '—'}</p>
-                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginTop: '2px' }}>logado automaticamente</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {vendedorNome ?? '—'}
+                  </p>
+                  {!editingId && (
+                    <button
+                      onClick={() => setModalVendedor(true)}
+                      style={{ fontSize: '11px', color: 'rgba(0,239,255,0.7)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                      onMouseEnter={e => { e.currentTarget.style.color = '#0ef' }}
+                      onMouseLeave={e => { e.currentTarget.style.color = 'rgba(0,239,255,0.7)' }}
+                    >Trocar</button>
+                  )}
+                </div>
+                {!editingId && (
+                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginTop: '2px' }}>logado automaticamente</p>
+                )}
               </div>
 
               {/* Total */}
@@ -517,6 +599,7 @@ export default function SacolasPage() {
 
               {/* Actions */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto', paddingTop: '8px' }}>
+                {/* FIX 1: "Salvar sacola" */}
                 <button
                   onClick={handleSalvar}
                   disabled={!canSave || salvando}
@@ -528,8 +611,10 @@ export default function SacolasPage() {
                   }}
                   onMouseEnter={e => { if (canSave && !salvando) e.currentTarget.style.background = 'rgba(0,239,255,0.75)' }}
                   onMouseLeave={e => { if (canSave) e.currentTarget.style.background = 'rgba(0,239,255,0.9)' }}
+                  onFocus={e => { if (canSave) e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.35)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
-                  {salvando ? 'Salvando…' : 'Enviar para o caixa →'}
+                  {salvando ? 'Salvando…' : 'Salvar sacola'}
                 </button>
 
                 <button
@@ -538,6 +623,8 @@ export default function SacolasPage() {
                   style={{ width: '100%', minHeight: '40px', background: 'transparent', border: '0.5px solid rgba(240,100,100,0.3)', borderRadius: '10px', color: 'rgba(240,100,100,0.55)', fontSize: '13px', cursor: 'pointer', outline: 'none', transition: 'background 120ms, border-color 120ms, color 120ms' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(240,100,100,0.07)'; e.currentTarget.style.borderColor = 'rgba(240,100,100,0.5)'; e.currentTarget.style.color = 'rgba(240,100,100,0.9)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(240,100,100,0.3)'; e.currentTarget.style.color = 'rgba(240,100,100,0.55)' }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(240,100,100,0.3)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   {editingId ? 'Cancelar sacola' : 'Descartar'}
                 </button>
@@ -554,40 +641,88 @@ export default function SacolasPage() {
         onSelect={(c: any) => { setClienteId(c.id); setClienteNome(c.nome); setModalCliente(false) }}
       />
 
-      {modalVariacao && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', background: 'rgba(2,8,16,0.82)' }}
-          onClick={() => setModalVariacao(null)}
-        >
+      <SalespersonSearchModal
+        open={modalVendedor}
+        onClose={() => setModalVendedor(false)}
+        onSelect={(c: any) => { setVendedorId(c.id); setVendedorNome(c.nome); setModalVendedor(false) }}
+      />
+
+      {/* ── Variation picker — card grid matching caixa (FIX 2) ── */}
+      {modalVariacao && (() => {
+        const { produto, qty } = modalVariacao
+        const versoes: any[]  = produto.versoes ?? []
+        return (
           <div
-            style={{ maxWidth: '380px', width: '100%', maxHeight: '80vh', background: 'rgba(8,18,30,0.98)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '16px', display: 'flex', flexDirection: 'column' }}
-            onClick={e => e.stopPropagation()}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => { setModalVariacao(null); setTimeout(() => scanRef.current?.focus(), 100) }}
           >
-            <div style={{ padding: '16px 20px', borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
-              <p style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{modalVariacao.produto.nome}</p>
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>Selecione uma variação</p>
-            </div>
-            <div style={{ overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              {(modalVariacao.produto.versoes ?? []).map((v: any) => {
-                const preco   = v.preco_especifico ? +v.preco_especifico : +modalVariacao.produto.preco_base
-                const attrTxt = Object.entries(v.atributos_json ?? {}).map(([k, val]) => `${k}: ${val}`).join(' · ')
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => selecionarVariacao(v, modalVariacao.produto, modalVariacao.qty)}
-                    style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: '8px', padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left', transition: 'background 120ms, border-color 120ms' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(0,239,255,0.25)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
-                  >
-                    <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)' }}>{attrTxt || 'Padrão'}</span>
-                    <span style={{ fontSize: '13px', color: '#0ef', fontWeight: 600 }}>{fmtR(preco)}</span>
-                  </button>
-                )
-              })}
+            <div
+              style={{ background: 'rgba(12,25,45,0.99)', border: '0.5px solid rgba(255,255,255,0.14)', borderRadius: '14px', padding: '24px 20px 20px', width: '460px', maxWidth: '90vw', maxHeight: '88vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+                <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', fontWeight: 600, margin: '0 0 4px' }}>{produto.nome}</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>
+                  {versoes.length} variação{versoes.length !== 1 ? 'ões' : ''} · clique para adicionar à sacola
+                  {qty > 1 && <span style={{ color: 'rgba(0,239,255,0.6)' }}> · {qty} unidades</span>}
+                </p>
+              </div>
+
+              {/* Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px', marginBottom: '14px' }}>
+                {versoes.map((versao: any, idx: number) => {
+                  const esgotado = !!produto.controle_estoque && (versao.estoque_atual ?? Infinity) <= 0
+                  const focused  = idx === focadoIdx && !esgotado
+                  const preco    = versao.preco_especifico ? +versao.preco_especifico : +produto.preco_base
+                  const atribs   = Object.entries(versao.atributos_json ?? {}) as [string, string][]
+                  return (
+                    <div
+                      key={versao.id}
+                      onClick={() => !esgotado && selecionarVariacao(versao, produto, qty)}
+                      onMouseEnter={() => !esgotado && setFocadoIdx(idx)}
+                      style={{
+                        position: 'relative',
+                        background: focused ? 'rgba(0,239,255,0.09)' : 'rgba(8,18,30,0.6)',
+                        border: `0.5px solid ${focused ? 'rgba(0,239,255,0.7)' : 'rgba(255,255,255,0.09)'}`,
+                        borderRadius: '10px',
+                        padding: '14px 8px',
+                        textAlign: 'center',
+                        cursor: esgotado ? 'not-allowed' : 'pointer',
+                        opacity: esgotado ? 0.35 : 1,
+                        transition: 'border-color 0.1s, background 0.1s',
+                      }}
+                    >
+                      {esgotado && (
+                        <span style={{ position: 'absolute', top: '4px', right: '4px', fontSize: '8px', background: 'rgba(240,80,80,0.18)', border: '0.5px solid rgba(240,80,80,0.3)', borderRadius: '4px', padding: '1px 4px', color: 'rgba(240,130,130,0.8)' }}>
+                          Esgotado
+                        </span>
+                      )}
+                      {atribs.length === 0 ? (
+                        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>Versão única</p>
+                      ) : atribs.map(([key, val], ai) => (
+                        <div key={key}>
+                          {ai > 0 && <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)', margin: '6px auto', width: '60%' }} />}
+                          <p style={{ fontSize: '8px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 2px' }}>{key}</p>
+                          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, margin: 0, wordBreak: 'break-word' }}>{val}</p>
+                        </div>
+                      ))}
+                      <p style={{ fontSize: '11px', color: '#0ef', marginTop: '8px', marginBottom: 0 }}>R$ {preco.toFixed(2)}</p>
+                      {produto.controle_estoque && (
+                        <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', margin: '2px 0 0' }}>{versao.estoque_atual} em estoque</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', margin: 0 }}>
+                ← → navegar · Enter adicionar · Esc cancelar
+              </p>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </>
   )
 }

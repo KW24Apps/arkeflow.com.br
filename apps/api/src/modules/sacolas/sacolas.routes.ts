@@ -127,7 +127,7 @@ export async function sacolasRoutes(app: FastifyInstance) {
   app.post('/', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
     const user = req.user as JwtPayload
-    const { cliente_id, cliente_nome, observacao, itens = [] } = req.body as any
+    const { cliente_id, cliente_nome, observacao, itens = [], vendedor_id, vendedor_nome } = req.body as any
 
     const client = await pool.connect()
     try {
@@ -140,10 +140,13 @@ export async function sacolasRoutes(app: FastifyInstance) {
 
       await decrementStock(client, itens, controleGlobal)
 
+      const sacolaVendedorId   = vendedor_id   ?? user.id
+      const sacolaVendedorNome = vendedor_nome ?? user.nome ?? null
+
       const { rows: [sacola] } = await client.query(
         `INSERT INTO sacolas (criado_por, nome_vendedor, cliente_id, cliente_nome, observacao)
          VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-        [user.id, user.nome ?? null, cliente_id ?? null, cliente_nome ?? null, observacao ?? null]
+        [sacolaVendedorId, sacolaVendedorNome, cliente_id ?? null, cliente_nome ?? null, observacao ?? null]
       )
 
       await insertItens(client, sacola.id, itens)
