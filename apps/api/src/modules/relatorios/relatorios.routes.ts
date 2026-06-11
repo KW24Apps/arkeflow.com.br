@@ -48,12 +48,12 @@ export async function relatoriosRoutes(app: FastifyInstance) {
 
     // ── Round 1: all tenant queries in parallel ─────────────────────────────
     const porDiaQuery = granularity === 'hour'
-      ? pool.query<{ hora: number; faturamento: string }>(
+      ? pool.query(
           `SELECT EXTRACT(HOUR FROM criado_em)::int AS hora, SUM(total)::float AS faturamento
            FROM vendas WHERE status='finalizada' AND DATE(criado_em)=$1
            GROUP BY hora ORDER BY hora`,
           [inicio])
-      : pool.query<{ dia: string; faturamento: string }>(
+      : pool.query(
           `SELECT DATE(criado_em)::text AS dia, SUM(total)::float AS faturamento
            FROM vendas WHERE status='finalizada' AND DATE(criado_em) BETWEEN $1 AND $2
            GROUP BY 1 ORDER BY 1`,
@@ -195,8 +195,10 @@ export async function relatoriosRoutes(app: FastifyInstance) {
     for (const op of operadoresRes.rows) opNomes[op.id] = op.nome
 
     const faturamento_por_dia = granularity === 'hour'
-      ? porDiaRes.rows.map(r => ({ hora: Number(r.hora), faturamento: Number(r.faturamento) }))
-      : porDiaRes.rows.map(r => ({ dia: r.dia as string, faturamento: Number(r.faturamento) }))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (porDiaRes.rows as any[]).map(r => ({ hora: Number(r.hora), faturamento: Number(r.faturamento) }))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      : (porDiaRes.rows as any[]).map(r => ({ dia: String(r.dia), faturamento: Number(r.faturamento) }))
 
     return reply.send({
       periodo: { inicio, fim, nome: periodo },
