@@ -759,6 +759,11 @@ export default function CaixaPage() {
         .fechar-venda-btn { transition: background 0.15s, box-shadow 0.15s, transform 0.08s; }
         .fechar-venda-btn:hover { background: #0ef !important; box-shadow: 0 0 0 2px rgba(0,239,255,0.35); transform: scale(1.01); }
         .fechar-venda-btn:active { transform: scale(0.98) !important; box-shadow: none !important; }
+        .cancel-voltar-btn { transition: background 0.12s, border-color 0.12s; outline: none; }
+        .cancel-voltar-btn:hover, .cancel-voltar-btn:focus-visible { background: rgba(255,255,255,0.12) !important; border-color: rgba(255,255,255,0.30) !important; color: rgba(255,255,255,0.95) !important; }
+        .cancel-voltar-btn:focus-visible { box-shadow: 0 0 0 2px rgba(255,255,255,0.25); }
+        .cancel-sim-btn { transition: background 0.12s, box-shadow 0.12s; outline: none; }
+        .cancel-sim-btn:hover, .cancel-sim-btn:focus-visible { background: rgba(240,100,100,1) !important; box-shadow: 0 0 0 2px rgba(240,100,100,0.35); }
       `}</style>
       <TopBar />
       <div className="flex flex-col flex-1 overflow-hidden min-h-0">
@@ -1360,13 +1365,15 @@ export default function CaixaPage() {
               <button
                 ref={voltarBtnRef}
                 onClick={() => setConfirmCancelVenda(false)}
-                style={{ flex: 1, minHeight: '44px', background: 'none', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '10px', color: 'rgba(255,255,255,0.45)', fontSize: '13px', cursor: 'pointer' }}
+                className="cancel-voltar-btn"
+                style={{ flex: 1, minHeight: '44px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '10px', color: 'rgba(255,255,255,0.75)', fontSize: '13px', cursor: 'pointer' }}
               >
                 Voltar
               </button>
               <button
                 onClick={() => { limpar(); setConfirmCancelVenda(false) }}
-                style={{ flex: 1, minHeight: '44px', background: 'rgba(240,100,100,0.75)', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                className="cancel-sim-btn"
+                style={{ flex: 1, minHeight: '44px', background: 'rgba(240,100,100,0.9)', border: 'none', borderRadius: '10px', color: '#1a0808', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
               >
                 Sim, cancelar
               </button>
