@@ -29,6 +29,7 @@ const pagamentoSchema = z.object({
 
 const vendaSchema = z.object({
   cliente_id:        z.string().uuid().optional().nullable(),
+  sacola_id:         z.string().uuid().optional().nullable(),
   itens:             z.array(itemSchema).min(1),
   pagamentos:        z.array(pagamentoSchema).min(1),
   cashback_usado:    z.coerce.number().min(0).default(0),
@@ -249,6 +250,16 @@ export async function vendasRoutes(app: FastifyInstance) {
       }
 
       await client.query('COMMIT')
+
+      // Mark the originating sacola as finalizada (outside the transaction — non-critical)
+      if (data.sacola_id) {
+        await pool.query(
+          `UPDATE sacolas SET status = 'finalizada', atualizado_em = NOW()
+           WHERE id = $1 AND status = 'em_atendimento'`,
+          [data.sacola_id]
+        )
+      }
+
       return reply.status(201).send({ venda_id, total, cashback_gerado })
 
     } catch (err) {

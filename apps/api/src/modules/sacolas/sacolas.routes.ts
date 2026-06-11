@@ -264,16 +264,21 @@ export async function sacolasRoutes(app: FastifyInstance) {
   })
 
   // PUT /sacolas/:id/puxar — cashier pulls bag into POS
+  // Accepts both 'aguardando' and 'em_atendimento' (re-pulling is valid for switching bags)
   app.put('/:id/puxar', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
     const { id } = req.params as { id: string }
 
-    const { rows: [s] } = await pool.query(
-      `UPDATE sacolas SET status = 'em_atendimento', atualizado_em = NOW()
-       WHERE id = $1 AND status = 'aguardando' RETURNING *`,
-      [id]
+    const { rows: [sacola] } = await pool.query(
+      `SELECT * FROM sacolas WHERE id = $1 AND status IN ('aguardando', 'em_atendimento')`, [id]
     )
-    if (!s) throw new AppError('Sacola não encontrada ou não está aguardando.', 404)
+    if (!sacola) throw new AppError('Sacola não encontrada ou não disponível.', 404)
+
+    if (sacola.status === 'aguardando') {
+      await pool.query(
+        `UPDATE sacolas SET status = 'em_atendimento', atualizado_em = NOW() WHERE id = $1`, [id]
+      )
+    }
 
     const { rows: [full] } = await pool.query(WITH_ITENS, [id])
     return reply.send(full)

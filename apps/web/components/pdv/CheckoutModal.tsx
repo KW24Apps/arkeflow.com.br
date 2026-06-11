@@ -445,9 +445,10 @@ export function CheckoutModal({
     const D = comDesconto ? descontoCaixa : 0
     try {
       const pagamentosParaAPI = construirPagamentosParaAPI(lista)
-      const { vendedor_id, vendedor_nome } = usePDVStore.getState()
+      const { vendedor_id, vendedor_nome, sacola_id } = usePDVStore.getState()
       const r = await vendasApi.registrar({
         cliente_id:         clienteId ?? null,
+        sacola_id:          sacola_id ?? null,
         itens:              itensComDesconto.map(i => ({ versao_id: i.versao_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto_item: i.desconto_item, promocao_nome: i.promocao_nome ?? null })),
         pagamentos:         pagamentosParaAPI,
         cashback_usado:     cashbackAplicado,
@@ -484,9 +485,10 @@ export function CheckoutModal({
         pags.push({ forma_pagamento_id: formaEnt.id, valor: Math.round(entrada * 100) / 100, parcelas: 1 })
       }
       pags.push({ forma_pagamento_id: formaAtual.id, valor: financiado, parcelas: N, primeira_parcela: primeiraParcela })
-      const { vendedor_id, vendedor_nome } = usePDVStore.getState()
+      const { vendedor_id, vendedor_nome, sacola_id } = usePDVStore.getState()
       const r = await vendasApi.registrar({
         cliente_id:         clienteId ?? null,
+        sacola_id:          sacola_id ?? null,
         itens:              itensComDesconto.map(i => ({ versao_id: i.versao_id, quantidade: i.quantidade, preco_unitario: i.preco_unitario, desconto_item: i.desconto_item, promocao_nome: i.promocao_nome ?? null })),
         pagamentos:         pags,
         cashback_usado:     cashbackAplicado,
