@@ -42,7 +42,7 @@ export function OceanBackground() {
       const b    = document.createElement('div')
       b.className = 'ocean-bb'
       const size = Math.round(rnd(9, 46))
-      const dur  = rnd(7, 12)
+      const dur  = rnd(12, 22)
       const op   = rnd(0.45, 0.85)
       const rise = Math.round(rnd(0.88, 1.0) * H)
       b.style.width = size + 'px'; b.style.height = size + 'px'
@@ -64,7 +64,7 @@ export function OceanBackground() {
       const b      = document.createElement('div')
       b.className  = 'ocean-bb'
       const size   = Math.round(rnd(9, 46))
-      const dur    = rnd(4, 9) * (burstY / H)
+      const dur    = rnd(10, 18) * (burstY / H)
       const op     = rnd(0.45, 0.85)
       const name   = 'ocean-burst-' + (++uid)
 
