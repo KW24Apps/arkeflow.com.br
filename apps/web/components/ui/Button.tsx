@@ -6,11 +6,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function Button({ loading, variant = 'primary', className = '', children, disabled, ...props }: ButtonProps) {
-  const base = 'w-full py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-electric-cyan/50'
+  const base = 'w-full py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-200 outline-none'
 
   const variants = {
-    primary: 'bg-electric-cyan text-midnight hover:bg-teal-current disabled:opacity-50 disabled:cursor-not-allowed',
-    ghost:   'border border-ocean-depth text-steel hover:text-sea-foam hover:border-teal-current',
+    primary: 'bg-electric-cyan text-midnight hover:bg-[rgba(0,239,255,0.85)] focus-visible:shadow-[0_0_0_2px_rgba(0,239,255,0.35)] disabled:opacity-50 disabled:cursor-not-allowed',
+    ghost:   'border border-ocean-depth text-steel hover:bg-[rgba(255,255,255,0.06)] hover:text-sea-foam hover:border-[rgba(255,255,255,0.30)] focus-visible:shadow-[0_0_0_2px_rgba(255,255,255,0.25)]',
   }
 
   return (
