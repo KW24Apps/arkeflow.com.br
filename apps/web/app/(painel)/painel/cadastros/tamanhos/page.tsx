@@ -7,9 +7,7 @@ export default function TamanhosPage() {
       <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <p className="text-steel text-sm mb-4">Gerencie os tamanhos disponíveis na sua loja.</p>
-        <div className="max-w-lg">
-          <CatalogoCRUD tipo="tamanhos" titulo="Tamanho" />
-        </div>
+        <CatalogoCRUD tipo="tamanhos" titulo="Tamanho" />
       </main>
     </>
   )

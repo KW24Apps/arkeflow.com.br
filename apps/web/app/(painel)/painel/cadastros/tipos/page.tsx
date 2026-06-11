@@ -7,9 +7,7 @@ export default function TiposPage() {
       <TopBar />
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <p className="text-steel text-sm mb-4">Categorize seus produtos por tipo (Camiseta, Calça, etc.).</p>
-        <div className="max-w-lg">
-          <CatalogoCRUD tipo="tipos_produto" titulo="Tipo" />
-        </div>
+        <CatalogoCRUD tipo="tipos_produto" titulo="Tipo" />
       </main>
     </>
   )

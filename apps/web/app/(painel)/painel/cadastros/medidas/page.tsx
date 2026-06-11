@@ -9,9 +9,7 @@ export default function MedidasPage() {
         <p className="text-steel text-sm mb-4">
           Tipos de medida disponíveis para adicionar às variações dos produtos.
         </p>
-        <div className="max-w-lg">
-          <CatalogoCRUD tipo="medidas" titulo="Medida" />
-        </div>
+        <CatalogoCRUD tipo="medidas" titulo="Medida" />
       </main>
     </>
   )
