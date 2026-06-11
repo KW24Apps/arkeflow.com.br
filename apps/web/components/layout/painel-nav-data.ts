@@ -35,8 +35,11 @@ export const SECTIONS = [
     label: 'Promoções',
     icon:  'Tag',
     href:  '/painel/promocoes',
-    match: ['/painel/promocoes'],
-    sub:   [],
+    match: ['/painel/promocoes', '/painel/promocoes/finalizadas'],
+    sub: [
+      { label: 'Ativas',      href: '/painel/promocoes' },
+      { label: 'Finalizadas', href: '/painel/promocoes/finalizadas' },
+    ],
   },
   {
     label: 'Estoque',

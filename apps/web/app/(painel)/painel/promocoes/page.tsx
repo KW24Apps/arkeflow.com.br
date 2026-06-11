@@ -9,7 +9,6 @@ import { promocoesApi, type Promocao } from '@/lib/api/promocoes'
 import { formatCurrency, parseCurrency } from '@/lib/utils/currency'
 
 type Tipo = 'desconto_percentual' | 'desconto_fixo' | 'segunda_peca' | 'compre_ganhe' | 'primeira_compra'
-type Aba  = 'ativas' | 'finalizadas'
 
 const TIPOS: { value: Tipo; label: string }[] = [
   { value: 'desconto_percentual', label: 'Desconto %' },
@@ -96,8 +95,6 @@ function formatDataBR(iso: string): string {
 export default function PromocoesPage() {
   const [promos,     setPromos]     = useState<Promocao[]>([])
   const [loading,    setLoading]    = useState(true)
-  const [busca,      setBusca]      = useState('')
-  const [aba,        setAba]        = useState<Aba>('ativas')
   const [formOpen,      setFormOpen]      = useState(false)
   const [editandoId,    setEditandoId]    = useState<string | null>(null)
   const [esDuplicacao,  setEsDuplicacao]  = useState(false)
@@ -125,7 +122,15 @@ export default function PromocoesPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const dupId = params.get('dup')
+    if (dupId) {
+      window.history.replaceState({}, '', '/painel/promocoes')
+      abrirDuplicado(dupId)
+    }
+    load()
+  }, [])
 
   function abrirNova() {
     setTipo('desconto_percentual'); setNome(''); setCodigo(''); setValor('')
@@ -152,6 +157,31 @@ export default function PromocoesPage() {
     setSemVencimento(!temPeriodo)
     setInicio(toDateInput(p.inicio))
     setFim(toDateInput(p.fim))
+    setAplicacao({
+      aplica_todos:    p.aplica_todos ?? (p.aplicacao === 'todos'),
+      categorias_alvo: Array.isArray(p.categorias_alvo) ? p.categorias_alvo : (p.categoria_alvo ? [p.categoria_alvo] : []),
+      produtos_ids:    Array.isArray(p.produtos_ids) ? p.produtos_ids : [],
+    })
+  }
+
+  async function abrirDuplicado(id: string) {
+    setErro('')
+    setEditandoId(id)
+    setEsDuplicacao(true)
+    setFormOpen(true)
+    const p = await promocoesApi.get(id) as any
+    setTipo(p.tipo)
+    setNome(p.nome)
+    setCodigo(p.codigo ?? '')
+    setValor(p.tipo === 'desconto_fixo'
+      ? (p.valor_desconto ? Number(p.valor_desconto).toFixed(2).replace('.', ',') : '')
+      : (p.valor_desconto ? String(p.valor_desconto) : ''))
+    setPercentBrinde(p.percentual_brinde ? String(p.percentual_brinde) : '50')
+    setCompre(p.quantidade_compre ? String(p.quantidade_compre) : '2')
+    setGanhe(p.quantidade_brinde ? String(p.quantidade_brinde) : '1')
+    setSemVencimento(true)
+    setInicio('')
+    setFim('')
     setAplicacao({
       aplica_todos:    p.aplica_todos ?? (p.aplicacao === 'todos'),
       categorias_alvo: Array.isArray(p.categorias_alvo) ? p.categorias_alvo : (p.categoria_alvo ? [p.categoria_alvo] : []),
@@ -197,9 +227,7 @@ export default function PromocoesPage() {
     try {
       if (editandoId) await promocoesApi.update(editandoId, payload)
       else await promocoesApi.create({ ...payload, ativo: true })
-      const wasDup = esDuplicacao
       setEsDuplicacao(false); setFormOpen(false); setEditandoId(null); setErro('')
-      if (wasDup) setAba('ativas')
       await load()
     } catch (err: any) {
       setErro(err?.response?.data?.error ?? 'Erro ao salvar.')
@@ -230,34 +258,6 @@ export default function PromocoesPage() {
     await load()
   }
 
-  async function handleDuplicar(id: string) {
-    const nova = await promocoesApi.duplicar(id) as any
-    // Pre-fill the edit form with the duplicated data so the user can review before saving
-    setErro('')
-    setEditandoId(nova.id)
-    setEsDuplicacao(true)
-    setTipo(nova.tipo)
-    setNome(nova.nome)
-    setCodigo(nova.codigo ?? '')
-    setValor(nova.tipo === 'desconto_fixo'
-      ? (nova.valor_desconto ? Number(nova.valor_desconto).toFixed(2).replace('.', ',') : '')
-      : (nova.valor_desconto ? String(nova.valor_desconto) : ''))
-    setPercentBrinde(nova.percentual_brinde ? String(nova.percentual_brinde) : '50')
-    setCompre(nova.quantidade_compre ? String(nova.quantidade_compre) : '2')
-    setGanhe(nova.quantidade_brinde ? String(nova.quantidade_brinde) : '1')
-    setSemVencimento(true)
-    setInicio('')
-    setFim('')
-    setAplicacao({
-      aplica_todos:    nova.aplica_todos ?? (nova.aplicacao === 'todos'),
-      categorias_alvo: Array.isArray(nova.categorias_alvo) ? nova.categorias_alvo : (nova.categoria_alvo ? [nova.categoria_alvo] : []),
-      produtos_ids:    Array.isArray(nova.produtos_ids) ? nova.produtos_ids : [],
-    })
-    setAba('ativas')
-    setFormOpen(true)
-    await load()
-  }
-
   function handleRemover() {
     if (!editandoId) return
     const id = editandoId
@@ -273,20 +273,14 @@ export default function PromocoesPage() {
   }
 
   // ── Derived lists ─────────────────────────────────────────────────────
-  const q = busca.trim().toLowerCase()
-  const promosFiltradas = q
-    ? promos.filter(p => p.nome.toLowerCase().includes(q))
-    : promos
-
-  const emExecucao = promosFiltradas.filter(p => p.status === 'ativa')
-  const agendadas  = promosFiltradas
+  const emExecucao = promos.filter(p => p.status === 'ativa')
+  const agendadas  = promos
     .filter(p => p.status === 'agendada')
     .sort((a, b) => {
       if (!a.inicio) return 1
       if (!b.inicio) return -1
       return a.inicio.localeCompare(b.inicio)
     })
-  const encerradas = promosFiltradas.filter(p => p.status === 'encerrada')
 
   function descricao(p: Promocao): string {
     switch (p.tipo) {
@@ -553,55 +547,12 @@ export default function PromocoesPage() {
           </div>
         )}
 
-        {/* ── Search ──────────────────────────────────────────────────────────── */}
-        {!loading && (
-          <input
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
-            placeholder="Buscar promoção..."
-            style={{
-              background: 'rgba(8,18,30,0.5)',
-              border: '0.5px solid rgba(255,255,255,0.12)',
-              borderRadius: '8px',
-              padding: '9px 12px',
-              fontSize: '13px',
-              color: 'rgba(255,255,255,0.75)',
-              width: '100%',
-              outline: 'none',
-            }}
-            onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
-            onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
-          />
-        )}
-
-        {/* ── Tabs ────────────────────────────────────────────────────────────── */}
-        {!loading && (
-          <div style={{ display: 'flex', gap: '4px', background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px', width: 'fit-content' }}>
-            {(['ativas', 'finalizadas'] as const).map(t => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setAba(t)}
-                style={{
-                  padding: '6px 18px', fontSize: '12px', borderRadius: '6px', border: 'none', cursor: 'pointer',
-                  background: aba === t ? 'rgba(0,239,255,0.15)' : 'transparent',
-                  color: aba === t ? '#0ef' : 'rgba(255,255,255,0.4)',
-                  fontWeight: aba === t ? 500 : 400,
-                  transition: 'all 0.15s',
-                }}
-              >
-                {t === 'ativas' ? 'Ativas' : 'Finalizadas'}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* ── Content ─────────────────────────────────────────────────────────── */}
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : aba === 'ativas' ? (
+        ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
             {/* Em execução */}
             <SectionTitle>Em execução</SectionTitle>
@@ -645,32 +596,10 @@ export default function PromocoesPage() {
               </>
             )}
 
-            {emExecucao.length === 0 && agendadas.length === 0 && busca.trim() && (
+            {emExecucao.length === 0 && agendadas.length === 0 && (
               <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', paddingTop: '24px' }}>
-                Nenhuma promoção encontrada para "{busca}"
+                Nenhuma promoção ativa ou agendada
               </p>
-            )}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-            <SectionTitle>Histórico</SectionTitle>
-            {encerradas.length === 0 ? (
-              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', padding: '12px 0' }}>
-                {busca.trim() ? `Nenhuma promoção encontrada para "${busca}"` : 'Nenhuma promoção encerrada'}
-              </p>
-            ) : (
-              <div style={GRID}>
-                {encerradas.map(p => (
-                  <PromoCard
-                    key={p.id}
-                    promo={p}
-                    descricao={descricao(p)}
-                    tipoLabel={TIPO_LABEL[p.tipo] ?? p.tipo}
-                    status="encerrada"
-                    onDuplicar={() => handleDuplicar(p.id)}
-                  />
-                ))}
-              </div>
             )}
           </div>
         )}
@@ -686,7 +615,7 @@ export default function PromocoesPage() {
 
       </main>
 
-      {/* ── Aviso 2 — confirmar transferência ── */}
+      {/* ── Aviso conflito — confirmar transferência ── */}
       {avisoSalvar !== null && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 800, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
           <div style={{ background: '#0d1a26', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '12px', width: '100%', maxWidth: '340px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -733,34 +662,30 @@ export default function PromocoesPage() {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function PromoCard({
-  promo, descricao, tipoLabel, status, onClick, onEncerrar, onDuplicar,
+  promo, descricao, tipoLabel, status, onClick, onEncerrar,
 }: {
   promo: Promocao
   descricao: string
   tipoLabel: string
-  status: 'ativa' | 'agendada' | 'encerrada'
-  onClick?: () => void
-  onEncerrar?: () => void
-  onDuplicar?: () => void
+  status: 'ativa' | 'agendada'
+  onClick: () => void
+  onEncerrar: () => void
 }) {
   const [hovered, setHovered] = useState(false)
-  const isEncerrada = status === 'encerrada'
-  const isAgendada  = status === 'agendada'
+  const isAgendada = status === 'agendada'
 
-  const borderColor = isEncerrada
-    ? 'rgba(255,255,255,0.06)'
-    : isAgendada
-      ? (hovered ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.12)')
-      : (hovered ? 'rgba(0,239,255,0.25)' : 'rgba(255,255,255,0.12)')
+  const borderColor = isAgendada
+    ? (hovered ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.12)')
+    : (hovered ? 'rgba(0,239,255,0.25)' : 'rgba(255,255,255,0.12)')
 
   const dias = isAgendada && promo.inicio ? diasAteInicio(promo.inicio) : null
 
   return (
     <div
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      onKeyDown={e => e.key === 'Enter' && onClick?.()}
+      onKeyDown={e => e.key === 'Enter' && onClick()}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -772,9 +697,8 @@ function PromoCard({
         display: 'flex',
         flexDirection: 'column',
         gap: '7px',
-        cursor: onClick ? 'pointer' : 'default',
-        opacity: isEncerrada ? 0.65 : 1,
-        transition: 'border-color 0.15s, opacity 0.15s',
+        cursor: 'pointer',
+        transition: 'border-color 0.15s',
         position: 'relative',
       }}
     >
@@ -810,7 +734,7 @@ function PromoCard({
         {descricao}
       </p>
 
-      {/* Bottom row: status label + action */}
+      {/* Bottom row: status label + encerrar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
         {status === 'ativa' && (
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: 'rgba(74,222,128,0.85)' }}>
@@ -821,38 +745,18 @@ function PromoCard({
         {status === 'agendada' && (
           <span style={{ fontSize: '10px', color: 'rgba(251,191,36,0.8)' }}>🕐 Agendada</span>
         )}
-        {status === 'encerrada' && (
-          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>Encerrada</span>
-        )}
-
-        {onEncerrar && (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onEncerrar() }}
-            style={{
-              fontSize: '10px', color: 'rgba(248,113,113,0.75)',
-              border: '0.5px solid rgba(248,113,113,0.25)',
-              background: 'rgba(248,113,113,0.06)',
-              borderRadius: '6px', padding: '3px 10px', cursor: 'pointer',
-            }}
-          >
-            Encerrar
-          </button>
-        )}
-        {onDuplicar && (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onDuplicar() }}
-            style={{
-              fontSize: '10px', color: 'rgba(0,239,255,0.6)',
-              border: '0.5px solid rgba(0,239,255,0.2)',
-              background: 'rgba(0,239,255,0.05)',
-              borderRadius: '6px', padding: '3px 10px', cursor: 'pointer',
-            }}
-          >
-            Duplicar
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onEncerrar() }}
+          style={{
+            fontSize: '10px', color: 'rgba(248,113,113,0.75)',
+            border: '0.5px solid rgba(248,113,113,0.25)',
+            background: 'rgba(248,113,113,0.06)',
+            borderRadius: '6px', padding: '3px 10px', cursor: 'pointer',
+          }}
+        >
+          Encerrar
+        </button>
       </div>
     </div>
   )

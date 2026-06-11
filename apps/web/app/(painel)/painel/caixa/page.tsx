@@ -871,20 +871,22 @@ export default function CaixaPage() {
           </div>
 
           {/* Shortcut cheatsheet — absolute watermark, behind all flow content, no layout space */}
-          <div style={{ position: 'absolute', right: '16px', bottom: '62px', zIndex: -1, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
-            {SHORTCUTS_META.map(({ key, label, action }) => {
-              const custom = atalhosCfg[action]
-              return (
-                <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.20)' }}>
-                  {label}
-                  <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.40)', border: '0.5px solid rgba(0,239,255,0.18)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>{key}</kbd>
-                  {custom && (
-                    <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.40)', border: '0.5px solid rgba(0,239,255,0.18)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>Alt+{custom}</kbd>
-                  )}
-                </span>
-              )
-            })}
-          </div>
+          {status === 'aberto' && (
+            <div style={{ position: 'absolute', right: '16px', bottom: '62px', zIndex: -1, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+              {SHORTCUTS_META.map(({ key, label, action }) => {
+                const custom = atalhosCfg[action]
+                return (
+                  <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(255,255,255,0.20)' }}>
+                    {label}
+                    <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.40)', border: '0.5px solid rgba(0,239,255,0.18)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>{key}</kbd>
+                    {custom && (
+                      <kbd style={{ fontSize: '10px', color: 'rgba(0,239,255,0.40)', border: '0.5px solid rgba(0,239,255,0.18)', borderRadius: '5px', padding: '1px 6px', fontWeight: 600, fontFamily: 'inherit' }}>Alt+{custom}</kbd>
+                    )}
+                  </span>
+                )
+              })}
+            </div>
+          )}
 
           {/* Input scanner */}
           <div
