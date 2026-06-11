@@ -199,7 +199,7 @@ export default function CashbackRegrasPage() {
                 key={r.id}
                 onClick={() => abrirEdicao(r)}
                 className="p-4 flex flex-col gap-2 cursor-pointer active:scale-[0.98]"
-                style={{ ...CARD, opacity: cardOpacity, minHeight: '110px', transition: 'background 120ms, border-color 120ms', ...(isSelected && { background: 'rgba(0,239,255,0.06)', border: '1px solid rgba(0,239,255,0.5)' }) }}
+                style={{ ...CARD, opacity: cardOpacity, minHeight: '130px', transition: 'background 120ms, border-color 120ms', ...(isSelected && { background: 'rgba(0,239,255,0.06)', border: '1px solid rgba(0,239,255,0.5)' }) }}
                 onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' } }}
                 onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.background = 'rgba(8,18,30,0.48)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' } }}
               >
@@ -227,7 +227,7 @@ export default function CashbackRegrasPage() {
               onClick={abrirNova}
               className="flex flex-col items-center justify-center gap-2 active:scale-[0.97]"
               style={{
-                minHeight: '110px', padding: '20px 12px',
+                minHeight: '130px', padding: '20px 12px',
                 background: 'transparent', border: '1px dashed rgba(255,255,255,0.18)',
                 borderRadius: '10px', cursor: 'pointer', outline: 'none',
                 transition: 'background 120ms, border-color 120ms, box-shadow 120ms, transform 100ms',
@@ -243,12 +243,6 @@ export default function CashbackRegrasPage() {
           </div>
         )}
 
-        {/* FAB */}
-        <button onClick={abrirNova}
-          className="fixed bottom-6 right-6 z-50 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-          style={{ width: '48px', height: '48px', background: 'rgba(0,239,255,0.9)', borderRadius: '50%', color: '#0a0a1a', fontSize: '24px', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-          +
-        </button>
       </main>
       <ConfirmModal
         isOpen={modal.open}

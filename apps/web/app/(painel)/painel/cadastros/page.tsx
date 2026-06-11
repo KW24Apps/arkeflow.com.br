@@ -1,19 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { Ruler, Palette, Tag, Layers, Maximize2, ChevronDown, ChevronRight } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Ruler, Palette, Tag, Layers, Maximize2 } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { catalogosApi, type ItemCatalogo, type TipoCatalogo } from '@/lib/api/catalogos'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const CARD = {
-  background: 'rgba(8,18,30,0.48)',
-  backdropFilter: 'blur(8px)',
-  border: '0.5px solid rgba(255,255,255,0.09)',
-  borderRadius: '10px',
-}
 
 const ITEM_BOX = {
   background: 'rgba(8,18,30,0.35)',
@@ -145,6 +138,14 @@ export default function CadastrosPage() {
   const [openSection, setOpenSection] = useState<string | null>(null)
   const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpenSection(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   function patch(tipo: string, partial: Partial<SecState>) {
     setData(prev => ({ ...prev, [tipo]: { ...prev[tipo], ...partial } }))
   }
@@ -200,112 +201,143 @@ export default function CadastrosPage() {
     })
   }
 
+  const openSec = openSection ? SECTIONS.find(s => s.tipo === openSection) ?? null : null
+
   return (
     <>
       <TopBar />
-      <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-10 flex flex-col gap-2.5">
+      <main className="flex-1 overflow-y-auto p-4 md:p-5 pb-10 flex flex-col gap-4">
 
-        {SECTIONS.map(({ tipo, label, singular, Icon, comCor }) => {
-          const sec    = data[tipo]
-          const isOpen = openSection === tipo
-
+        {/* ── Panel above the grid ─────────────────────────────────────── */}
+        {openSection && openSec && (() => {
+          const sec  = data[openSection]
+          const tipo = openSection
           return (
-            <div key={tipo} style={CARD}>
-
-              {/* ── Header ──────────────────────────────────────────────── */}
-              <button onClick={() => toggleSection(tipo)} className="w-full flex items-center gap-3 p-4">
-                <div className="flex items-center justify-center shrink-0"
-                  style={{ width: '32px', height: '32px', background: 'rgba(0,239,255,0.1)', borderRadius: '8px' }}>
-                  <Icon size={15} strokeWidth={1.5} style={{ color: 'rgba(0,239,255,0.7)' }} />
-                </div>
-                <span style={{ flex: 1, textAlign: 'left', fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>
-                  {label}
+            <div style={{
+              background: 'rgba(8,18,30,0.55)',
+              backdropFilter: 'blur(12px)',
+              border: '0.5px solid rgba(255,255,255,0.09)',
+              borderRadius: '12px',
+              overflow: 'hidden',
+            }}>
+              <div className="flex items-center gap-2.5 px-5 py-3.5" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
+                <openSec.Icon size={15} style={{ color: '#0ef', flexShrink: 0 }} />
+                <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>
+                  {openSec.label}
                 </span>
-                {sec.loaded && (
-                  <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)', borderRadius: '9999px', padding: '2px 8px' }}>
-                    {sec.items.length}
-                  </span>
-                )}
-                {isOpen
-                  ? <ChevronDown  size={14} strokeWidth={1.5} style={{ color: 'rgba(255,255,255,0.35)', flexShrink: 0 }} />
-                  : <ChevronRight size={14} strokeWidth={1.5} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
-                }
-              </button>
+              </div>
 
-              {/* ── Body ────────────────────────────────────────────────── */}
-              {isOpen && (
-                <div className="px-4 pb-4 flex flex-col gap-4"
-                  style={{ borderTop: '0.5px solid rgba(255,255,255,0.07)' }}>
-
-                  {/* Compact add row */}
-                  <div className="flex gap-2 pt-4 items-center flex-wrap">
-                    {comCor && (
-                      <input type="color" value={sec.novoHex}
-                        onChange={e => patch(tipo, { novoHex: e.target.value })}
-                        className="cursor-pointer shrink-0"
-                        style={{ width: '34px', height: '34px', borderRadius: '8px', border: '0.5px solid rgba(255,255,255,0.12)', background: 'transparent', padding: '2px' }}
-                      />
-                    )}
-                    <input
-                      value={sec.novoNome}
-                      onChange={e => patch(tipo, { novoNome: e.target.value })}
-                      onKeyDown={e => e.key === 'Enter' && handleAdd(tipo)}
-                      placeholder={`Novo ${singular}...`}
-                      className="outline-none"
-                      style={{
-                        background: 'rgba(8,18,30,0.5)',
-                        border: '0.5px solid rgba(255,255,255,0.12)',
-                        borderRadius: '20px',
-                        padding: '7px 14px',
-                        fontSize: '12px',
-                        color: 'rgba(255,255,255,0.7)',
-                        width: 'auto',
-                        flex: '0 1 200px',
-                        minWidth: '110px',
-                        maxWidth: '200px',
-                      }}
-                      onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
-                      onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+              <div className="p-5 flex flex-col gap-4">
+                {/* Add row */}
+                <div className="flex gap-2 items-center flex-wrap">
+                  {openSec.comCor && (
+                    <input type="color" value={sec.novoHex}
+                      onChange={e => patch(tipo, { novoHex: e.target.value })}
+                      className="cursor-pointer shrink-0"
+                      style={{ width: '34px', height: '34px', borderRadius: '8px', border: '0.5px solid rgba(255,255,255,0.12)', background: 'transparent', padding: '2px' }}
                     />
-                    <button
-                      onClick={() => handleAdd(tipo)}
-                      disabled={sec.saving || !sec.novoNome.trim()}
-                      className="shrink-0 disabled:opacity-40 transition-opacity"
-                      style={{
-                        background: 'rgba(0,239,255,0.18)',
-                        border: '0.5px solid rgba(0,239,255,0.35)',
-                        color: '#0ef',
-                        borderRadius: '20px',
-                        padding: '7px 14px',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {sec.saving ? '...' : 'Adicionar'}
-                    </button>
-                  </div>
-
-                  {/* Items */}
-                  {sec.loading ? (
-                    <div className="flex justify-center py-3">
-                      <div className="w-5 h-5 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  ) : sec.items.length === 0 ? (
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '4px 0 8px' }}>
-                      Nenhum item cadastrado
-                    </p>
-                  ) : tipo === 'tamanhos' ? (
-                    <RenderTamanhos items={sec.items} onRemove={id => handleRemove(tipo, id)} />
-                  ) : tipo === 'cores' ? (
-                    <RenderCores items={sec.items} onRemove={id => handleRemove(tipo, id)} />
-                  ) : (
-                    <RenderDefault items={sec.items} onRemove={id => handleRemove(tipo, id)} />
                   )}
+                  <input
+                    value={sec.novoNome}
+                    onChange={e => patch(tipo, { novoNome: e.target.value })}
+                    onKeyDown={e => e.key === 'Enter' && handleAdd(tipo)}
+                    placeholder={`Novo ${openSec.singular}...`}
+                    className="outline-none"
+                    style={{
+                      background: 'rgba(8,18,30,0.5)',
+                      border: '0.5px solid rgba(255,255,255,0.12)',
+                      borderRadius: '20px',
+                      padding: '7px 14px',
+                      fontSize: '12px',
+                      color: 'rgba(255,255,255,0.7)',
+                      width: 'auto',
+                      flex: '0 1 200px',
+                      minWidth: '110px',
+                      maxWidth: '200px',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)')}
+                  />
+                  <button
+                    onClick={() => handleAdd(tipo)}
+                    disabled={sec.saving || !sec.novoNome.trim()}
+                    className="shrink-0 disabled:opacity-40 transition-opacity"
+                    style={{
+                      background: 'rgba(0,239,255,0.18)',
+                      border: '0.5px solid rgba(0,239,255,0.35)',
+                      color: '#0ef',
+                      borderRadius: '20px',
+                      padding: '7px 14px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {sec.saving ? '...' : 'Adicionar'}
+                  </button>
                 </div>
-              )}
+
+                {/* Items */}
+                {sec.loading ? (
+                  <div className="flex justify-center py-3">
+                    <div className="w-5 h-5 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : sec.items.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '4px 0 8px' }}>
+                    Nenhum item cadastrado
+                  </p>
+                ) : tipo === 'tamanhos' ? (
+                  <RenderTamanhos items={sec.items} onRemove={id => handleRemove(tipo, id)} />
+                ) : tipo === 'cores' ? (
+                  <RenderCores items={sec.items} onRemove={id => handleRemove(tipo, id)} />
+                ) : (
+                  <RenderDefault items={sec.items} onRemove={id => handleRemove(tipo, id)} />
+                )}
+              </div>
             </div>
           )
-        })}
+        })()}
+
+        {/* ── Card grid ────────────────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
+          {SECTIONS.map(({ tipo, label, Icon }) => {
+            const sel = openSection === tipo
+            return (
+              <button
+                key={tipo}
+                type="button"
+                onClick={() => toggleSection(tipo)}
+                className="flex flex-col items-center justify-center gap-2.5 active:scale-[0.97]"
+                style={{
+                  padding: '20px 12px',
+                  minHeight: '110px',
+                  background:     sel ? 'rgba(0,239,255,0.08)' : 'rgba(8,18,30,0.48)',
+                  backdropFilter: 'blur(8px)',
+                  border:         sel ? '0.5px solid rgba(0,239,255,0.5)' : '0.5px solid rgba(255,255,255,0.09)',
+                  borderRadius:   '10px',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  transition: 'background 120ms, border-color 120ms, box-shadow 120ms, transform 100ms',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background  = sel ? 'rgba(0,239,255,0.12)' : 'rgba(255,255,255,0.04)'
+                  e.currentTarget.style.borderColor = sel ? 'rgba(0,239,255,0.65)' : 'rgba(255,255,255,0.18)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background  = sel ? 'rgba(0,239,255,0.08)' : 'rgba(8,18,30,0.48)'
+                  e.currentTarget.style.borderColor = sel ? 'rgba(0,239,255,0.5)'  : 'rgba(255,255,255,0.09)'
+                }}
+                onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.3)' }}
+                onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
+              >
+                <Icon size={24} style={{ color: sel ? '#0ef' : 'rgba(255,255,255,0.35)' }} />
+                <span style={{ fontSize: '12px', fontWeight: 500, color: sel ? '#0ef' : 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 1.3 }}>
+                  {label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
 
       </main>
       <ConfirmModal

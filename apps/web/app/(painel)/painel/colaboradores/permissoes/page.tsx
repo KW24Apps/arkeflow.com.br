@@ -232,20 +232,6 @@ export default function ModelosPermissaoPage() {
           </div>
         )}
 
-        {/* FAB — new model */}
-        <button
-          onClick={abrirNovo}
-          className="fixed bottom-6 right-6 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-          style={{
-            width: '48px', height: '48px',
-            background: 'rgba(0,239,255,0.9)',
-            borderRadius: '50%',
-            color: '#0a1e2a',
-            fontSize: '24px', fontWeight: 700,
-          }}
-        >
-          +
-        </button>
       </main>
       <ConfirmModal
         isOpen={modal.open}
