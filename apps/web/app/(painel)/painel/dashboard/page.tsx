@@ -158,7 +158,7 @@ export default function DashboardPage() {
   return (
     <>
       <TopBar />
-      <main className="flex-1 overflow-y-auto p-3 md:p-4 pb-10 flex flex-col gap-3">
+      <main className="flex-1 min-h-0 overflow-y-auto p-3 md:p-4 pb-10 flex flex-col gap-3">
 
         {erro && <p style={{ fontSize: '12px', color: 'rgba(248,113,113,0.8)' }}>{erro}</p>}
 
