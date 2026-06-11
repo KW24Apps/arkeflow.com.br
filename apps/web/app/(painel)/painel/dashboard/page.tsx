@@ -85,13 +85,13 @@ export default function PainelDashboard() {
     Promise.allSettled([
       financeiroApi.resumo({ de: hoje, ate: hoje }),
       colaboradoresApi.onlineAgora(),
-      promocoesApi.list(false),
+      promocoesApi.list(),
       financeiroApi.contasReceber(),
       financeiroApi.lancamentos({ de: sevenDaysAgo, ate: hoje }),
     ]).then(([r, o, pr, cr, sl]) => {
       if (r.status  === 'fulfilled') setResumo(r.value)
       if (o.status  === 'fulfilled') setOnlineAgora(o.value)
-      if (pr.status === 'fulfilled') setPromoAtivas(pr.value)
+      if (pr.status === 'fulfilled') setPromoAtivas(pr.value.promocoes)
       if (cr.status === 'fulfilled') setContasRec(cr.value)
       if (sl.status === 'fulfilled') setSemanaLanc(sl.value)
     }).finally(() => setLoading(false))
