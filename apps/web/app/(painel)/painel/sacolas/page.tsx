@@ -101,7 +101,7 @@ export default function SacolasPage() {
   // ── Load grid ────────────────────────────────────────────────────────────────
   async function loadGrid(soft = false) {
     soft ? setRefreshing(true) : setLoading(true)
-    try { setSacolas(await sacolasApi.list('aguardando')) }
+    try { setSacolas(await sacolasApi.listPendentes()) }
     finally { setLoading(false); setRefreshing(false) }
   }
 
@@ -388,9 +388,11 @@ export default function SacolasPage() {
                       <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                         {s.cliente_nome ?? 'Sem cliente'}
                       </p>
-                      <span style={{ fontSize: '9px', background: 'rgba(0,239,255,0.12)', color: '#0ef', borderRadius: '9999px', padding: '2px 8px', flexShrink: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        Aguardando
-                      </span>
+                      {(() => { const emAtend = s.status === 'em_atendimento'; return (
+                        <span style={{ fontSize: '9px', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', borderRadius: '9999px', padding: '2px 8px', flexShrink: 0, background: emAtend ? 'rgba(255,165,0,0.10)' : 'rgba(0,239,255,0.10)', color: emAtend ? 'rgba(255,165,0,0.85)' : '#0ef', border: `0.5px solid ${emAtend ? 'rgba(255,165,0,0.30)' : 'rgba(0,239,255,0.30)'}` }}>
+                          {emAtend ? 'No caixa' : 'Aguardando'}
+                        </span>
+                      ) })()}
                     </div>
                     <p style={{ fontSize: '15px', fontWeight: 700, color: '#0ef' }}>{fmtR(tot)}</p>
                     <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
