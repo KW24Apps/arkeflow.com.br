@@ -2,16 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-const RAYS = [
-  { left: '8%',  height: '220px', width: '2px', dur: '7s', delay: '0s'    },
-  { left: '18%', height: '180px', width: '2px', dur: '6s', delay: '-2.1s' },
-  { left: '32%', height: '260px', width: '3px', dur: '8s', delay: '-4.5s' },
-  { left: '48%', height: '160px', width: '2px', dur: '5s', delay: '-1.3s' },
-  { left: '60%', height: '240px', width: '3px', dur: '7s', delay: '-3.7s' },
-  { left: '72%', height: '190px', width: '2px', dur: '6s', delay: '-0.8s' },
-  { left: '85%', height: '210px', width: '2px', dur: '5s', delay: '-5.2s' },
-]
-
 export function OceanBackground() {
   const ref = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
@@ -23,68 +13,96 @@ export function OceanBackground() {
     if (!stage) return
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let alive = true
+    let uid = 0
 
     const timeouts: number[] = []
     const rnd = (a: number, b: number) => a + Math.random() * (b - a)
 
-    function burst(b: HTMLDivElement) {
+    function spawnDrops(cx: number, cy: number, sz: number) {
       if (!alive || !stage) return
-      const r = b.getBoundingClientRect()
-      const s = stage.getBoundingClientRect()
-      const cx = r.left - s.left + r.width / 2
-      const cy = r.top - s.top + r.height / 2
-      const sz = r.width
-      if (cx < -60 || cx > s.width + 60) return
-      const ring = document.createElement('div')
-      ring.className = 'ocean-ring'
-      ring.style.left = cx + 'px'; ring.style.top = cy + 'px'
-      ring.style.width = sz + 'px'; ring.style.height = sz + 'px'
-      stage.appendChild(ring)
-      timeouts.push(window.setTimeout(() => ring.remove(), 520))
-      const n = Math.max(5, Math.round(sz / 5.5))
+      const n = Math.round(rnd(8, 12))
       for (let i = 0; i < n; i++) {
         const d = document.createElement('div')
         d.className = 'ocean-drop'
-        const ds = Math.max(2, Math.round(sz * rnd(0.10, 0.22)))
+        const ds  = Math.max(2, Math.round(sz * rnd(0.10, 0.22)))
         const ang = rnd(0, Math.PI * 2)
         const rad = sz * rnd(0.7, 1.7)
         d.style.width = ds + 'px'; d.style.height = ds + 'px'
-        d.style.left = cx + 'px'; d.style.top = cy + 'px'
+        d.style.left  = cx + 'px'; d.style.top = cy + 'px'
         d.style.setProperty('--tx', (Math.cos(ang) * rad).toFixed(1) + 'px')
-        d.style.setProperty('--ty', (Math.sin(ang) * rad + sz * 0.5).toFixed(1) + 'px')
+        d.style.setProperty('--ty', (Math.sin(ang) * rad).toFixed(1) + 'px')
         stage.appendChild(d)
         timeouts.push(window.setTimeout(() => d.remove(), 640))
       }
     }
 
-    function spawn() {
+    function spawnTypeA() {
       if (!alive || !stage) return
-      const H = stage.clientHeight || window.innerHeight
-      const b = document.createElement('div')
+      const H    = stage.clientHeight || window.innerHeight
+      const b    = document.createElement('div')
       b.className = 'ocean-bb'
       const size = Math.round(rnd(9, 46))
-      const dur = rnd(7, 12)
-      const op = rnd(0.45, 0.85)
-      const rise = Math.round(rnd(0.5, 0.7) * H)
+      const dur  = rnd(7, 12)
+      const op   = rnd(0.45, 0.85)
+      const rise = Math.round(rnd(0.88, 1.0) * H)
       b.style.width = size + 'px'; b.style.height = size + 'px'
-      b.style.left = rnd(3, 95) + '%'
-      b.style.setProperty('--op', op.toFixed(2))
+      b.style.left  = rnd(3, 95) + '%'
+      b.style.setProperty('--op',   op.toFixed(2))
       b.style.setProperty('--rise', rise + 'px')
-      b.style.animation = 'ocean-rise ' + dur.toFixed(1) + 's linear forwards'
-      b.addEventListener('animationend', () => { if (!alive) { b.remove(); return }; burst(b); b.remove(); spawn() }, { once: true })
+      b.style.animation = `ocean-rise-full ${dur.toFixed(1)}s linear forwards`
+      b.addEventListener('animationend', () => {
+        b.remove()
+        if (alive) spawnTypeA()
+      }, { once: true })
       stage.appendChild(b)
     }
 
-    const MAX = reduced ? 6 : 18
-    for (let i = 0; i < MAX; i++) {
-      const delay = i < 4 ? 0 : Math.random() * (reduced ? 4000 : 2500)
-      timeouts.push(window.setTimeout(spawn, delay))
+    function spawnTypeB() {
+      if (!alive || !stage) return
+      const H      = stage.clientHeight || window.innerHeight
+      const burstY = Math.round(rnd(0.40, 0.90) * H)
+      const b      = document.createElement('div')
+      b.className  = 'ocean-bb'
+      const size   = Math.round(rnd(9, 46))
+      const dur    = rnd(4, 9) * (burstY / H)
+      const op     = rnd(0.45, 0.85)
+      const name   = 'ocean-burst-' + (++uid)
+
+      const styleEl = document.createElement('style')
+      styleEl.dataset.ocean = '1'
+      styleEl.textContent =
+        `@keyframes ${name}{` +
+        `0%{transform:translateY(0) scale(0.6);opacity:0;}` +
+        `8%{opacity:${op.toFixed(2)};}` +
+        `100%{transform:translateY(calc(-1 * ${burstY}px)) scale(1);opacity:${op.toFixed(2)};}` +
+        `}`
+      document.head.appendChild(styleEl)
+
+      b.style.width  = size + 'px'; b.style.height = size + 'px'
+      b.style.left   = rnd(3, 95) + '%'
+      b.style.animation = `${name} ${dur.toFixed(1)}s linear forwards`
+      b.addEventListener('animationend', () => {
+        if (alive) {
+          const r  = b.getBoundingClientRect()
+          const s  = stage.getBoundingClientRect()
+          spawnDrops(r.left - s.left + r.width / 2, r.top - s.top + r.height / 2, r.width)
+        }
+        b.remove()
+        styleEl.remove()
+        if (alive) spawnTypeB()
+      }, { once: true })
+      stage.appendChild(b)
     }
+
+    const count = reduced ? 3 : 9
+    for (let i = 0; i < count; i++) timeouts.push(window.setTimeout(spawnTypeA, Math.random() * 9000))
+    for (let i = 0; i < count; i++) timeouts.push(window.setTimeout(spawnTypeB, Math.random() * 9000))
 
     return () => {
       alive = false
       timeouts.forEach(clearTimeout)
-      stage.querySelectorAll('.ocean-bb, .ocean-ring, .ocean-drop').forEach(e => e.remove())
+      stage.querySelectorAll('.ocean-bb, .ocean-drop').forEach(e => e.remove())
+      document.querySelectorAll('style[data-ocean]').forEach(e => e.remove())
     }
   }, [mounted])
 
@@ -96,16 +114,19 @@ export function OceanBackground() {
       className="ocean-bg"
       style={{
         position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden', pointerEvents: 'none',
-        background: 'linear-gradient(160deg, #14506b 0%, #11425e 35%, #0e3a52 65%, #0b2940 100%)',
+        background: 'linear-gradient(160deg, #0d6080 0%, #0a4d6e 20%, #093d58 45%, #072840 70%, #040f1a 100%)',
       }}
     >
-      {RAYS.map((r, i) => (
-        <div key={i} style={{
-          position: 'absolute', top: 0, left: r.left, width: r.width, height: r.height,
-          background: 'rgba(255,255,255,0.07)', borderRadius: '2px', transformOrigin: 'top center',
-          animation: `sway ${r.dur} ease-in-out ${r.delay} infinite`,
-        }} />
-      ))}
+      {/* Radial glow — top-left light source */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: 'radial-gradient(ellipse 60% 50% at 35% 20%, rgba(80,190,240,0.15) 0%, transparent 70%)',
+      }} />
+      {/* Dark fade at bottom */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '28%', pointerEvents: 'none',
+        background: 'linear-gradient(0deg, rgba(2,8,20,0.65) 0%, transparent 100%)',
+      }} />
     </div>
   )
 }
