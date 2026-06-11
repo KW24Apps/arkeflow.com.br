@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, Ban, X, Search, Check, Clock, DollarSign } from 'lucide-react'
+import { User, Briefcase, ShoppingBag, Home, ArrowUp, ArrowDown, Lock, Ban, X, Search, Check, Clock, DollarSign, Trash2 } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
 import { caixaApi, type VendaTurno } from '@/lib/api/caixa'
@@ -182,6 +182,8 @@ export default function CaixaPage() {
   const [gateItem,           setGateItem]           = useState<{ versaoId: string; nome: string } | null>(null)
   const [gateFechar,         setGateFechar]         = useState<{ divergencia: number } | null>(null)
   const [operadorSupervisor, setOperadorSupervisor] = useState(false)
+  const [confirmCancelVenda, setConfirmCancelVenda] = useState(false)
+  const [gateCancelVenda,    setGateCancelVenda]    = useState(false)
 
   // ── Boas-vindas ───────────────────────────────────────────────────────────
   const [modalBoasVindas,  setModalBoasVindas]  = useState(false)
@@ -377,11 +379,12 @@ export default function CaixaPage() {
       if (modalDadosCliente) { e.preventDefault(); setModalDadosCliente(false); return }
       if (modalFechar)       { e.preventDefault(); setModalFechar(false);       return }
       if (modalMov)          { e.preventDefault(); closeModalMov();             setTimeout(() => focusScanSafe(), 100); return }
-      if (avisoLimite)       { e.preventDefault(); setAvisoLimite(false);       return }
+      if (confirmCancelVenda) { e.preventDefault(); setConfirmCancelVenda(false); return }
+      if (avisoLimite)        { e.preventDefault(); setAvisoLimite(false);        return }
     }
     window.addEventListener('keydown', onEsc)
     return () => window.removeEventListener('keydown', onEsc)
-  }, [modalBusca, modalCheckout, modalCliente, modalVendedor, modalSacolas, modalDadosCliente, modalFechar, modalMov, avisoLimite, sangriaObrigatoria, locked, modalVariacao])
+  }, [modalBusca, modalCheckout, modalCliente, modalVendedor, modalSacolas, modalDadosCliente, modalFechar, modalMov, avisoLimite, sangriaObrigatoria, locked, modalVariacao, confirmCancelVenda])
 
   function handleClienteSelecionado(c: Cliente) {
     setCliente(c.id, c.nome)
@@ -632,7 +635,7 @@ export default function CaixaPage() {
   const MOD_LABEL: React.CSSProperties = { fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '10px' }
 
   // Keep modalAbertoRef current on every render so setTimeout callbacks read live state
-  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente || !!gateItem || !!gateFechar || avisoLimite || locked
+  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente || !!gateItem || !!gateFechar || avisoLimite || locked || confirmCancelVenda || gateCancelVenda
 
   function focusScanSafe() {
     if (!modalAbertoRef.current) scanRef.current?.focus()
@@ -1186,9 +1189,25 @@ export default function CaixaPage() {
                     Sacola vazia
                   </button>
                 ) : (
-                  <button onClick={() => !locked && setModalCheckout(true)} disabled={locked} className="fechar-venda-btn" style={{ width: '100%', padding: '12px', background: locked ? 'rgba(255,255,255,0.06)' : 'rgba(0,239,255,0.88)', color: locked ? 'rgba(255,255,255,0.2)' : '#0a0a1a', fontWeight: 700, borderRadius: '8px', fontSize: '13px', border: 'none', cursor: locked ? 'default' : 'pointer' }}>
-                    {locked ? 'Sangria obrigatória' : 'Fechar venda →'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => !locked && setModalCheckout(true)} disabled={locked} className="fechar-venda-btn" style={{ flex: 1, padding: '12px', background: locked ? 'rgba(255,255,255,0.06)' : 'rgba(0,239,255,0.88)', color: locked ? 'rgba(255,255,255,0.2)' : '#0a0a1a', fontWeight: 700, borderRadius: '8px', fontSize: '13px', border: 'none', cursor: locked ? 'default' : 'pointer' }}>
+                      {locked ? 'Sangria obrigatória' : 'Fechar venda →'}
+                    </button>
+                    {!locked && (
+                      <button
+                        onClick={() => {
+                          const precisaAuth = supCfg.habilitada && supCfg.cancelarItem && !operadorSupervisor
+                          if (precisaAuth) setGateCancelVenda(true)
+                          else setConfirmCancelVenda(true)
+                        }}
+                        aria-label="Cancelar venda"
+                        title="Cancelar venda"
+                        style={{ flex: '0 0 46px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 0', background: 'rgba(240,100,100,0.12)', color: 'rgba(240,100,100,0.9)', border: '0.5px solid rgba(240,100,100,0.4)', borderRadius: '8px', cursor: 'pointer' }}
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </>
@@ -1289,6 +1308,63 @@ export default function CaixaPage() {
           }
         }}
       />
+
+      <AuthorizationGateModal
+        open={gateCancelVenda}
+        acao="cancelar_item"
+        acaoLabel="Cancelar venda inteira"
+        acaoTom="danger"
+        exigeJustificativa={false}
+        turnoId={turno?.id ?? null}
+        detalhe={{ tipo: 'cancelar_venda_total', itens: itens.length, total: baseTotal }}
+        onClose={() => setGateCancelVenda(false)}
+        onAuthorized={() => { limpar(); setGateCancelVenda(false) }}
+      />
+
+      {/* Modal Confirmar cancelamento de venda */}
+      {confirmCancelVenda && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 55, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setConfirmCancelVenda(false)}
+        >
+          <div
+            style={{ background: 'rgba(8,18,30,0.92)', border: '0.5px solid rgba(240,100,100,0.35)', borderRadius: '14px', padding: '24px', maxWidth: '380px', width: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(240,100,100,0.12)', border: '0.5px solid rgba(240,100,100,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash2 size={20} style={{ color: 'rgba(240,100,100,0.9)' }} />
+              </div>
+              <p style={{ fontSize: '16px', fontWeight: 600, color: 'rgba(255,255,255,0.88)', margin: 0 }}>Cancelar esta venda?</p>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', margin: 0, lineHeight: 1.5 }}>
+                Todos os itens da sacola serão removidos e o cliente/vendedor desvinculados. Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div style={{ background: 'rgba(240,100,100,0.06)', border: '0.5px solid rgba(240,100,100,0.2)', borderRadius: '10px', padding: '12px', display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)' }}>
+                {itens.reduce((s, i) => s + i.quantidade, 0)} item(ns)
+              </span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(240,130,130,0.9)' }}>
+                {fmt(baseTotal)}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setConfirmCancelVenda(false)}
+                style={{ flex: 1, minHeight: '44px', background: 'none', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '10px', color: 'rgba(255,255,255,0.45)', fontSize: '13px', cursor: 'pointer' }}
+              >
+                Voltar
+              </button>
+              <button
+                onClick={() => { limpar(); setConfirmCancelVenda(false) }}
+                style={{ flex: 1, minHeight: '44px', background: 'rgba(240,100,100,0.75)', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Sim, cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Limite de caixa */}
       {avisoLimite && (
