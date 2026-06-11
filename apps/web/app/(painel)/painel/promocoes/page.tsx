@@ -147,10 +147,11 @@ export default function PromocoesPage() {
     setPercentBrinde(p.percentual_brinde ? String(p.percentual_brinde) : '50')
     setCompre(p.quantidade_compre ? String(p.quantidade_compre) : '2')
     setGanhe(p.quantidade_brinde ? String(p.quantidade_brinde) : '1')
+    const toDateInput = (v: string | null) => v ? new Date(v).toISOString().slice(0, 10) : ''
     const temPeriodo = !!(p.inicio || p.fim)
     setSemVencimento(!temPeriodo)
-    setInicio(p.inicio ?? '')
-    setFim(p.fim ?? '')
+    setInicio(toDateInput(p.inicio))
+    setFim(toDateInput(p.fim))
     setAplicacao({
       aplica_todos:    p.aplica_todos ?? (p.aplicacao === 'todos'),
       categorias_alvo: Array.isArray(p.categorias_alvo) ? p.categorias_alvo : (p.categoria_alvo ? [p.categoria_alvo] : []),
@@ -320,7 +321,7 @@ export default function PromocoesPage() {
             {/* Tipo pill tabs */}
             <div>
               <Lbl>Tipo de promoção</Lbl>
-              <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px', display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+              <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px', display: 'flex', flexWrap: 'wrap', gap: '2px', opacity: editandoId ? 0.5 : 1, pointerEvents: editandoId ? 'none' : 'auto' }}>
                 {TIPOS.map(t => (
                   <button
                     key={t.value}
@@ -339,6 +340,11 @@ export default function PromocoesPage() {
                   </button>
                 ))}
               </div>
+              {editandoId && (
+                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '4px' }}>
+                  O tipo não pode ser alterado após a criação.
+                </p>
+              )}
             </div>
 
             {/* Filial */}
