@@ -132,7 +132,7 @@ export const SECTIONS = [
     label: 'Configurações',
     icon:  'Settings',
     href:  '/painel/configuracoes/dados',
-    match: ['/painel/configuracoes'],
+    match: ['/painel/configuracoes/dados', '/painel/configuracoes/sistema'],
     sub: [
       { label: 'Dados da Empresa',       href: '/painel/configuracoes/dados' },
       { label: 'Configurações do Sistema',href: '/painel/configuracoes/sistema' },

@@ -39,6 +39,7 @@ export interface NavItem {
   label: string
   href?: string
   type?: 'divider'
+  match?: string[]
 }
 
 interface SidebarProps {
@@ -140,7 +141,11 @@ export function Sidebar({ items }: SidebarProps) {
               )
             }
 
-            const active = !!(item.href && (pathname === item.href || pathname.startsWith(item.href + '/')))
+            const active = !!(item.href && (
+              pathname === item.href ||
+              pathname.startsWith(item.href + '/') ||
+              item.match?.some(m => pathname === m || pathname.startsWith(m + '/'))
+            ))
             const iconName = (item as any).icon ?? (item.href ? HREF_ICONS[item.href] : undefined)
 
             return (

@@ -1233,7 +1233,19 @@ export default function ConfigSistemaPage() {
                     border:         sel ? '0.5px solid rgba(0,239,255,0.5)' : '0.5px solid rgba(255,255,255,0.09)',
                     borderRadius:   '10px',
                     cursor: 'pointer',
+                    outline: 'none',
+                    transition: 'background 120ms, border-color 120ms, box-shadow 120ms, transform 100ms',
                   }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = sel ? 'rgba(0,239,255,0.12)' : 'rgba(255,255,255,0.04)'
+                    e.currentTarget.style.borderColor = sel ? 'rgba(0,239,255,0.65)' : 'rgba(255,255,255,0.18)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = sel ? 'rgba(0,239,255,0.08)' : 'rgba(8,18,30,0.48)'
+                    e.currentTarget.style.borderColor = sel ? 'rgba(0,239,255,0.5)' : 'rgba(255,255,255,0.09)'
+                  }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.3)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   <Icon size={24} style={{ color: sel ? '#0ef' : 'rgba(255,255,255,0.35)' }} />
                   <span style={{ fontSize: '12px', fontWeight: 500, color: sel ? '#0ef' : 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 1.3 }}>

@@ -206,9 +206,11 @@ export default function FormasPagamentoPage() {
         <button
           onClick={() => handleRemover(editandoId)}
           className="min-h-[40px] px-2 transition-colors"
-          style={{ fontSize: '12px', color: 'rgba(248,113,113,0.5)' }}
+          style={{ fontSize: '12px', color: 'rgba(248,113,113,0.5)', outline: 'none' }}
           onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.85)')}
           onMouseLeave={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.5)')}
+          onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(240,100,100,0.3)' }}
+          onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
         >
           Remover
         </button>
@@ -217,9 +219,11 @@ export default function FormasPagamentoPage() {
         <button
           onClick={() => setFormOpen(false)}
           className="min-h-[40px] px-5 rounded-lg text-sm transition-colors"
-          style={{ border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px' }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+          style={{ border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px', outline: 'none' }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent' }}
+          onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.25)' }}
+          onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
         >
           Cancelar
         </button>
@@ -227,7 +231,11 @@ export default function FormasPagamentoPage() {
           onClick={handleSalvar}
           disabled={salvando || (!editandoPadrao && !nome)}
           className="min-h-[40px] px-5 text-sm font-semibold rounded-lg disabled:opacity-40"
-          style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', color: '#0ef', borderRadius: '8px' }}
+          style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', color: '#0ef', borderRadius: '8px', outline: 'none' }}
+          onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.background = 'rgba(0,239,255,0.32)'; e.currentTarget.style.borderColor = 'rgba(0,239,255,0.6)' } }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.2)'; e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+          onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.3)' }}
+          onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
         >
           {salvando ? 'Salvando...' : 'Salvar'}
         </button>
@@ -464,7 +472,13 @@ export default function FormasPagamentoPage() {
                                     border: on ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
                                     background: on ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
                                     color: on ? '#0ef' : 'rgba(255,255,255,0.35)',
+                                    outline: 'none',
+                                    transition: 'background 120ms, border-color 120ms, box-shadow 120ms',
                                   }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = on ? 'rgba(0,239,255,0.16)' : 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = on ? 'rgba(0,239,255,0.6)' : 'rgba(255,255,255,0.18)' }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = on ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = on ? 'rgba(0,239,255,0.4)' : 'rgba(255,255,255,0.1)' }}
+                                  onFocus={e => { e.currentTarget.style.boxShadow = on ? '0 0 0 2px rgba(0,239,255,0.3)' : '0 0 0 2px rgba(255,255,255,0.2)' }}
+                                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                                 >
                                   {f.nome}{on ? ' ✓' : ''}
                                 </button>
@@ -488,7 +502,13 @@ export default function FormasPagamentoPage() {
                                     border: on ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid rgba(255,255,255,0.1)',
                                     background: on ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)',
                                     color: on ? '#0ef' : 'rgba(255,255,255,0.35)',
+                                    outline: 'none',
+                                    transition: 'background 120ms, border-color 120ms, box-shadow 120ms',
                                   }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = on ? 'rgba(0,239,255,0.16)' : 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = on ? 'rgba(0,239,255,0.6)' : 'rgba(255,255,255,0.18)' }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = on ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = on ? 'rgba(0,239,255,0.4)' : 'rgba(255,255,255,0.1)' }}
+                                  onFocus={e => { e.currentTarget.style.boxShadow = on ? '0 0 0 2px rgba(0,239,255,0.3)' : '0 0 0 2px rgba(255,255,255,0.2)' }}
+                                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                                 >
                                   {f.nome}{on ? ' ✓' : ''}
                                 </button>
@@ -541,7 +561,11 @@ export default function FormasPagamentoPage() {
                   title={f.ativo ? 'Clique para desativar' : 'Clique para ativar'}
                   style={{ position: 'absolute', top: '9px', right: '9px', width: '36px', height: '20px',
                     borderRadius: '9999px', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
-                    background: f.ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', transition: 'all 0.15s' }}
+                    background: f.ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', transition: 'all 0.15s', outline: 'none' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = f.ativo ? 'rgba(0,212,212,0.9)' : 'rgba(255,255,255,0.18)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = f.ativo ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)' }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.3)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   <span style={{ position: 'absolute', top: '3px', left: f.ativo ? '19px' : '3px',
                     width: '14px', height: '14px', borderRadius: '50%', background: '#fff', transition: 'all 0.15s' }} />
@@ -599,7 +623,12 @@ export default function FormasPagamentoPage() {
             color: '#0a0a1a',
             fontSize: '24px', fontWeight: 700,
             border: 'none',
+            outline: 'none',
           }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.75)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.9)' }}
+          onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,239,255,0.35)' }}
+          onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
         >
           +
         </button>
