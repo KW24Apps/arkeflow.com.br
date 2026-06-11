@@ -131,6 +131,7 @@ export default function CaixaPage() {
   // ── Abertura ─────────────────────────────────────────────────────────────
   const obsAberturaRef = useRef<HTMLInputElement>(null)
   const obsFechRef     = useRef<HTMLInputElement>(null)
+  const voltarBtnRef   = useRef<HTMLButtonElement>(null)
 
   // ── Scanner / busca ───────────────────────────────────────────────────────
   const scanRef        = useRef<HTMLInputElement>(null)
@@ -385,6 +386,13 @@ export default function CaixaPage() {
     window.addEventListener('keydown', onEsc)
     return () => window.removeEventListener('keydown', onEsc)
   }, [modalBusca, modalCheckout, modalCliente, modalVendedor, modalSacolas, modalDadosCliente, modalFechar, modalMov, avisoLimite, sangriaObrigatoria, locked, modalVariacao, confirmCancelVenda])
+
+  useEffect(() => {
+    if (confirmCancelVenda) {
+      const t = setTimeout(() => voltarBtnRef.current?.focus(), 0)
+      return () => clearTimeout(t)
+    }
+  }, [confirmCancelVenda])
 
   function handleClienteSelecionado(c: Cliente) {
     setCliente(c.id, c.nome)
@@ -1350,6 +1358,7 @@ export default function CaixaPage() {
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
+                ref={voltarBtnRef}
                 onClick={() => setConfirmCancelVenda(false)}
                 style={{ flex: 1, minHeight: '44px', background: 'none', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '10px', color: 'rgba(255,255,255,0.45)', fontSize: '13px', cursor: 'pointer' }}
               >
