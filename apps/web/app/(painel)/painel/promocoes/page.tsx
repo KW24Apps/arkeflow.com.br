@@ -98,9 +98,10 @@ export default function PromocoesPage() {
   const [loading,    setLoading]    = useState(true)
   const [busca,      setBusca]      = useState('')
   const [aba,        setAba]        = useState<Aba>('ativas')
-  const [formOpen,   setFormOpen]   = useState(false)
-  const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [salvando,   setSalvando]   = useState(false)
+  const [formOpen,      setFormOpen]      = useState(false)
+  const [editandoId,    setEditandoId]    = useState<string | null>(null)
+  const [esDuplicacao,  setEsDuplicacao]  = useState(false)
+  const [salvando,      setSalvando]      = useState(false)
   const [erro,       setErro]       = useState('')
   const [avisoSalvar, setAvisoSalvar] = useState<any | null>(null)
   const [modal, setModal] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
@@ -157,8 +158,14 @@ export default function PromocoesPage() {
     })
   }
 
-  function fecharForm() {
-    setFormOpen(false); setEditandoId(null); setErro('')
+  async function fecharForm() {
+    const wasDup      = esDuplicacao
+    const idToCleanup = editandoId
+    setEsDuplicacao(false); setFormOpen(false); setEditandoId(null); setErro('')
+    if (wasDup && idToCleanup) {
+      await promocoesApi.encerrar(idToCleanup).catch(() => {})
+      await load()
+    }
   }
 
   function buildPayload() {
@@ -189,7 +196,10 @@ export default function PromocoesPage() {
     try {
       if (editandoId) await promocoesApi.update(editandoId, payload)
       else await promocoesApi.create({ ...payload, ativo: true })
-      fecharForm(); await load()
+      const wasDup = esDuplicacao
+      setEsDuplicacao(false); setFormOpen(false); setEditandoId(null); setErro('')
+      if (wasDup) setAba('ativas')
+      await load()
     } catch (err: any) {
       setErro(err?.response?.data?.error ?? 'Erro ao salvar.')
     } finally { setSalvando(false) }
@@ -220,8 +230,30 @@ export default function PromocoesPage() {
   }
 
   async function handleDuplicar(id: string) {
-    await promocoesApi.duplicar(id)
+    const nova = await promocoesApi.duplicar(id) as any
+    // Pre-fill the edit form with the duplicated data so the user can review before saving
+    setErro('')
+    setEditandoId(nova.id)
+    setEsDuplicacao(true)
+    setTipo(nova.tipo)
+    setNome(nova.nome)
+    setCodigo(nova.codigo ?? '')
+    setValor(nova.tipo === 'desconto_fixo'
+      ? (nova.valor_desconto ? Number(nova.valor_desconto).toFixed(2).replace('.', ',') : '')
+      : (nova.valor_desconto ? String(nova.valor_desconto) : ''))
+    setPercentBrinde(nova.percentual_brinde ? String(nova.percentual_brinde) : '50')
+    setCompre(nova.quantidade_compre ? String(nova.quantidade_compre) : '2')
+    setGanhe(nova.quantidade_brinde ? String(nova.quantidade_brinde) : '1')
+    setSemVencimento(true)
+    setInicio('')
+    setFim('')
+    setAplicacao({
+      aplica_todos:    nova.aplica_todos ?? (nova.aplicacao === 'todos'),
+      categorias_alvo: Array.isArray(nova.categorias_alvo) ? nova.categorias_alvo : (nova.categoria_alvo ? [nova.categoria_alvo] : []),
+      produtos_ids:    Array.isArray(nova.produtos_ids) ? nova.produtos_ids : [],
+    })
     setAba('ativas')
+    setFormOpen(true)
     await load()
   }
 
@@ -231,8 +263,10 @@ export default function PromocoesPage() {
     setModal({
       open: true,
       onConfirm: async () => {
+        setEsDuplicacao(false)
         await promocoesApi.remove(id)
-        fecharForm(); await load()
+        setFormOpen(false); setEditandoId(null); setErro('')
+        await load()
       },
     })
   }
@@ -280,7 +314,7 @@ export default function PromocoesPage() {
         {formOpen && (
           <div style={{ ...CARD, padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
-              {editandoId ? 'Editar promoção' : 'Nova promoção'}
+              {esDuplicacao ? 'Duplicar promoção' : editandoId ? 'Editar promoção' : 'Nova promoção'}
             </p>
 
             {/* Tipo pill tabs */}
