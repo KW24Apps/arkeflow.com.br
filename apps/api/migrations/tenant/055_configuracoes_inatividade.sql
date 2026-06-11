@@ -1,0 +1,1 @@
+ALTER TABLE configuracoes_loja ADD COLUMN IF NOT EXISTS inatividade_minutos INTEGER NOT NULL DEFAULT 360;

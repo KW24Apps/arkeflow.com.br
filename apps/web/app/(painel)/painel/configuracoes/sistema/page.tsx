@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ImageIcon, Package, Tag, ShieldCheck, Banknote, Keyboard, Gift } from 'lucide-react'
+import { ImageIcon, Package, Tag, ShieldCheck, Banknote, Keyboard, Gift, Timer } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -34,6 +34,7 @@ interface SistemaConfig {
   cashback_limite_percentual: string | number
   cashback_carencia_dias:     string | number
   cashback_validade_meses:    string | number
+  inatividade_minutos?:       number | string
 }
 
 async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
@@ -73,7 +74,7 @@ const ATALHO_ACTIONS = [
   { actionKey: 'fecharCaixa', label: 'Fechar caixa',  fKey: 'F10' },
 ] as const
 
-type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | null
+type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao' | null
 
 export default function ConfigSistemaPage() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -126,6 +127,10 @@ export default function ConfigSistemaPage() {
   const [cashbackValidadeMeses,   setCashbackValidadeMeses]   = useState(0)
   const [cashbackSaved,           setCashbackSaved]           = useState(false)
 
+  // ── Sessão state ──────────────────────────────────────────────────────────
+  const [inatividadeHoras, setInatividadeHoras] = useState(6)
+  const [sessaoSaved,      setSessaoSaved]      = useState(false)
+
   // ── Atalhos state ─────────────────────────────────────────────────────────
   const [atalhosCfg,      setAtalhosCfg]      = useState<Record<string, string>>({})
   const [atalhosSaved,    setAtalhosSaved]    = useState(false)
@@ -172,6 +177,7 @@ export default function ConfigSistemaPage() {
       setCashbackLimitePct(Number(d.cashback_limite_percentual ?? 0))
       setCashbackCarenciaDias(Number(d.cashback_carencia_dias ?? 0))
       setCashbackValidadeMeses(Number(d.cashback_validade_meses ?? 0))
+      setInatividadeHoras(Math.round((Number(d.inatividade_minutos ?? 360)) / 60))
     }).finally(() => setLoading(false))
   }, [])
 
@@ -418,7 +424,7 @@ export default function ConfigSistemaPage() {
   const supervisores = colaboradores.filter(c => c.is_supervisor)
   const semMetodoAuth = supervisaoHabilitada && !senhaMestraDefinida && supervisores.length === 0
 
-  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback'
+  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao'
   const PANEL_ICON: Record<SecaoNonNull, React.ReactNode> = {
     logo:       <ImageIcon   size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     estoque:    <Package     size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
@@ -427,10 +433,11 @@ export default function ConfigSistemaPage() {
     caixa:      <Banknote    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     atalhos:    <Keyboard    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     cashback:   <Gift        size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    sessao:     <Timer       size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
   }
   const PANEL_LABEL: Record<SecaoNonNull, string> = {
     logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão',
-    caixa: 'Limite de caixa', atalhos: 'Atalhos do caixa', cashback: 'Cashback',
+    caixa: 'Limite de caixa', atalhos: 'Atalhos do caixa', cashback: 'Cashback', sessao: 'Sessão',
   }
 
   return (
@@ -461,6 +468,7 @@ export default function ConfigSistemaPage() {
               {secao === 'caixa'      && caixaSaved      && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'atalhos'    && atalhosSaved    && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'cashback'   && cashbackSaved   && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
+              {secao === 'sessao'     && sessaoSaved     && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
             </div>
 
             {/* Panel body */}
@@ -1147,6 +1155,53 @@ export default function ConfigSistemaPage() {
                 </div>
               )}
 
+              {/* ── Sessão ───────────────────────────────────────────── */}
+              {secao === 'sessao' && (
+                <div className="flex flex-col gap-4" style={{ maxWidth: '400px' }}>
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>
+                      Tempo limite de inatividade
+                    </p>
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                      Usuários serão deslogados automaticamente após este período sem atividade.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={24}
+                      value={inatividadeHoras}
+                      onChange={e => setInatividadeHoras(Math.min(24, Math.max(1, Math.round(Number(e.target.value) || 1))))}
+                      onBlur={async () => {
+                        const horas = Math.min(24, Math.max(1, inatividadeHoras))
+                        setInatividadeHoras(horas)
+                        await api.put('/dados-loja/sistema', { inatividade_minutos: horas * 60 })
+                        setSessaoSaved(true)
+                        setTimeout(() => setSessaoSaved(false), 2000)
+                      }}
+                      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                      className="outline-none"
+                      style={{
+                        width: '90px',
+                        background: 'rgba(2,8,16,0.6)',
+                        border: '0.5px solid rgba(255,255,255,0.12)',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        fontSize: '13px',
+                        color: 'rgba(255,255,255,0.8)',
+                      }}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                      onBlurCapture={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }}
+                    />
+                    <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)' }}>horas</span>
+                  </div>
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>
+                    padrão 6h · mín 1h · máx 24h
+                  </p>
+                </div>
+              )}
+
             </div>
           </div>}
 
@@ -1161,6 +1216,7 @@ export default function ConfigSistemaPage() {
               { key: 'caixa'      as const, label: 'Limite de caixa',   Icon: Banknote    },
               { key: 'atalhos'    as const, label: 'Atalhos do caixa',  Icon: Keyboard    },
               { key: 'cashback'   as const, label: 'Cashback',          Icon: Gift        },
+              { key: 'sessao'     as const, label: 'Sessão',            Icon: Timer       },
             ] satisfies { key: Secao; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => {
               const sel = secao === key
               return (
