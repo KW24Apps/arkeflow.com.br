@@ -132,6 +132,7 @@ export default function CaixaPage() {
   const obsAberturaRef = useRef<HTMLInputElement>(null)
   const obsFechRef     = useRef<HTMLInputElement>(null)
   const voltarBtnRef   = useRef<HTMLButtonElement>(null)
+  const simBtnRef      = useRef<HTMLButtonElement>(null)
 
   // ── Scanner / busca ───────────────────────────────────────────────────────
   const scanRef        = useRef<HTMLInputElement>(null)
@@ -1361,7 +1362,16 @@ export default function CaixaPage() {
                 {fmt(baseTotal)}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div
+              style={{ display: 'flex', gap: '10px' }}
+              onKeyDown={e => {
+                if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
+                  e.preventDefault()
+                  if (document.activeElement === voltarBtnRef.current) simBtnRef.current?.focus()
+                  else voltarBtnRef.current?.focus()
+                }
+              }}
+            >
               <button
                 ref={voltarBtnRef}
                 onClick={() => setConfirmCancelVenda(false)}
@@ -1371,6 +1381,7 @@ export default function CaixaPage() {
                 Voltar
               </button>
               <button
+                ref={simBtnRef}
                 onClick={() => { limpar(); setConfirmCancelVenda(false) }}
                 className="cancel-sim-btn"
                 style={{ flex: 1, minHeight: '44px', background: 'rgba(240,100,100,0.9)', border: 'none', borderRadius: '10px', color: '#1a0808', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
