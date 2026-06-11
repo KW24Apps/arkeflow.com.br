@@ -122,9 +122,11 @@ export default function ModelosPermissaoPage() {
                 <button
                   onClick={() => handleRemover(editandoId)}
                   className="min-h-[40px] px-2 transition-colors"
-                  style={{ fontSize: '12px', color: 'rgba(248,113,113,0.5)' }}
+                  style={{ fontSize: '12px', color: 'rgba(248,113,113,0.5)', outline: 'none', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer' }}
                   onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.85)')}
                   onMouseLeave={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.5)')}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(240,100,100,0.3)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   Remover
                 </button>
@@ -132,10 +134,12 @@ export default function ModelosPermissaoPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setFormAberto(false)}
-                  className="min-h-[40px] px-5 rounded-lg text-sm transition-colors"
-                  style={{ border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+                  className="min-h-[40px] px-5 rounded-lg text-sm"
+                  style={{ border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', outline: 'none', cursor: 'pointer', transition: 'background 120ms, border-color 120ms, box-shadow 120ms' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.25)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   Cancelar
                 </button>
@@ -143,7 +147,11 @@ export default function ModelosPermissaoPage() {
                   onClick={handleSalvar}
                   disabled={salvando || !nome}
                   className="min-h-[40px] px-5 text-sm font-semibold rounded-lg disabled:opacity-40"
-                  style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', color: '#0ef', borderRadius: '8px' }}
+                  style={{ background: 'rgba(0,239,255,0.2)', border: '0.5px solid rgba(0,239,255,0.4)', color: '#0ef', borderRadius: '8px', outline: 'none', cursor: 'pointer', transition: 'background 120ms, border-color 120ms, box-shadow 120ms' }}
+                  onMouseEnter={e => { if (!e.currentTarget.disabled) { e.currentTarget.style.background = 'rgba(0,239,255,0.32)'; e.currentTarget.style.borderColor = 'rgba(0,239,255,0.6)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.2)'; e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.3)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   {salvando ? 'Salvando...' : 'Salvar'}
                 </button>
@@ -157,12 +165,8 @@ export default function ModelosPermissaoPage() {
           <div className="flex justify-center py-8">
             <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : modelos.length === 0 ? (
-          <p className="text-center py-12" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)' }}>
-            Nenhum modelo cadastrado
-          </p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
             {modelos.map(m => {
               const isSelected = isEditing && m.id === editandoId
               const cardOpacity = isSelected ? 1 : isEditing ? 0.4 : 1
@@ -170,12 +174,12 @@ export default function ModelosPermissaoPage() {
               <div
                 key={m.id}
                 onClick={() => abrirEdicao(m)}
-                className="p-4 flex flex-col gap-2.5 cursor-pointer active:scale-[0.98] transition-all"
-                style={{ ...CARD, opacity: cardOpacity, ...(isSelected && { background: 'rgba(0,239,255,0.06)', border: '1px solid rgba(0,239,255,0.5)' }) }}
-                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}
-                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
+                className="p-4 flex flex-col gap-2.5 cursor-pointer active:scale-[0.98]"
+                style={{ ...CARD, opacity: cardOpacity, minHeight: '110px', transition: 'background 120ms, border-color 120ms', ...(isSelected && { background: 'rgba(0,239,255,0.06)', border: '1px solid rgba(0,239,255,0.5)' }) }}
+                onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' } }}
+                onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.background = 'rgba(8,18,30,0.48)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' } }}
               >
-                <p style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500, fontSize: '14px' }}>
+                <p style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500, fontSize: '13px' }}>
                   {m.nome}
                 </p>
                 <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>
@@ -205,6 +209,26 @@ export default function ModelosPermissaoPage() {
               </div>
               )
             })}
+
+            {/* "+" add card */}
+            <button
+              type="button"
+              onClick={abrirNovo}
+              className="flex flex-col items-center justify-center gap-2 active:scale-[0.97]"
+              style={{
+                minHeight: '110px', padding: '20px 12px',
+                background: 'transparent', border: '1px dashed rgba(255,255,255,0.18)',
+                borderRadius: '10px', cursor: 'pointer', outline: 'none',
+                transition: 'background 120ms, border-color 120ms, box-shadow 120ms, transform 100ms',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.30)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}
+              onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.2)' }}
+              onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
+            >
+              <span style={{ fontSize: '22px', lineHeight: 1, color: 'rgba(255,255,255,0.3)' }}>+</span>
+              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>Novo modelo</span>
+            </button>
           </div>
         )}
 

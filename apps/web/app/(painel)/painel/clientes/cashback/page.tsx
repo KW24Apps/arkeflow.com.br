@@ -149,25 +149,34 @@ export default function CashbackRegrasPage() {
               {editandoId ? (
                 <button onClick={() => handleRemover(editandoId)}
                   className="min-h-[40px] px-2 transition-colors"
-                  style={{ fontSize: '12px', color: 'rgba(248,113,113,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
+                  style={{ fontSize: '12px', color: 'rgba(248,113,113,0.5)', background: 'none', border: 'none', cursor: 'pointer', outline: 'none', borderRadius: '6px' }}
                   onMouseEnter={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.85)')}
                   onMouseLeave={e => (e.currentTarget.style.color = 'rgba(248,113,113,0.5)')}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(240,100,100,0.3)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   Remover
                 </button>
               ) : <span />}
               <div className="flex gap-3">
                 <button onClick={() => setFormOpen(false)}
-                  className="min-h-[40px] px-5 rounded-lg text-sm transition-colors"
-                  style={{ border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px', background: 'none', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+                  className="min-h-[40px] px-5 rounded-lg text-sm"
+                  style={{ border: '0.5px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', cursor: 'pointer', outline: 'none', transition: 'background 120ms, border-color 120ms, box-shadow 120ms' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.25)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   Cancelar
                 </button>
                 <button onClick={handleSalvar} disabled={saving || !nome || !percentual}
                   className="min-h-[40px] px-5 text-sm font-semibold rounded-lg disabled:opacity-40"
-                  style={{ background: 'rgba(0,239,255,0.85)', color: '#0a0a1a', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
+                  style={{ background: 'rgba(0,239,255,0.85)', color: '#0a0a1a', borderRadius: '8px', border: 'none', cursor: 'pointer', outline: 'none', transition: 'background 120ms, box-shadow 120ms' }}
+                  onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'rgba(0,239,255,1)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.85)' }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.35)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
+                >
                   {saving ? 'Salvando...' : 'Salvar'}
                 </button>
               </div>
@@ -180,10 +189,8 @@ export default function CashbackRegrasPage() {
           <div className="flex justify-center py-8">
             <div className="w-6 h-6 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : regras.length === 0 ? (
-          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '32px 0' }}>Nenhuma regra cadastrada</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
             {regras.map(r => {
               const isSelected = isEditing && r.id === editandoId
               const cardOpacity = isSelected ? 1 : isEditing ? 0.4 : 1
@@ -191,13 +198,13 @@ export default function CashbackRegrasPage() {
               <div
                 key={r.id}
                 onClick={() => abrirEdicao(r)}
-                className="p-4 flex flex-col gap-2 cursor-pointer active:scale-[0.98] transition-all"
-                style={{ ...CARD, opacity: cardOpacity, ...(isSelected && { background: 'rgba(0,239,255,0.06)', border: '1px solid rgba(0,239,255,0.5)' }) }}
-                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}
-                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
+                className="p-4 flex flex-col gap-2 cursor-pointer active:scale-[0.98]"
+                style={{ ...CARD, opacity: cardOpacity, minHeight: '110px', transition: 'background 120ms, border-color 120ms', ...(isSelected && { background: 'rgba(0,239,255,0.06)', border: '1px solid rgba(0,239,255,0.5)' }) }}
+                onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' } }}
+                onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.background = 'rgba(8,18,30,0.48)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' } }}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{r.nome}</p>
+                  <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{r.nome}</p>
                   {r.padrao && (
                     <span style={{ fontSize: '9px', textTransform: 'uppercase', background: 'rgba(0,239,255,0.12)', color: '#0ef', borderRadius: '9999px', padding: '2px 7px', flexShrink: 0 }}>
                       Padrão
@@ -213,6 +220,26 @@ export default function CashbackRegrasPage() {
               </div>
               )
             })}
+
+            {/* "+" add card */}
+            <button
+              type="button"
+              onClick={abrirNova}
+              className="flex flex-col items-center justify-center gap-2 active:scale-[0.97]"
+              style={{
+                minHeight: '110px', padding: '20px 12px',
+                background: 'transparent', border: '1px dashed rgba(255,255,255,0.18)',
+                borderRadius: '10px', cursor: 'pointer', outline: 'none',
+                transition: 'background 120ms, border-color 120ms, box-shadow 120ms, transform 100ms',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.30)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}
+              onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.2)' }}
+              onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
+            >
+              <span style={{ fontSize: '22px', lineHeight: 1, color: 'rgba(255,255,255,0.3)' }}>+</span>
+              <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>Nova regra</span>
+            </button>
           </div>
         )}
 

@@ -300,9 +300,8 @@ export default function PromocoesPage() {
 
   const GRID: React.CSSProperties = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 220px))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
     gap: '12px',
-    justifyContent: 'start',
   }
 
   return (
@@ -519,8 +518,13 @@ export default function PromocoesPage() {
                   style={{
                     color: 'rgba(240,130,130,0.75)', border: '0.5px solid rgba(240,100,100,0.25)',
                     background: 'rgba(240,100,100,0.08)', borderRadius: '8px',
-                    padding: '9px 16px', fontSize: '12px', cursor: 'pointer',
+                    padding: '9px 16px', fontSize: '12px', cursor: 'pointer', outline: 'none',
+                    transition: 'background 120ms, border-color 120ms, box-shadow 120ms',
                   }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(240,100,100,0.16)'; e.currentTarget.style.borderColor = 'rgba(240,100,100,0.45)'; e.currentTarget.style.color = 'rgba(240,140,140,0.95)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(240,100,100,0.08)'; e.currentTarget.style.borderColor = 'rgba(240,100,100,0.25)'; e.currentTarget.style.color = 'rgba(240,130,130,0.75)' }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(240,100,100,0.3)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   Remover
                 </button>
@@ -532,8 +536,13 @@ export default function PromocoesPage() {
                   style={{
                     background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.12)',
                     color: 'rgba(255,255,255,0.5)', borderRadius: '8px',
-                    padding: '9px 16px', fontSize: '12px', cursor: 'pointer',
+                    padding: '9px 16px', fontSize: '12px', cursor: 'pointer', outline: 'none',
+                    transition: 'background 120ms, border-color 120ms, box-shadow 120ms',
                   }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.30)'; e.currentTarget.style.color = 'rgba(255,255,255,0.95)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.25)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   Cancelar
                 </button>
@@ -544,8 +553,13 @@ export default function PromocoesPage() {
                   style={{
                     background: 'rgba(0,239,255,0.85)', color: '#0a0a1a', fontWeight: 600,
                     borderRadius: '8px', padding: '9px 20px', fontSize: '12px',
-                    border: 'none', cursor: 'pointer', opacity: salvando ? 0.6 : 1,
+                    border: 'none', cursor: 'pointer', opacity: salvando ? 0.6 : 1, outline: 'none',
+                    transition: 'background 120ms, box-shadow 120ms',
                   }}
+                  onMouseEnter={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'rgba(0,239,255,1)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.85)' }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.35)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
                 >
                   {salvando ? 'Salvando...' : 'Salvar'}
                 </button>
@@ -681,9 +695,7 @@ function PromoCard({
   const [hovered, setHovered] = useState(false)
   const isAgendada = status === 'agendada'
 
-  const borderColor = isAgendada
-    ? (hovered ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.12)')
-    : (hovered ? 'rgba(0,239,255,0.25)' : 'rgba(255,255,255,0.12)')
+  const borderColor = hovered ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.09)'
 
   const dias = isAgendada && promo.inicio ? diasAteInicio(promo.inicio) : null
 
@@ -696,7 +708,7 @@ function PromoCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: 'rgba(8,18,30,0.48)',
+        background: hovered ? 'rgba(255,255,255,0.04)' : 'rgba(8,18,30,0.48)',
         backdropFilter: 'blur(8px)',
         border: `0.5px solid ${borderColor}`,
         borderRadius: '10px',
@@ -705,7 +717,7 @@ function PromoCard({
         flexDirection: 'column',
         gap: '7px',
         cursor: 'pointer',
-        transition: 'border-color 0.15s',
+        transition: 'background 120ms, border-color 120ms',
         position: 'relative',
       }}
     >
