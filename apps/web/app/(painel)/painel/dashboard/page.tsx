@@ -102,11 +102,6 @@ function BarChart({ data, height = 90 }: {
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
 const MOCK_MARGEM = { margem_bruta: 48.2, lucro_liq: 18.7, gmroi: 2.4 }
-const MOCK_CANAIS = [
-  { nome: 'Loja Física', pct: 68 }, { nome: 'E-commerce', pct: 22 }, { nome: 'Marketplace', pct: 10 },
-]
-const MOCK_LTV  = { ltv_medio: 1840, cac_medio: 95, ratio: 19.4 }
-const MOCK_M2   = { vendas_m2: 3420, area_m2: 120, aluguel_pct: 8.4 }
 
 type Periodo = 'hoje' | 'semana' | 'mes'
 
@@ -146,11 +141,18 @@ export default function DashboardPage() {
       const porHora = new Map<number, number>(
         (data.faturamento_por_dia ?? []).map((d: any) => [Number(d.hora), Number(d.faturamento)])
       )
-      return Array.from({ length: horaAtual + 1 }, (_, h) => ({
-        label: `${String(h).padStart(2, '0')}h`,
-        value: porHora.get(h) ?? 0,
-        highlight: h === horaAtual,
-      }))
+      const horaStart = Math.min(
+        data.hora_inicio !== null && data.hora_inicio !== undefined ? Number(data.hora_inicio) : horaAtual,
+        horaAtual,
+      )
+      return Array.from({ length: horaAtual - horaStart + 1 }, (_, i) => {
+        const h = horaStart + i
+        return {
+          label: `${String(h).padStart(2, '0')}h`,
+          value: porHora.get(h) ?? 0,
+          highlight: h === horaAtual,
+        }
+      })
     }
     // day granularity
     return (data.faturamento_por_dia ?? []).map((d: any) => {
@@ -395,47 +397,6 @@ export default function DashboardPage() {
             <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>GMROI {MOCK_MARGEM.gmroi}×</p>
           </div>
 
-          {/* Canais */}
-          <div style={{ ...CARD, padding: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <p style={LBL9}>Canais</p>
-              {MOCK_BADGE}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              {MOCK_CANAIS.map(c => (
-                <div key={c.nome}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{c.nome}</span>
-                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{c.pct}%</span>
-                  </div>
-                  <div style={{ height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', marginTop: '2px' }}>
-                    <div style={{ height: '100%', width: `${c.pct}%`, background: 'rgba(0,239,255,0.4)', borderRadius: '2px' }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* LTV / CAC */}
-          <div style={{ ...CARD, padding: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <p style={LBL9}>LTV / CAC</p>
-              {MOCK_BADGE}
-            </div>
-            <p style={{ fontSize: '22px', fontWeight: 700, color: 'rgba(0,239,255,0.9)' }}>{MOCK_LTV.ratio}×</p>
-            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>LTV {fmtR(MOCK_LTV.ltv_medio)}</p>
-            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>CAC {fmtR(MOCK_LTV.cac_medio)}</p>
-          </div>
-
-          {/* Vendas / m² */}
-          <div style={{ ...CARD, padding: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <p style={LBL9}>Vendas / m²</p>
-              {MOCK_BADGE}
-            </div>
-            <p style={{ fontSize: '22px', fontWeight: 700, color: '#facc15' }}>{fmtR(MOCK_M2.vendas_m2)}</p>
-            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>{MOCK_M2.area_m2} m² · aluguel {MOCK_M2.aluguel_pct}%</p>
-          </div>
 
         </div>
       </main>

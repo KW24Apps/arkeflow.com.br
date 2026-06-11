@@ -48,13 +48,6 @@ function Section({ title, badge, children }: { title: string; badge?: React.Reac
   )
 }
 
-const MOCK_LTV = [
-  { segmento: 'Campeões',          ltv: 2840.00, cac: 38.00, ratio: 74.7 },
-  { segmento: 'Leais',             ltv: 1560.00, cac: 42.00, ratio: 37.1 },
-  { segmento: 'Em desenvolvimento',ltv: 480.00,  cac: 55.00, ratio: 8.7 },
-  { segmento: 'Novos',             ltv: 210.00,  cac: 60.00, ratio: 3.5 },
-]
-
 export default function RelatoriosClientesPage() {
   const { inicio: di, fim: df } = defaultPeriodo()
   const [inicio, setInicio] = useState(di)
@@ -149,32 +142,6 @@ export default function RelatoriosClientesPage() {
           }
         </Section>
 
-        {/* MOCK: LTV / CAC */}
-        <Section title="LTV / CAC por segmento" badge={MOCK_BADGE}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>
-              <th style={TH}>Segmento</th>
-              <th style={{ ...TH, textAlign: 'right' }}>LTV</th>
-              <th style={{ ...TH, textAlign: 'right' }}>CAC</th>
-              <th style={{ ...TH, textAlign: 'right' }}>LTV:CAC</th>
-            </tr></thead>
-            <tbody>
-              {MOCK_LTV.map((m, i) => {
-                const c = SEG_COLORS[m.segmento] ?? { text: 'rgba(255,255,255,0.6)' }
-                return (
-                  <tr key={i}>
-                    <td style={TD}><SegBadge seg={m.segmento} /></td>
-                    <td style={{ ...TD, textAlign: 'right', color: '#4ade80' }}>{fmtR(m.ltv)}</td>
-                    <td style={{ ...TD, textAlign: 'right', color: '#f97316' }}>{fmtR(m.cac)}</td>
-                    <td style={{ ...TD, textAlign: 'right', fontWeight: 600, color: m.ratio >= 10 ? '#4ade80' : m.ratio >= 3 ? '#facc15' : '#f87171' }}>
-                      {m.ratio.toFixed(1)}×
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </Section>
 
       </main>
     </>

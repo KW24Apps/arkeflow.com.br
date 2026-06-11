@@ -59,8 +59,19 @@ export async function relatoriosRoutes(app: FastifyInstance) {
            GROUP BY 1 ORDER BY 1`,
           [inicio, fim])
 
+    const horaInicioQuery = granularity === 'hour'
+      ? pool.query(`
+          WITH primeira AS (
+            SELECT MIN(aberto_em) AS ts FROM turnos_caixa WHERE DATE(aberto_em) = $1
+            UNION ALL
+            SELECT MIN(criado_em) AS ts FROM vendas WHERE status='finalizada' AND DATE(criado_em) = $1
+          )
+          SELECT EXTRACT(HOUR FROM MIN(ts))::int AS hora_inicio FROM primeira WHERE ts IS NOT NULL
+        `, [inicio])
+      : Promise.resolve({ rows: [{ hora_inicio: null as number | null }] })
+
     const [kpiRes, porDiaRes, formaRes, topVendRes, topProdRes,
-           contasRes, cbSaldoRes, promoRes, caixasRes, cfgRes] = await Promise.all([
+           contasRes, cbSaldoRes, promoRes, caixasRes, cfgRes, horaInicioRes] = await Promise.all([
 
       pool.query(`
         SELECT
@@ -161,6 +172,8 @@ export async function relatoriosRoutes(app: FastifyInstance) {
 
       // Tenant inactivity config (needed for online_agora calculation)
       pool.query(`SELECT inatividade_minutos FROM configuracoes_loja LIMIT 1`),
+
+      horaInicioQuery,
     ])
 
     // ── Round 2: platform queries (need inatividade_minutos + operator ids) ─
@@ -200,9 +213,14 @@ export async function relatoriosRoutes(app: FastifyInstance) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       : (porDiaRes.rows as any[]).map(r => ({ dia: String(r.dia), faturamento: Number(r.faturamento) }))
 
+    const horaInicioVal = (horaInicioRes as any).rows[0]?.hora_inicio
+    const hora_inicio   = horaInicioVal !== null && horaInicioVal !== undefined
+      ? Number(horaInicioVal) : null
+
     return reply.send({
       periodo: { inicio, fim, nome: periodo },
       granularity,
+      hora_inicio,
       kpis: {
         faturamento:     Number(k.faturamento),
         qtd_vendas:      qtdV,
