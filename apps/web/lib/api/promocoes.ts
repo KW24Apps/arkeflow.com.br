@@ -4,8 +4,8 @@ import type { Promocao } from '@/lib/calcularDesconto'
 export type { Promocao }
 
 export const promocoesApi = {
-  list: (_todas?: boolean) =>
-    api.get<Promocao[]>('/promocoes').then(r => r.data),
+  list: () =>
+    api.get<{ promocoes: Promocao[]; tem_primeira_compra_ativa: boolean }>('/promocoes').then(r => r.data),
   listAtivas: () =>
     api.get<Promocao[]>('/promocoes/ativas').then(r => r.data),
   get: (id: string) =>

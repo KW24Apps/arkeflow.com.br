@@ -872,7 +872,7 @@ export default function CaixaPage() {
 
           {/* Shortcut cheatsheet — absolute watermark, behind all flow content, no layout space */}
           {status === 'aberto' && (
-            <div style={{ position: 'absolute', right: '16px', bottom: '62px', zIndex: -1, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+            <div style={{ position: 'absolute', right: '16px', bottom: '62px', zIndex: -1, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', opacity: itens.length > 0 ? 0.5 : 1, transition: 'opacity 0.3s ease' }}>
               {SHORTCUTS_META.map(({ key, label, action }) => {
                 const custom = atalhosCfg[action]
                 return (

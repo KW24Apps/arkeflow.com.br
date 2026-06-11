@@ -44,7 +44,7 @@ export default function PromocoesFinalizadasPage() {
 
   async function load() {
     setLoading(true)
-    try { setPromos(await promocoesApi.list()) }
+    try { setPromos((await promocoesApi.list()).promocoes) }
     finally { setLoading(false) }
   }
 

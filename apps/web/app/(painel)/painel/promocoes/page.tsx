@@ -95,6 +95,7 @@ function formatDataBR(iso: string): string {
 export default function PromocoesPage() {
   const [promos,     setPromos]     = useState<Promocao[]>([])
   const [loading,    setLoading]    = useState(true)
+  const [temPrimeiraCompra, setTemPrimeiraCompra] = useState(false)
   const [formOpen,      setFormOpen]      = useState(false)
   const [editandoId,    setEditandoId]    = useState<string | null>(null)
   const [esDuplicacao,  setEsDuplicacao]  = useState(false)
@@ -118,7 +119,11 @@ export default function PromocoesPage() {
 
   async function load() {
     setLoading(true)
-    try { setPromos(await promocoesApi.list()) }
+    try {
+      const { promocoes, tem_primeira_compra_ativa } = await promocoesApi.list()
+      setPromos(promocoes)
+      setTemPrimeiraCompra(tem_primeira_compra_ativa)
+    }
     finally { setLoading(false) }
   }
 
@@ -316,7 +321,7 @@ export default function PromocoesPage() {
             <div>
               <Lbl>Tipo de promoção</Lbl>
               <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px', display: 'flex', flexWrap: 'wrap', gap: '2px', opacity: editandoId ? 0.5 : 1, pointerEvents: editandoId ? 'none' : 'auto' }}>
-                {TIPOS.map(t => (
+                {TIPOS.filter(t => t.value !== 'primeira_compra' || !temPrimeiraCompra || tipo === 'primeira_compra').map(t => (
                   <button
                     key={t.value}
                     type="button"
@@ -483,6 +488,7 @@ export default function PromocoesPage() {
                     <Lbl>Início</Lbl>
                     <input
                       type="date" value={inicio} onChange={e => setInicio(e.target.value)}
+                      onClick={e => { try { (e.target as HTMLInputElement).showPicker() } catch {} }}
                       onFocus={focusIn} onBlur={focusOut}
                       style={INPUT_STYLE} className="outline-none"
                     />
@@ -491,6 +497,7 @@ export default function PromocoesPage() {
                     <Lbl>Fim</Lbl>
                     <input
                       type="date" value={fim} onChange={e => setFim(e.target.value)}
+                      onClick={e => { try { (e.target as HTMLInputElement).showPicker() } catch {} }}
                       onFocus={focusIn} onBlur={focusOut}
                       style={INPUT_STYLE} className="outline-none"
                     />

@@ -106,16 +106,24 @@ export async function promocoesRoutes(app: FastifyInstance) {
   // ── Management: all promos with computed status ───────────────────────
   app.get('/', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
-    const { rows } = await pool.query(
-      `SELECT p.*,
-         COALESCE(JSON_AGG(pp.produto_id) FILTER (WHERE pp.produto_id IS NOT NULL), '[]') AS produtos_ids,
-         ${STATUS_CASE}
-       FROM promocoes p
-       LEFT JOIN promocoes_produtos pp ON pp.promocao_id = p.id
-       GROUP BY p.id
-       ORDER BY p.nome`
-    )
-    return reply.send(rows)
+    const [{ rows }, { rows: [meta] }] = await Promise.all([
+      pool.query(
+        `SELECT p.*,
+           COALESCE(JSON_AGG(pp.produto_id) FILTER (WHERE pp.produto_id IS NOT NULL), '[]') AS produtos_ids,
+           ${STATUS_CASE}
+         FROM promocoes p
+         LEFT JOIN promocoes_produtos pp ON pp.promocao_id = p.id
+         GROUP BY p.id
+         ORDER BY p.nome`
+      ),
+      pool.query(
+        `SELECT EXISTS(
+           SELECT 1 FROM promocoes
+           WHERE tipo = 'primeira_compra' AND ativo = true AND encerrada = false
+         ) AS tem_primeira_compra_ativa`
+      ),
+    ])
+    return reply.send({ promocoes: rows, tem_primeira_compra_ativa: meta.tem_primeira_compra_ativa })
   })
 
   app.get('/conflitos', { preHandler: auth }, async (req, reply) => {
@@ -156,6 +164,16 @@ export async function promocoesRoutes(app: FastifyInstance) {
   app.post('/', { preHandler: dono }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
     const { produtos_ids, ...data } = schema.parse(req.body)
+
+    if (data.tipo === 'primeira_compra') {
+      const { rows: [{ tem_primeira_compra_ativa }] } = await pool.query(
+        `SELECT EXISTS(
+           SELECT 1 FROM promocoes
+           WHERE tipo = 'primeira_compra' AND ativo = true AND encerrada = false
+         ) AS tem_primeira_compra_ativa`
+      )
+      if (tem_primeira_compra_ativa) throw new AppError('Já existe uma promoção de Primeira Compra ativa.', 400)
+    }
 
     if (data.ativo) {
       const conflito = await verificarConflitoProdutos(pool, {
