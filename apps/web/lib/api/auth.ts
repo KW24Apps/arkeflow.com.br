@@ -6,8 +6,18 @@ interface LoginResponse {
   usuario: JwtPayload
 }
 
-export async function loginRequest(email: string, senha: string): Promise<LoginResponse> {
-  const { data } = await api.post<LoginResponse>('/auth/login', { email, senha })
+export interface SessaoAtivaError {
+  code: 'SESSAO_ATIVA'
+  ip: string | null
+  em: string | null
+}
+
+export async function loginRequest(
+  email: string, senha: string, forcar?: boolean
+): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>('/auth/login', {
+    email, senha, ...(forcar ? { forcar } : {}),
+  })
   return data
 }
 

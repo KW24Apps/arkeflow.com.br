@@ -17,14 +17,20 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.send({ ok: true })
   })
 
-  // Registra saída e limpa sessão
+  // Registra saída e invalida sessão
   app.post('/logout', { preHandler: authMiddleware }, async (req, reply) => {
     const user = req.user as JwtPayload
-    await platformPool.query(
-      `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo) VALUES ($1,$2,$3,'logout')`,
-      [user.id, user.loja_id ?? null,
-       req.headers['x-forwarded-for']?.toString() || req.ip]
-    ).catch(() => {})
+    await Promise.all([
+      platformPool.query(
+        `UPDATE usuarios SET sessao_atual = NULL, sessao_ip = NULL WHERE id = $1`,
+        [user.id]
+      ),
+      platformPool.query(
+        `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo) VALUES ($1,$2,$3,'logout')`,
+        [user.id, user.loja_id ?? null,
+         req.headers['x-forwarded-for']?.toString() || req.ip]
+      ).catch(() => {}),
+    ])
     return reply.send({ ok: true })
   })
 }
