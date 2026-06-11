@@ -21,16 +21,21 @@ const CAT_COLORS = ['#f59e0b', '#0ef', '#64dca0', '#a78bfa', '#f87171', '#60a5fa
 function catColor(idx: number): string { return CAT_COLORS[idx % CAT_COLORS.length] }
 
 export function SeletorAplicacao({ value, onChange }: Props) {
-  // ── Nomes para exibição nas chips ────────────────────────────────────
+  // ── Nomes e categorias para chips / summary ──────────────────────────
   const [nomeMap, setNomeMap] = useState<Record<string, string>>({})
+  const [catMap,  setCatMap]  = useState<Record<string, string>>({})  // id → categoria
 
   useEffect(() => {
     const faltam = value.produtos_ids.filter(id => !nomeMap[id])
     if (!faltam.length) return
     Promise.all(faltam.map(id => produtosApi.get(id).catch(() => null))).then(ps => {
-      const m: Record<string, string> = {}
-      ps.forEach(p => { if (p) m[p.id] = p.nome })
-      setNomeMap(prev => ({ ...prev, ...m }))
+      const nm: Record<string, string> = {}
+      const cm: Record<string, string> = {}
+      ps.forEach(p => {
+        if (p) { nm[p.id] = p.nome; cm[p.id] = p.categoria ?? 'Sem categoria' }
+      })
+      setNomeMap(prev => ({ ...prev, ...nm }))
+      setCatMap(prev => ({ ...prev, ...cm }))
     })
   }, [value.produtos_ids])
 
@@ -60,9 +65,11 @@ export function SeletorAplicacao({ value, onChange }: Props) {
     try {
       const ps = await produtosApi.list(undefined, false)
       setProdutos(ps)
-      const m: Record<string, string> = {}
-      ps.forEach(p => { m[p.id] = p.nome })
-      setNomeMap(prev => ({ ...prev, ...m }))
+      const nm: Record<string, string> = {}
+      const cm2: Record<string, string> = {}
+      ps.forEach(p => { nm[p.id] = p.nome; cm2[p.id] = p.categoria ?? 'Sem categoria' })
+      setNomeMap(prev => ({ ...prev, ...nm }))
+      setCatMap(prev => ({ ...prev, ...cm2 }))
       if (ps.length) {
         const allIds = ps.map(p => p.id)
         const { conflitos } = await promocoesApi.conflitos(allIds)
@@ -95,6 +102,16 @@ export function SeletorAplicacao({ value, onChange }: Props) {
   }, [produtos, busca])
 
   const catList = useMemo(() => Array.from(grouped.keys()), [grouped])
+
+  // ── Category summary for the chips area ──────────────────────────────
+  const catSummary = useMemo<[string, number][]>(() => {
+    const counts: Record<string, number> = {}
+    value.produtos_ids.forEach(id => {
+      const cat = catMap[id] ?? 'Sem categoria'
+      counts[cat] = (counts[cat] ?? 0) + 1
+    })
+    return Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [value.produtos_ids, catMap])
 
   // ── Estado do checkbox de categoria ──────────────────────────────────
   function catCheckState(catName: string): 'none' | 'partial' | 'all' {
@@ -169,10 +186,6 @@ export function SeletorAplicacao({ value, onChange }: Props) {
     onChange({ ...value, categorias_alvo: value.categorias_alvo.filter(c => c !== cat) })
   }
 
-  function removerProduto(id: string) {
-    onChange({ ...value, produtos_ids: value.produtos_ids.filter(p => p !== id) })
-  }
-
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -191,16 +204,15 @@ export function SeletorAplicacao({ value, onChange }: Props) {
             <ChipX onClick={() => removerCategoria(cat)} />
           </span>
         ))}
-        {value.produtos_ids.map(id => (
-          <span key={id} style={chipStyle('rgba(100,220,160,0.8)')}>
-            {nomeMap[id] ?? '…'}
-            <ChipX onClick={() => removerProduto(id)} />
+        {catSummary.map(([cat, count]) => (
+          <span key={cat} style={chipStyle('rgba(100,220,160,0.8)')}>
+            {cat} ({count})
           </span>
         ))}
         {!value.aplica_todos && (
           <button type="button" onClick={abrirModal}
             style={{ fontSize: '11px', color: 'rgba(0,239,255,0.7)', border: '0.5px solid rgba(0,239,255,0.25)', padding: '4px 12px', borderRadius: '999px', background: 'transparent', cursor: 'pointer' }}>
-            + Adicionar
+            {value.produtos_ids.length > 0 ? 'Alterar seleção' : '+ Adicionar'}
           </button>
         )}
       </div>
