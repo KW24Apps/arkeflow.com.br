@@ -30,6 +30,10 @@ export const sacolasApi = {
   list: (status: SacolaStatus = 'aguardando') =>
     api.get<SacolaRemota[]>('/sacolas', { params: { status } }).then(r => r.data),
 
+  // Returns aguardando + em_atendimento together — used by SacolasModal in the cashier
+  listPendentes: () =>
+    api.get<SacolaRemota[]>('/sacolas', { params: { status: 'all' } }).then(r => r.data),
+
   get: (id: string) =>
     api.get<SacolaRemota>(`/sacolas/${id}`).then(r => r.data),
 

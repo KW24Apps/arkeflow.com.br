@@ -87,6 +87,12 @@ export async function sacolasRoutes(app: FastifyInstance) {
     const pool   = getTenantPoolFromRequest(req)
     const status = (req.query as any).status ?? 'aguardando'
 
+    const singleStatuses = ['aguardando', 'em_atendimento', 'finalizada', 'cancelada']
+    // 'all' (used by caixa modal) → show aguardando + em_atendimento together
+    const statuses: string[] = status === 'all' || !singleStatuses.includes(status)
+      ? ['aguardando', 'em_atendimento']
+      : [status]
+
     const { rows } = await pool.query(
       `SELECT s.*,
          COALESCE(
@@ -106,10 +112,10 @@ export async function sacolasRoutes(app: FastifyInstance) {
          ) AS itens
        FROM sacolas s
        LEFT JOIN sacola_itens i ON i.sacola_id = s.id
-       WHERE s.status = $1
+       WHERE s.status = ANY($1)
        GROUP BY s.id
        ORDER BY s.criado_em DESC`,
-      [status]
+      [statuses]
     )
     return reply.send(rows)
   })

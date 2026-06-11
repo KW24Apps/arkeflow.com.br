@@ -1,41 +1,53 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { sacolasApi, type SacolaRemota } from '@/lib/api/sacolas'
 import { usePDVStore } from '@/store/pdv.store'
 
 interface Props {
-  open:       boolean
-  onClose:    () => void
-  // Called after loading a cart so the page can redirect focus
+  open:         boolean
+  onClose:      () => void
   onCarregada?: () => void
 }
 
+function fmtR(v: number) {
+  return `R$ ${v.toFixed(2).replace('.', ',')}`
+}
+
+function fmtDt(iso: string) {
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function totalSacola(s: SacolaRemota) {
+  return s.itens.reduce((sum, i) => sum + Number(i.preco_unitario) * i.quantidade, 0)
+}
+
+function qtdItens(s: SacolaRemota) {
+  return s.itens.reduce((sum, i) => sum + i.quantidade, 0)
+}
+
 export function SacolasModal({ open, onClose, onCarregada }: Props) {
-  const searchRef = useRef<HTMLInputElement>(null)
   const { carregarSacola } = usePDVStore()
 
   const [sacolas,    setSacolas]    = useState<SacolaRemota[]>([])
   const [carregando, setCarregando] = useState(false)
-  const [q,          setQ]          = useState('')
   const [loadingId,  setLoadingId]  = useState<string | null>(null)
   const [erro,       setErro]       = useState('')
 
-  // ── Load on open ──────────────────────────────────────────────────────────
+  // ── Load on open ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return
-    setQ(''); setErro('')
+    setErro('')
     setCarregando(true)
-    sacolasApi.list('aguardando')
+    sacolasApi.listPendentes()
       .then(setSacolas)
       .catch(() => setErro('Não foi possível carregar as sacolas.'))
-      .finally(() => {
-        setCarregando(false)
-        setTimeout(() => searchRef.current?.focus(), 80)
-      })
+      .finally(() => setCarregando(false))
   }, [open])
 
-  // ── ESC to close ──────────────────────────────────────────────────────────
+  // ── ESC to close ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -45,21 +57,12 @@ export function SacolasModal({ open, onClose, onCarregada }: Props) {
 
   if (!open) return null
 
-  // ── Filter ────────────────────────────────────────────────────────────────
-  const filtradas = q.trim()
-    ? sacolas.filter(s =>
-        s.cliente_nome?.toLowerCase().includes(q.toLowerCase()) ||
-        s.nome_vendedor?.toLowerCase().includes(q.toLowerCase())
-      )
-    : sacolas
-
-  // ── Load cart into POS ────────────────────────────────────────────────────
+  // ── Load cart into POS ────────────────────────────────────────────────────────
   async function handleCarregar(sacola: SacolaRemota) {
+    if (loadingId) return
     setLoadingId(sacola.id); setErro('')
     try {
-      // Lock the cart so no one else can load it concurrently
       await sacolasApi.updateStatus(sacola.id, 'em_atendimento')
-      // Populate the POS cart
       carregarSacola(
         sacola.id,
         sacola.itens,
@@ -76,146 +79,149 @@ export function SacolasModal({ open, onClose, onCarregada }: Props) {
     }
   }
 
-  const fmt = (v: number) => `R$ ${v.toFixed(2)}`
-  const total = (s: SacolaRemota) =>
-    s.itens.reduce((sum, i) => sum + i.preco_unitario * i.quantidade, 0)
-
-  const fmtDt = (d: string) => new Date(d).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-  })
+  const totalCount = sacolas.length
 
   return (
     <div
-      className="fixed inset-0 bg-midnight/85 z-50 flex items-center justify-center p-4"
+      style={{ position: 'fixed', inset: 0, background: 'rgba(8,10,20,0.85)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
       onClick={onClose}
     >
       <div
-        className="bg-deep-ocean border border-ocean-depth rounded-2xl w-full max-w-lg flex flex-col shadow-2xl"
-        style={{ maxHeight: '82vh' }}
+        style={{ background: 'rgba(8,18,30,0.97)', backdropFilter: 'blur(16px)', border: '0.5px solid rgba(255,255,255,0.10)', borderRadius: '16px', width: '100%', maxWidth: '560px', maxHeight: '82vh', display: 'flex', flexDirection: 'column' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="shrink-0 px-5 py-4 border-b border-ocean-depth flex items-center justify-between">
+        <div style={{ flexShrink: 0, padding: '16px 20px', borderBottom: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h3 className="text-sea-foam font-semibold text-base">Sacolas Pendentes</h3>
-            <p className="text-steel text-xs mt-0.5">
-              {sacolas.length} sacola{sacolas.length !== 1 ? 's' : ''} aguardando atendimento
+            <p style={{ fontSize: '15px', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>Sacolas Pendentes</p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>
+              {totalCount} sacola{totalCount !== 1 ? 's' : ''} aguardando ou no caixa
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-11 h-11 flex items-center justify-center text-steel hover:text-sea-foam text-2xl rounded-xl hover:bg-ocean-depth transition-colors"
+            style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', fontSize: '22px', borderRadius: '8px', transition: 'color 120ms, background 120ms' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; e.currentTarget.style.background = 'none' }}
           >×</button>
         </div>
 
-        {/* Search */}
-        <div className="shrink-0 p-4 border-b border-ocean-depth">
-          <input
-            ref={searchRef}
-            type="text"
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            placeholder="Filtrar por cliente ou vendedor..."
-            className="w-full min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam placeholder-steel/60 outline-none focus:border-electric-cyan"
-          />
-        </div>
-
-        {/* List */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+        {/* Card grid body */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '14px 16px' }}>
           {carregando && (
-            <div className="flex justify-center py-12">
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '48px' }}>
               <div className="w-7 h-7 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
           {!carregando && erro && (
-            <div className="text-center py-8">
-              <p className="text-red-400 text-sm">{erro}</p>
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <p style={{ fontSize: '13px', color: 'rgba(248,113,113,0.8)' }}>{erro}</p>
               <button
-                onClick={() => { setErro(''); setCarregando(true); sacolasApi.list('aguardando').then(setSacolas).finally(() => setCarregando(false)) }}
-                className="mt-3 text-electric-cyan text-xs hover:underline"
+                onClick={() => {
+                  setErro(''); setCarregando(true)
+                  sacolasApi.listPendentes().then(setSacolas).catch(() => setErro('Não foi possível carregar as sacolas.')).finally(() => setCarregando(false))
+                }}
+                style={{ marginTop: '10px', fontSize: '12px', color: '#0ef', background: 'none', border: 'none', cursor: 'pointer' }}
               >Tentar novamente</button>
             </div>
           )}
 
-          {!carregando && !erro && filtradas.length === 0 && (
-            <div className="flex flex-col items-center py-12 gap-3 opacity-50">
-              <span className="text-4xl">🛍</span>
-              <p className="text-steel text-sm">
-                {q ? `Nenhuma sacola encontrada para "${q}"` : 'Nenhuma sacola pendente no momento'}
-              </p>
+          {!carregando && !erro && sacolas.length === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '60px', gap: '10px', opacity: 0.45 }}>
+              <span style={{ fontSize: '36px' }}>🛍</span>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>Nenhuma sacola pendente</p>
             </div>
           )}
 
-          {!carregando && filtradas.map(sacola => {
-            const isLoading = loadingId === sacola.id
-            const tot = total(sacola)
-            const qtdItens = sacola.itens.reduce((s, i) => s + i.quantidade, 0)
+          {!carregando && !erro && sacolas.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
+              {sacolas.map(sacola => {
+                const isLoading = loadingId === sacola.id
+                const tot       = totalSacola(sacola)
+                const qtd       = qtdItens(sacola)
+                const emAtend   = sacola.status === 'em_atendimento'
 
-            return (
-              <div
-                key={sacola.id}
-                className="bg-midnight border border-ocean-depth rounded-2xl p-4 flex flex-col gap-3"
-              >
-                {/* Top row: customer + total */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sea-foam font-semibold text-sm truncate">
-                      {sacola.cliente_nome ?? 'Cliente não identificado'}
+                return (
+                  <div
+                    key={sacola.id}
+                    onClick={() => !isLoading && handleCarregar(sacola)}
+                    style={{
+                      background:    'rgba(8,18,30,0.48)',
+                      backdropFilter:'blur(8px)',
+                      border:        '0.5px solid rgba(255,255,255,0.08)',
+                      borderRadius:  '10px',
+                      padding:       '16px',
+                      minHeight:     '110px',
+                      display:       'flex',
+                      flexDirection: 'column',
+                      gap:           '6px',
+                      cursor:        isLoading ? 'wait' : 'pointer',
+                      transition:    'background 120ms, border-color 120ms',
+                      position:      'relative',
+                    }}
+                    onMouseEnter={e => {
+                      if (!isLoading) {
+                        e.currentTarget.style.background    = 'rgba(255,255,255,0.04)'
+                        e.currentTarget.style.borderColor   = 'rgba(255,255,255,0.18)'
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background  = 'rgba(8,18,30,0.48)'
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
+                    }}
+                  >
+                    {/* Status badge */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '6px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        {sacola.cliente_nome ?? 'Sem cliente'}
+                      </p>
+                      <span style={{
+                        fontSize:      '9px',
+                        fontWeight:    500,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        borderRadius:  '9999px',
+                        padding:       '2px 7px',
+                        flexShrink:    0,
+                        background:    emAtend ? 'rgba(255,165,0,0.10)' : 'rgba(0,239,255,0.10)',
+                        color:         emAtend ? 'rgba(255,165,0,0.85)' : '#0ef',
+                        border:        `0.5px solid ${emAtend ? 'rgba(255,165,0,0.30)' : 'rgba(0,239,255,0.30)'}`,
+                      }}>
+                        {emAtend ? 'No caixa' : 'Aguardando'}
+                      </span>
+                    </div>
+
+                    {/* Total */}
+                    <p style={{ fontSize: '17px', fontWeight: 700, color: '#0ef', marginTop: '2px' }}>
+                      {isLoading ? '…' : fmtR(tot)}
                     </p>
-                    <p className="text-steel text-xs mt-0.5">
-                      {qtdItens} item{qtdItens !== 1 ? 'ns' : ''} · {fmtDt(sacola.criado_em)}
+
+                    {/* Item count + date */}
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+                      {qtd} item{qtd !== 1 ? 'ns' : ''} · {fmtDt(sacola.criado_em)}
+                    </p>
+
+                    {/* Vendedor */}
+                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginTop: 'auto' }}>
+                      {sacola.nome_vendedor ?? '—'}
                     </p>
                   </div>
-                  <p className="text-electric-cyan font-bold text-base shrink-0">{fmt(tot)}</p>
-                </div>
-
-                {/* Items preview */}
-                <div className="flex flex-wrap gap-1.5">
-                  {sacola.itens.slice(0, 4).map((item, idx) => {
-                    return (
-                      <span key={idx} className="text-xs text-steel bg-ocean-depth px-2 py-1 rounded-lg truncate max-w-[140px]">
-                        {item.quantidade > 1 && <span className="text-sea-foam font-medium">{item.quantidade}× </span>}
-                        {item.nome}
-                        {Object.entries(item.atributos ?? {}).map(([key, val]) => (
-                          <span key={key} style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '2px 7px', color: 'rgba(255,255,255,0.45)', marginRight: '4px', display: 'inline-block' }}>
-                            {key}: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{val}</span>
-                          </span>
-                        ))}
-                      </span>
-                    )
-                  })}
-                  {sacola.itens.length > 4 && (
-                    <span className="text-xs text-steel/60 px-2 py-1">+{sacola.itens.length - 4} mais</span>
-                  )}
-                </div>
-
-                {/* Bottom row: salesperson + load button */}
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-steel text-xs truncate">
-                    {sacola.nome_vendedor
-                      ? `Vendedor: ${sacola.nome_vendedor}`
-                      : 'Vendedor não informado'}
-                    {sacola.observacao && <span className="ml-2 opacity-70">· {sacola.observacao}</span>}
-                  </p>
-                  <button
-                    onClick={() => handleCarregar(sacola)}
-                    disabled={!!loadingId}
-                    className="shrink-0 min-h-[44px] px-5 bg-electric-cyan text-midnight rounded-xl text-sm font-bold disabled:opacity-40 active:scale-[0.98] transition-transform"
-                  >
-                    {isLoading ? '...' : 'Carregar'}
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-4 pb-4 pt-2 border-t border-ocean-depth">
+        <div style={{ flexShrink: 0, padding: '10px 16px 14px', borderTop: '0.5px solid rgba(255,255,255,0.07)' }}>
           <button
             onClick={onClose}
-            className="w-full min-h-[48px] border border-ocean-depth text-steel rounded-xl text-sm hover:text-sea-foam transition-colors"
+            style={{ width: '100%', minHeight: '44px', background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '10px', color: 'rgba(255,255,255,0.5)', fontSize: '13px', cursor: 'pointer', outline: 'none', transition: 'background 120ms, border-color 120ms, color 120ms' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.28)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
+            onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.25)' }}
+            onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
           >
             Fechar
           </button>
