@@ -111,6 +111,7 @@ export const usePDVStore = create<PDVStore>()(
         cliente_id:        state.cliente_id,
         cliente_nome:      state.cliente_nome,
         clientePerguntado: state.clientePerguntado,
+        sacola_id:         state.sacola_id,
       }),
     }
   )
