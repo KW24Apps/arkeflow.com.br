@@ -39,7 +39,6 @@ const ZONE: React.CSSProperties = {
   background: 'rgba(8,18,30,0.32)',
   border: '0.5px solid rgba(255,255,255,0.09)',
   borderRadius: '12px',
-  overflow: 'hidden',
 }
 const ZONE_HDR: React.CSSProperties = {
   padding: '9px 14px',
