@@ -195,11 +195,7 @@ export async function promocoesRoutes(app: FastifyInstance) {
     }
 
     const keys   = Object.keys(data).filter(k => data[k as keyof typeof data] !== undefined)
-    const values = keys.map(k => {
-      const v = (data as any)[k]
-      if (k === 'categorias_alvo') return v != null ? JSON.stringify(v) : null
-      return v ?? null
-    })
+    const values = keys.map(k => (data as any)[k] ?? null)
     const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
 
     if (keys.length) {

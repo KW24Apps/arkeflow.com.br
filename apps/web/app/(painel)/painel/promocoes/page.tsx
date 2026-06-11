@@ -129,8 +129,8 @@ export default function PromocoesPage() {
     setFim(p.fim ?? '')
     setAplicacao({
       aplica_todos:    p.aplica_todos ?? (p.aplicacao === 'todos'),
-      categorias_alvo: p.categorias_alvo ?? (p.categoria_alvo ? [p.categoria_alvo] : []),
-      produtos_ids:    p.produtos_ids ?? [],
+      categorias_alvo: Array.isArray(p.categorias_alvo) ? p.categorias_alvo : (p.categoria_alvo ? [p.categoria_alvo] : []),
+      produtos_ids:    Array.isArray(p.produtos_ids) ? p.produtos_ids : [],
     })
   }
 
