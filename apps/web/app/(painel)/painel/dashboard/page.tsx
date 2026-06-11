@@ -7,18 +7,38 @@ import { useAuthStore } from '@/store/auth.store'
 import { useRouter } from 'next/navigation'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-const fmtR = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const fmtN = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
-const fmtPct = (v: number) => v.toFixed(1) + '%'
+const fmtR  = (v: number) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmtK  = (v: number) => v >= 1000 ? `R$ ${(v / 1000).toFixed(1)}k` : `R$ ${Math.round(v)}`
+const fmtN  = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+const fmtPct= (v: number) => v.toFixed(1) + '%'
 
-function defaultPeriodo() {
-  const n = new Date()
-  return {
-    inicio: `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-01`,
-    fim: n.toISOString().split('T')[0],
-  }
+function agoMin(ts: string): string {
+  const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 60000)
+  if (diff < 1) return 'agora'
+  if (diff === 1) return 'há 1 min'
+  return `há ${diff} min`
 }
 
+function fmtHora(ts: string): string {
+  return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+const TIPO_LABEL: Record<string, string> = {
+  desconto_percentual: 'Desconto %',
+  desconto_fixo:       'Desconto fixo',
+  compre_ganhe:        'Compre & Ganhe',
+  segunda_peca:        '2ª Peça',
+  primeira_compra:     'Primeira compra',
+}
+
+const NIVEL_LABEL: Record<string, string> = {
+  dono_loja:     'Gestor',
+  gerente:       'Gerente',
+  vendedor:      'Vendedor',
+  caixa:         'Caixa',
+}
+
+// ── Styles ─────────────────────────────────────────────────────────────────────
 const CARD: React.CSSProperties = {
   background: 'rgba(8,18,30,0.48)', backdropFilter: 'blur(8px)',
   border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: '10px',
@@ -26,11 +46,6 @@ const CARD: React.CSSProperties = {
 const LBL9: React.CSSProperties = {
   fontSize: '9px', color: 'rgba(255,255,255,0.4)',
   textTransform: 'uppercase', letterSpacing: '0.1em',
-}
-const INPUT_S: React.CSSProperties = {
-  background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)',
-  borderRadius: '8px', padding: '6px 10px', fontSize: '12px',
-  color: 'rgba(255,255,255,0.8)', outline: 'none',
 }
 const MOCK_BADGE = (
   <span style={{
@@ -40,6 +55,7 @@ const MOCK_BADGE = (
   }}>Dados de exemplo</span>
 )
 
+// ── Sub-components ─────────────────────────────────────────────────────────────
 function KPI({ label, value, sub, accent }: { label: string; value: string; sub: string; accent: string }) {
   return (
     <div style={{ ...CARD, borderLeft: `2px solid ${accent}`, padding: '12px 14px' }}>
@@ -50,20 +66,36 @@ function KPI({ label, value, sub, accent }: { label: string; value: string; sub:
   )
 }
 
-function BarChart({ data, height = 80 }: { data: { label: string; value: number; today?: boolean }[]; height?: number }) {
+function BarChart({ data, height = 90 }: {
+  data: { label: string; value: number; highlight?: boolean }[];
+  height?: number
+}) {
   const max = Math.max(...data.map(d => d.value), 1)
+  const showLabels = data.length <= 24 // show value labels only when bars are wide enough
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: `${height}px` }}>
-      {data.map((d, i) => (
-        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', height: '100%' }}>
-          <div style={{
-            width: '100%', borderRadius: '3px 3px 0 0',
-            height: `${Math.max(3, (d.value / max) * (height - 14))}px`,
-            background: d.today ? 'rgba(0,239,255,0.6)' : 'rgba(0,239,255,0.22)',
-          }} />
-          <span style={{ fontSize: '8px', color: d.today ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.25)' }}>{d.label}</span>
-        </div>
-      ))}
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: `${height + (showLabels ? 18 : 0)}px` }}>
+      {data.map((d, i) => {
+        const barH = Math.max(2, (d.value / max) * height)
+        const active = d.highlight ?? false
+        return (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', minWidth: 0 }}>
+            {showLabels && d.value > 0 && (
+              <span style={{ fontSize: '7px', color: active ? 'rgba(0,239,255,0.85)' : 'rgba(255,255,255,0.3)', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                {fmtK(d.value)}
+              </span>
+            )}
+            {showLabels && d.value === 0 && <span style={{ marginBottom: '2px', fontSize: '7px' }} />}
+            <div style={{
+              width: '100%', borderRadius: '3px 3px 0 0',
+              height: `${barH}px`,
+              background: active ? 'rgba(0,239,255,0.65)' : 'rgba(0,239,255,0.22)',
+            }} />
+            <span style={{ fontSize: '7px', color: active ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.22)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+              {d.label}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -73,72 +105,113 @@ const MOCK_MARGEM = { margem_bruta: 48.2, lucro_liq: 18.7, gmroi: 2.4 }
 const MOCK_CANAIS = [
   { nome: 'Loja Física', pct: 68 }, { nome: 'E-commerce', pct: 22 }, { nome: 'Marketplace', pct: 10 },
 ]
-const MOCK_LTV = { ltv_medio: 1840, cac_medio: 95, ratio: 19.4 }
-const MOCK_M2 = { vendas_m2: 3420, area_m2: 120, aluguel_pct: 8.4 }
+const MOCK_LTV  = { ltv_medio: 1840, cac_medio: 95, ratio: 19.4 }
+const MOCK_M2   = { vendas_m2: 3420, area_m2: 120, aluguel_pct: 8.4 }
 
-// ── Dashboard Page ─────────────────────────────────────────────────────────────
+type Periodo = 'hoje' | 'semana' | 'mes'
+
+// ── Page ───────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const router = useRouter()
+  const router  = useRouter()
   const usuario = useAuthStore(s => s.usuario)
 
   useEffect(() => {
     if (usuario && usuario.nivel === 'vendedor') router.push('/painel/caixa')
   }, [usuario])
 
-  const { inicio: di, fim: df } = defaultPeriodo()
-  const [inicio, setInicio] = useState(di)
-  const [fim, setFim] = useState(df)
-  const [data, setData] = useState<any>(null)
+  const [periodo, setPeriodo] = useState<Periodo>('hoje')
+  const [data, setData]       = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [erro, setErro] = useState('')
+  const [erro, setErro]       = useState('')
 
-  const load = useCallback(async (i: string, f: string) => {
+  const load = useCallback(async (p: Periodo) => {
     setLoading(true); setErro('')
-    try { setData(await relatoriosApi.dashboard(i, f)) }
+    try { setData(await relatoriosApi.dashboard(p)) }
     catch { setErro('Não foi possível carregar os dados.') }
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { load(inicio, fim) }, [])
+  useEffect(() => { load('hoje') }, [])
 
-  function handleFiltrar() { load(inicio, fim) }
+  function handlePeriodo(p: Periodo) { setPeriodo(p); load(p) }
 
+  // ── Chart data ───────────────────────────────────────────────────────────────
   const kpis = data?.kpis
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje  = new Date().toISOString().split('T')[0]
+  const horaAtual = new Date().getHours()
 
   const chartData = (() => {
-    if (!data?.faturamento_por_dia?.length) return []
-    return data.faturamento_por_dia.map((d: any) => ({
-      label: new Date(d.dia + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      value: d.faturamento,
-      today: d.dia === hoje,
-    }))
+    if (!data?.faturamento_por_dia?.length && data?.granularity !== 'hour') return []
+    if (data?.granularity === 'hour') {
+      const porHora = new Map<number, number>(
+        (data.faturamento_por_dia ?? []).map((d: any) => [Number(d.hora), Number(d.faturamento)])
+      )
+      return Array.from({ length: horaAtual + 1 }, (_, h) => ({
+        label: `${String(h).padStart(2, '0')}h`,
+        value: porHora.get(h) ?? 0,
+        highlight: h === horaAtual,
+      }))
+    }
+    // day granularity
+    return (data.faturamento_por_dia ?? []).map((d: any) => {
+      const [, m, day] = (d.dia as string).split('-')
+      return {
+        label: `${day}/${m}`,
+        value: Number(d.faturamento),
+        highlight: d.dia === hoje,
+      }
+    })
   })()
+
+  const periodoLabel = periodo === 'hoje' ? 'Hoje' : periodo === 'semana' ? 'Esta semana' : 'Este mês'
 
   return (
     <>
       <TopBar />
       <main className="flex-1 overflow-y-auto p-3 md:p-4 pb-10 flex flex-col gap-3">
 
-        {/* ── Filtro de período ─────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Período:</span>
-          <input type="date" value={inicio} onChange={e => setInicio(e.target.value)} style={INPUT_S}
-            onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
-            onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }} />
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>até</span>
-          <input type="date" value={fim} onChange={e => setFim(e.target.value)} style={INPUT_S}
-            onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
-            onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }} />
-          <button onClick={handleFiltrar} style={{
-            background: 'rgba(0,239,255,0.15)', border: '0.5px solid rgba(0,239,255,0.35)',
-            color: '#0ef', borderRadius: '8px', padding: '6px 14px', fontSize: '12px',
-            cursor: 'pointer', fontWeight: 500,
-            transition: 'background 120ms, border-color 120ms',
-          }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,239,255,0.28)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,239,255,0.15)' }}
-          >Filtrar</button>
+        {/* ── Toggle de período ─────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{
+            display: 'inline-flex',
+            background: 'rgba(8,18,30,0.6)',
+            border: '0.5px solid rgba(255,255,255,0.09)',
+            borderRadius: '10px',
+            padding: '3px',
+            gap: '2px',
+          }}>
+            {(['hoje', 'semana', 'mes'] as Periodo[]).map(p => {
+              const active = periodo === p
+              return (
+                <button
+                  key={p}
+                  onClick={() => handlePeriodo(p)}
+                  style={{
+                    background: active ? 'rgba(0,239,255,0.18)' : 'transparent',
+                    border: active ? '0.5px solid rgba(0,239,255,0.4)' : '0.5px solid transparent',
+                    color: active ? '#0ef' : 'rgba(255,255,255,0.38)',
+                    borderRadius: '7px',
+                    padding: '5px 16px',
+                    fontSize: '12px',
+                    fontWeight: active ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'all 120ms',
+                    outline: 'none',
+                  }}
+                  onMouseEnter={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.7)'
+                  }}
+                  onMouseLeave={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)'
+                  }}
+                  onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,239,255,0.3)' }}
+                  onBlur={e => { e.currentTarget.style.boxShadow = 'none' }}
+                >
+                  {p === 'hoje' ? 'Hoje' : p === 'semana' ? 'Semana' : 'Mês'}
+                </button>
+              )
+            })}
+          </div>
           {loading && <span className="w-4 h-4 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin inline-block" />}
         </div>
 
@@ -155,13 +228,16 @@ export default function DashboardPage() {
             sub={`${data?.contas_receber?.vencidas ?? 0} vencida(s)`} accent="rgba(248,113,113,0.8)" />
         </div>
 
-        {/* ── Faturamento por dia + Formas de pagamento ─────────────────────── */}
+        {/* ── Faturamento por período + Formas de pagamento ─────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
           <div style={{ ...CARD, padding: '16px' }}>
-            <p style={{ ...LBL9, marginBottom: '12px' }}>Faturamento por dia</p>
+            <p style={{ ...LBL9, marginBottom: '2px' }}>
+              Faturamento — {periodoLabel}
+              {data?.granularity === 'hour' && <span style={{ color: 'rgba(255,255,255,0.2)', marginLeft: '6px', textTransform: 'none', letterSpacing: 0 }}>por hora</span>}
+            </p>
             {!loading && chartData.length === 0
               ? <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', padding: '24px 0' }}>Sem vendas no período</p>
-              : <BarChart data={chartData} height={90} />
+              : <div style={{ marginTop: '10px' }}><BarChart data={chartData} height={90} /></div>
             }
           </div>
           <div style={{ ...CARD, padding: '16px' }}>
@@ -191,7 +267,8 @@ export default function DashboardPage() {
         {/* ── Top produtos + Top vendedores ─────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <div style={{ ...CARD, padding: '16px' }}>
-            <p style={{ ...LBL9, marginBottom: '12px' }}>Top produtos</p>
+            <p style={{ ...LBL9, marginBottom: '2px' }}>Top produtos</p>
+            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginBottom: '10px' }}>Faturamento no período</p>
             {loading ? null : !data?.top_produtos?.length
               ? <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>Sem dados</p>
               : <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
@@ -207,7 +284,8 @@ export default function DashboardPage() {
             }
           </div>
           <div style={{ ...CARD, padding: '16px' }}>
-            <p style={{ ...LBL9, marginBottom: '12px' }}>Top vendedores</p>
+            <p style={{ ...LBL9, marginBottom: '2px' }}>Top vendedores</p>
+            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginBottom: '10px' }}>Por vendedor atribuído à venda</p>
             {loading ? null : !data?.top_vendedores?.length
               ? <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>Sem dados</p>
               : <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
@@ -218,13 +296,89 @@ export default function DashboardPage() {
                     </span>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <span style={{ fontSize: '11px', color: 'rgba(0,239,255,0.8)' }}>{fmtR(v.faturamento)}</span>
-                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginLeft: '6px' }}>{v.qtd_vendas}v</span>
+                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginLeft: '6px' }}>{v.qtd_vendas}Nv</span>
                     </div>
                   </div>
                 ))}
               </div>
             }
           </div>
+        </div>
+
+        {/* ── Blocos ao vivo ────────────────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
+
+          {/* Online agora */}
+          <div style={{ ...CARD, padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 6px #4ade80' }} />
+              <p style={{ ...LBL9, margin: 0 }}>Online agora</p>
+            </div>
+            {loading ? null : !data?.online_agora?.length
+              ? <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>Ninguém online</p>
+              : <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {data.online_agora.map((u: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      {u.nome}
+                    </span>
+                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', flexShrink: 0, marginLeft: '6px' }}>{agoMin(u.ultimo_acesso)}</span>
+                  </div>
+                ))}
+              </div>
+            }
+          </div>
+
+          {/* Promoções ativas */}
+          <div style={{ ...CARD, padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#facc15', display: 'inline-block', boxShadow: '0 0 6px rgba(250,204,21,0.7)' }} />
+              <p style={{ ...LBL9, margin: 0 }}>Promoções ativas</p>
+            </div>
+            {loading ? null : !data?.promocoes_ativas?.length
+              ? <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>Nenhuma promoção ativa</p>
+              : <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {data.promocoes_ativas.map((p: any, i: number) => (
+                  <div key={i}>
+                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</p>
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>
+                      {TIPO_LABEL[p.tipo] ?? p.tipo}
+                      {(p.inicio || p.fim) && (
+                        <span style={{ marginLeft: '6px' }}>
+                          {p.inicio ? new Date(p.inicio + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''}
+                          {p.inicio && p.fim ? '–' : ''}
+                          {p.fim ? new Date(p.fim + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            }
+          </div>
+
+          {/* Caixas do dia */}
+          <div style={{ ...CARD, padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'rgba(0,239,255,0.8)', display: 'inline-block', boxShadow: '0 0 6px rgba(0,239,255,0.5)' }} />
+              <p style={{ ...LBL9, margin: 0 }}>Caixas do dia</p>
+            </div>
+            {loading ? null : !data?.caixas_dia?.length
+              ? <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>Nenhum caixa aberto</p>
+              : <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {data.caixas_dia.map((c: any, i: number) => (
+                  <div key={i} style={{ borderBottom: i < data.caixas_dia.length - 1 ? '0.5px solid rgba(255,255,255,0.05)' : 'none', paddingBottom: i < data.caixas_dia.length - 1 ? '6px' : 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c.operador}</span>
+                      <span style={{ fontSize: '12px', color: 'rgba(0,239,255,0.85)', flexShrink: 0, marginLeft: '6px' }}>{fmtR(c.valor_rodando)}</span>
+                    </div>
+                    <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>desde {fmtHora(c.aberto_em)}</p>
+                  </div>
+                ))}
+              </div>
+            }
+          </div>
+
         </div>
 
         {/* ── MOCK cards ────────────────────────────────────────────────────── */}

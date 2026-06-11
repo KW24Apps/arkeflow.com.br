@@ -2,9 +2,12 @@ import type { FastifyInstance } from 'fastify'
 import { authMiddleware } from '../../core/middlewares/auth'
 import { authorize } from '../../core/middlewares/authorize'
 import { getTenantPoolFromRequest } from '../../core/tenant/resolver'
+import { platformPool } from '../../config/database'
+import type { JwtPayload } from '@arkeflow/shared'
 
 const dono = [authMiddleware, authorize('dono_loja')]
 
+// Used by report endpoints (accepts explicit inicio/fim dates)
 function range(q: any) {
   const now = new Date()
   const ini = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -12,14 +15,53 @@ function range(q: any) {
   return { inicio: (q.inicio as string) || ini, fim: (q.fim as string) || fim }
 }
 
+// Used by dashboard: converts ?periodo=hoje|semana|mes to a date range
+type Periodo = 'hoje' | 'semana' | 'mes'
+function periodoRange(q: any): { inicio: string; fim: string; periodo: Periodo; granularity: 'hour' | 'day' } {
+  const now  = new Date()
+  const pad  = (n: number) => String(n).padStart(2, '0')
+  const ymd  = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  const today = ymd(now)
+  const periodo = (['hoje', 'semana', 'mes'].includes(q.periodo) ? q.periodo : 'hoje') as Periodo
+
+  if (periodo === 'semana') {
+    const dow = now.getDay()            // 0=Sun
+    const diff = dow === 0 ? -6 : 1 - dow  // steps back to Monday
+    const mon = new Date(now)
+    mon.setDate(now.getDate() + diff)
+    return { inicio: ymd(mon), fim: today, periodo, granularity: 'day' }
+  }
+  if (periodo === 'mes') {
+    return { inicio: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, fim: today, periodo, granularity: 'day' }
+  }
+  // hoje
+  return { inicio: today, fim: today, periodo, granularity: 'hour' }
+}
+
 export async function relatoriosRoutes(app: FastifyInstance) {
 
   // ── 1. Dashboard executivo ──────────────────────────────────────────────────
   app.get('/dashboard', { preHandler: dono }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
-    const { inicio, fim } = range(req.query)
+    const user = (req as any).user as JwtPayload
+    const { inicio, fim, periodo, granularity } = periodoRange(req.query)
 
-    const [kpiRes, porDiaRes, formaRes, topVendRes, topProdRes, contasRes, cbSaldoRes] = await Promise.all([
+    // ── Round 1: all tenant queries in parallel ─────────────────────────────
+    const porDiaQuery = granularity === 'hour'
+      ? pool.query<{ hora: number; faturamento: string }>(
+          `SELECT EXTRACT(HOUR FROM criado_em)::int AS hora, SUM(total)::float AS faturamento
+           FROM vendas WHERE status='finalizada' AND DATE(criado_em)=$1
+           GROUP BY hora ORDER BY hora`,
+          [inicio])
+      : pool.query<{ dia: string; faturamento: string }>(
+          `SELECT DATE(criado_em)::text AS dia, SUM(total)::float AS faturamento
+           FROM vendas WHERE status='finalizada' AND DATE(criado_em) BETWEEN $1 AND $2
+           GROUP BY 1 ORDER BY 1`,
+          [inicio, fim])
+
+    const [kpiRes, porDiaRes, formaRes, topVendRes, topProdRes,
+           contasRes, cbSaldoRes, promoRes, caixasRes, cfgRes] = await Promise.all([
+
       pool.query(`
         SELECT
           COALESCE(SUM(v.total), 0)                                   AS faturamento,
@@ -35,12 +77,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         WHERE v.status = 'finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
       `, [inicio, fim]),
 
-      pool.query(`
-        SELECT DATE(criado_em) AS dia, SUM(total) AS faturamento, COUNT(*) AS qtd
-        FROM vendas
-        WHERE status = 'finalizada' AND DATE(criado_em) BETWEEN $1 AND $2
-        GROUP BY DATE(criado_em) ORDER BY dia
-      `, [inicio, fim]),
+      porDiaQuery,
 
       pool.query(`
         SELECT fp.nome, fp.tipo, SUM(pv.valor) AS total
@@ -51,6 +88,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         GROUP BY fp.id, fp.nome, fp.tipo ORDER BY total DESC
       `, [inicio, fim]),
 
+      // vendedor_nome = attributed salesperson on the sale (NOT the caixa operator)
       pool.query(`
         SELECT v.vendedor_nome,
           COUNT(DISTINCT v.id) AS qtd_vendas,
@@ -83,29 +121,98 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         SELECT COALESCE(SUM(saldo_cashback), 0) AS saldo
         FROM clientes WHERE ativo = true AND arquivado = false
       `),
+
+      // Live: promoções ativas agora
+      pool.query(`
+        SELECT id, nome, tipo, inicio, fim
+        FROM promocoes
+        WHERE ativo = true AND encerrada = false
+          AND (inicio IS NULL OR inicio <= CURRENT_DATE)
+          AND (fim IS NULL OR fim >= CURRENT_DATE)
+        ORDER BY nome
+      `),
+
+      // Live: caixas abertos hoje
+      pool.query(`
+        SELECT
+          t.id, t.usuario_id, t.aberto_em,
+          t.saldo_inicial::float AS saldo_inicial,
+          COALESCE((
+            SELECT SUM(mv.valor) FROM movimentos_caixa mv
+            WHERE mv.turno_id = t.id AND mv.tipo = 'sangria'
+          ), 0)::float AS total_sangrias,
+          COALESCE((
+            SELECT SUM(mv.valor) FROM movimentos_caixa mv
+            WHERE mv.turno_id = t.id AND mv.tipo = 'suprimento'
+          ), 0)::float AS total_suprimentos,
+          COALESCE((
+            SELECT SUM(pv.valor)
+            FROM vendas v
+            JOIN pagamentos_venda pv ON pv.venda_id = v.id
+            JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id
+            WHERE v.status = 'finalizada' AND fp.tipo = 'dinheiro'
+              AND v.criado_em >= t.aberto_em
+              AND (t.fechado_em IS NULL OR v.criado_em <= t.fechado_em)
+          ), 0)::float AS vendas_dinheiro
+        FROM turnos_caixa t
+        WHERE t.status = 'aberto' AND DATE(t.aberto_em) = CURRENT_DATE
+        ORDER BY t.aberto_em
+      `),
+
+      // Tenant inactivity config (needed for online_agora calculation)
+      pool.query(`SELECT inatividade_minutos FROM configuracoes_loja LIMIT 1`),
     ])
 
-    const k = kpiRes.rows[0]
-    const qtdV = Number(k.qtd_vendas)
-    const sub = Number(k.subtotal_total)
-    const desc = Number(k.desconto_total)
+    // ── Round 2: platform queries (need inatividade_minutos + operator ids) ─
+    const inativMin     = cfgRes.rows[0]?.inatividade_minutos ?? 360
+    const operadorIds   = caixasRes.rows.map(r => r.usuario_id)
+
+    const [onlineRes, operadoresRes] = await Promise.all([
+      platformPool.query<{ nome: string; nivel: string; ultimo_acesso: Date }>(
+        `SELECT nome, nivel, ultimo_acesso
+         FROM usuarios
+         WHERE loja_id = $1
+           AND sessao_atual IS NOT NULL
+           AND ultimo_acesso IS NOT NULL
+           AND ultimo_acesso >= NOW() - ($2 || ' minutes')::interval
+         ORDER BY ultimo_acesso DESC`,
+        [user.loja_id, String(inativMin)]),
+
+      operadorIds.length > 0
+        ? platformPool.query<{ id: string; nome: string }>(
+            `SELECT id::text, nome FROM usuarios WHERE id = ANY($1::uuid[])`,
+            [operadorIds])
+        : Promise.resolve({ rows: [] as { id: string; nome: string }[] }),
+    ])
+
+    // ── Build response ──────────────────────────────────────────────────────
+    const k     = kpiRes.rows[0]
+    const qtdV  = Number(k.qtd_vendas)
+    const sub   = Number(k.subtotal_total)
+    const desc  = Number(k.desconto_total)
+
+    const opNomes: Record<string, string> = {}
+    for (const op of operadoresRes.rows) opNomes[op.id] = op.nome
+
+    const faturamento_por_dia = granularity === 'hour'
+      ? porDiaRes.rows.map(r => ({ hora: Number(r.hora), faturamento: Number(r.faturamento) }))
+      : porDiaRes.rows.map(r => ({ dia: r.dia as string, faturamento: Number(r.faturamento) }))
 
     return reply.send({
-      periodo: { inicio, fim },
+      periodo: { inicio, fim, nome: periodo },
+      granularity,
       kpis: {
-        faturamento:    Number(k.faturamento),
-        qtd_vendas:     qtdV,
-        ticket_medio:   Number(k.ticket_medio),
-        qtd_itens:      Number(k.qtd_itens),
-        pa:             qtdV > 0 ? Number(k.qtd_itens) / qtdV : 0,
-        desconto_total: desc,
-        markdown_pct:   sub > 0 ? desc / sub * 100 : 0,
+        faturamento:     Number(k.faturamento),
+        qtd_vendas:      qtdV,
+        ticket_medio:    Number(k.ticket_medio),
+        qtd_itens:       Number(k.qtd_itens),
+        pa:              qtdV > 0 ? Number(k.qtd_itens) / qtdV : 0,
+        desconto_total:  desc,
+        markdown_pct:    sub > 0 ? desc / sub * 100 : 0,
         cashback_gerado: Number(k.cashback_gerado),
         cashback_usado:  Number(k.cashback_usado),
       },
-      faturamento_por_dia: porDiaRes.rows.map(r => ({
-        dia: r.dia, faturamento: Number(r.faturamento), qtd: Number(r.qtd),
-      })),
+      faturamento_por_dia,
       por_forma: formaRes.rows.map(r => ({ nome: r.nome, tipo: r.tipo, total: Number(r.total) })),
       top_vendedores: topVendRes.rows.map(r => ({
         nome: r.vendedor_nome, qtd_vendas: Number(r.qtd_vendas), faturamento: Number(r.faturamento),
@@ -114,12 +221,25 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         nome: r.nome, faturamento: Number(r.faturamento), qtd: Number(r.qtd),
       })),
       contas_receber: {
-        qtd:          Number(contasRes.rows[0].qtd),
-        total:        Number(contasRes.rows[0].total),
-        vencidas:     Number(contasRes.rows[0].vencidas),
-        total_vencido:Number(contasRes.rows[0].total_vencido),
+        qtd:           Number(contasRes.rows[0].qtd),
+        total:         Number(contasRes.rows[0].total),
+        vencidas:      Number(contasRes.rows[0].vencidas),
+        total_vencido: Number(contasRes.rows[0].total_vencido),
       },
       cashback_saldo: Number(cbSaldoRes.rows[0].saldo),
+      online_agora: onlineRes.rows.map(u => ({
+        nome:          u.nome,
+        nivel:         u.nivel,
+        ultimo_acesso: u.ultimo_acesso,
+      })),
+      promocoes_ativas: promoRes.rows.map(p => ({
+        id: p.id, nome: p.nome, tipo: p.tipo, inicio: p.inicio, fim: p.fim,
+      })),
+      caixas_dia: caixasRes.rows.map(t => ({
+        operador:      opNomes[t.usuario_id] ?? 'Operador',
+        aberto_em:     t.aberto_em,
+        valor_rodando: t.saldo_inicial + t.vendas_dinheiro + t.total_suprimentos - t.total_sangrias,
+      })),
     })
   })
 
@@ -206,7 +326,8 @@ export async function relatoriosRoutes(app: FastifyInstance) {
 
     const { rows } = await pool.query(`
       SELECT
-        p.id AS produto_id, p.nome AS produto_nome, vr.id AS versao_id,
+        p.id AS produto_id, p.nome AS produto,
+        vr.id AS versao_id,
         COALESCE(vr.atributos_json->>'Cor', vr.atributos_json->>'cor', '') AS cor,
         COALESCE(vr.atributos_json->>'Tamanho', vr.atributos_json->>'tamanho',
                  vr.atributos_json->>'Size', '') AS tamanho,
@@ -226,10 +347,10 @@ export async function relatoriosRoutes(app: FastifyInstance) {
 
     return reply.send({
       periodo: { inicio, fim },
-      grade: rows.map(r => {
+      itens: rows.map(r => {
         const v = Number(r.qtd_vendida), e = Number(r.estoque_atual)
         return {
-          produto_id: r.produto_id, produto_nome: r.produto_nome, versao_id: r.versao_id,
+          produto_id: r.produto_id, produto: r.produto, versao_id: r.versao_id,
           cor: r.cor, tamanho: r.tamanho, estoque_atual: e, qtd_vendida: v,
           sell_through: (v + e) > 0 ? v / (v + e) : 0,
         }
@@ -243,7 +364,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
 
     const { rows } = await pool.query(`
       SELECT
-        p.id AS produto_id, p.nome AS produto_nome, vr.id AS versao_id,
+        p.id AS produto_id, p.nome AS produto, vr.id AS versao_id,
         COALESCE(vr.preco_especifico, p.preco_base) AS preco,
         COALESCE(vr.atributos_json->>'Cor', vr.atributos_json->>'cor', '') AS cor,
         COALESCE(vr.atributos_json->>'Tamanho', vr.atributos_json->>'tamanho', '') AS tamanho,
@@ -271,20 +392,27 @@ export async function relatoriosRoutes(app: FastifyInstance) {
       ORDER BY dias_parado DESC NULLS LAST, p.nome
     `)
 
+    const itens = rows.map(r => {
+      const dias = r.dias_parado !== null ? Number(r.dias_parado) : null
+      const preco = Number(r.preco), estoque = Number(r.estoque_atual)
+      const bucket = dias === null ? '+90' :
+        dias <= 30 ? '0-30' : dias <= 60 ? '31-60' : dias <= 90 ? '61-90' : '+90'
+      return {
+        produto_id: r.produto_id, produto: r.produto, versao_id: r.versao_id,
+        cor: r.cor, tamanho: r.tamanho, estoque_atual: estoque,
+        preco, valor_parado: preco * estoque,
+        ultima_venda_em: r.ultima_venda_em,
+        dias_parado: dias, bucket,
+      }
+    })
+
+    // Bucket summary
+    const resumo: Record<string, number> = {}
+    for (const it of itens) { resumo[it.bucket] = (resumo[it.bucket] ?? 0) + 1 }
+
     return reply.send({
-      itens: rows.map(r => {
-        const dias = r.dias_parado !== null ? Number(r.dias_parado) : null
-        const preco = Number(r.preco), estoque = Number(r.estoque_atual)
-        const bucket = dias === null ? '+90' :
-          dias <= 30 ? '0-30' : dias <= 60 ? '31-60' : dias <= 90 ? '61-90' : '+90'
-        return {
-          produto_id: r.produto_id, produto_nome: r.produto_nome, versao_id: r.versao_id,
-          cor: r.cor, tamanho: r.tamanho, estoque_atual: estoque,
-          preco, valor_parado: preco * estoque,
-          ultima_venda_em: r.ultima_venda_em,
-          dias_parado: dias, bucket,
-        }
-      }),
+      itens,
+      resumo: Object.entries(resumo).map(([bucket, qtd_skus]) => ({ bucket, qtd_skus })),
     })
   })
 
@@ -307,7 +435,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
     return reply.send({
       periodo: { inicio, fim },
       pares: rows.map(r => ({
-        produto_a: r.produto_a, produto_b: r.produto_b, contagem: Number(r.contagem),
+        produto_a: r.produto_a, produto_b: r.produto_b, vezes: Number(r.contagem),
       })),
     })
   })
@@ -360,28 +488,26 @@ export async function relatoriosRoutes(app: FastifyInstance) {
     const contasPorStatus: Record<string, { qtd: number; total: number }> = {}
     for (const r of contasRes.rows) contasPorStatus[r.status] = { qtd: Number(r.qtd), total: Number(r.total) }
     const cbGerado = cbRes.rows.find(r => r.tipo === 'ganho')
-    const cbUsado = cbRes.rows.find(r => r.tipo === 'resgate')
+    const cbUsado  = cbRes.rows.find(r => r.tipo === 'resgate')
 
     return reply.send({
       periodo: { inicio, fim },
-      contas_receber: {
-        por_status: contasPorStatus,
-        total_pendente: (contasPorStatus['pendente']?.total ?? 0) + (contasPorStatus['vencido']?.total ?? 0),
-      },
+      contas_receber: contasRes.rows.map(r => ({
+        status: r.status, qtd: Number(r.qtd), total: Number(r.total),
+      })),
       cashback: {
-        gerado_periodo:  Number(cbGerado?.total ?? 0),
-        usado_periodo:   Number(cbUsado?.total ?? 0),
-        saldo_aberto:    Number(cbSaldoRes.rows[0].saldo),
-        expirando_30d:   Number(cbExpirandoRes.rows[0].total),
+        gerado:        Number(cbGerado?.total ?? 0),
+        usado:         Number(cbUsado?.total ?? 0),
+        saldo_total:   Number(cbSaldoRes.rows[0].saldo),
+        expirando_30d: Number(cbExpirandoRes.rows[0].total),
       },
       turnos: turnosRes.rows.map(t => ({
         id: t.id, aberto_em: t.aberto_em, fechado_em: t.fechado_em, status: t.status,
-        saldo_inicial: Number(t.saldo_inicial),
-        total_dinheiro: Number(t.total_dinheiro),
-        total_sangrias: Number(t.total_sangrias),
-        total_suprimentos: Number(t.total_suprimentos),
-        saldo_final: t.saldo_final !== null ? Number(t.saldo_final) : null,
-        divergencia: t.divergencia !== null ? Number(t.divergencia) : null,
+        fundo_caixa:      Number(t.saldo_inicial),
+        total_dinheiro:   Number(t.total_dinheiro),
+        total_sangrias:   Number(t.total_sangrias),
+        total_suprimentos:Number(t.total_suprimentos),
+        total_vendas:     Number(t.total_dinheiro),
       })),
     })
   })
@@ -395,6 +521,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
       WITH rfm AS (
         SELECT c.id, c.nome,
           CURRENT_DATE - MAX(v.criado_em)::date AS recencia_dias,
+          MAX(v.criado_em)::date::text           AS ultima_compra,
           COUNT(DISTINCT v.id)                   AS frequencia,
           COALESCE(SUM(v.total), 0)              AS valor
         FROM clientes c JOIN vendas v ON v.cliente_id = c.id
@@ -425,24 +552,15 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         id: r.id, nome: r.nome,
         recencia_dias: Number(r.recencia_dias),
         frequencia: Number(r.frequencia),
-        valor: Number(r.valor),
-        r_score: rs, f_score: fs, m_score: ms, segmento,
+        total_gasto: Number(r.valor),
+        ultima_compra: r.ultima_compra,
+        r_score: rs, f_score: fs, m_score: ms, rfm_score: ts, segmento,
       }
     })
-
-    const porSegmento: Record<string, { qtd: number; valor: number }> = {}
-    for (const c of clientes) {
-      if (!porSegmento[c.segmento]) porSegmento[c.segmento] = { qtd: 0, valor: 0 }
-      porSegmento[c.segmento].qtd++
-      porSegmento[c.segmento].valor += c.valor
-    }
 
     return reply.send({
       periodo: { inicio, fim },
       clientes,
-      por_segmento: Object.entries(porSegmento)
-        .map(([segmento, d]) => ({ segmento, ...d }))
-        .sort((a, b) => b.valor - a.valor),
     })
   })
 }
