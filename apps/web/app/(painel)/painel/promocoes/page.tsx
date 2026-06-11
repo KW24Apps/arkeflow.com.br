@@ -81,14 +81,16 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 function diasAteInicio(inicio: string): number {
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0)
-  const ini  = new Date(inicio + 'T00:00:00')
+  const hoje = new Date(); hoje.setUTCHours(0, 0, 0, 0)
+  const ini  = new Date(inicio); ini.setUTCHours(0, 0, 0, 0)
   return Math.ceil((ini.getTime() - hoje.getTime()) / 86400000)
 }
 
 function formatDataBR(iso: string): string {
-  const parts = iso.split('-')
-  return `${parts[2]}/${parts[1]}`
+  const d  = new Date(iso)
+  const dd = String(d.getUTCDate()).padStart(2, '0')
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+  return `${dd}/${mm}`
 }
 
 export default function PromocoesPage() {

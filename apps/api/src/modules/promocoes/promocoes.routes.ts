@@ -284,7 +284,8 @@ export async function promocoesRoutes(app: FastifyInstance) {
          categoria_alvo, ativo, encerrada
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [
-        src.nome + ' (cópia)', src.codigo, src.tipo, src.aplicacao, src.aplica_todos, src.categorias_alvo,
+        src.nome + ' (cópia)', src.codigo, src.tipo, src.aplicacao, src.aplica_todos,
+        JSON.stringify(Array.isArray(src.categorias_alvo) ? src.categorias_alvo : []),
         src.valor_desconto, src.unidade, src.quantidade_compre, src.quantidade_brinde, src.percentual_brinde,
         src.categoria_alvo, true, false,
       ]
