@@ -1,62 +1,39 @@
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert,
-  Animated, ScrollView,
+  LayoutAnimation, Platform, UIManager, ScrollView,
 } from 'react-native'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuthStore } from '../../lib/store/auth.store'
 import { theme } from '../../constants/theme'
 
+if (Platform.OS === 'android') {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true)
+}
+
 const CARD_SIZE = 148
-const EXPANDED_HEIGHT = 178
 
 export default function HomeScreen() {
   const router = useRouter()
   const { usuario, logout } = useAuthStore()
 
   const [vendaOpen, setVendaOpen] = useState(false)
-  const expandAnim = useRef(new Animated.Value(0)).current
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [topBarH, setTopBarH] = useState(108)
 
-  const openVendas = () => {
-    setVendaOpen(true)
-    Animated.spring(expandAnim, {
-      toValue: 1,
-      useNativeDriver: false,
-      bounciness: 5,
-    }).start()
+  const toggleVendas = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setVendaOpen(prev => !prev)
   }
-
-  const closeVendas = () => {
-    Animated.spring(expandAnim, {
-      toValue: 0,
-      useNativeDriver: false,
-      bounciness: 2,
-    }).start(() => setVendaOpen(false))
-  }
-
-  const cardHeight = expandAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [CARD_SIZE, EXPANDED_HEIGHT],
-  })
 
   const initial = usuario?.nome?.charAt(0).toUpperCase() ?? '?'
 
-  function handleAvatar() {
-    Alert.alert(
-      usuario?.nome ?? 'Usuário',
-      '',
-      [
-        { text: 'Meus dados', style: 'default', onPress: () => Alert.alert('Em breve') },
-        {
-          text: 'Sair',
-          style: 'destructive',
-          onPress: () => { logout(); router.replace('/(auth)/login') },
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ]
-    )
+  async function handleSair() {
+    setDropdownOpen(false)
+    await logout()
+    router.replace('/(auth)/login')
   }
 
   return (
@@ -64,13 +41,32 @@ export default function HomeScreen() {
       colors={[theme.colors.bgGradientTop, theme.colors.bgGradientBottom]}
       style={styles.gradient}
     >
-      <View style={styles.topBar}>
-        <View style={styles.logoRow}>
-          <Text style={styles.logoArke}>ARKE</Text>
-          <Text style={styles.logoVest}>vest</Text>
+      <View
+        style={styles.topBar}
+        onLayout={e => setTopBarH(e.nativeEvent.layout.height)}
+      >
+        <View style={styles.logoCol}>
+          <View style={styles.logoRow}>
+            <Text style={styles.logoArke}>ARKE</Text>
+            <Text style={styles.logoVest}>vest</Text>
+          </View>
+          {usuario?.nome ? (
+            <Text style={styles.userName}>{usuario.nome}</Text>
+          ) : null}
         </View>
-        <TouchableOpacity style={styles.avatarPill} onPress={handleAvatar} activeOpacity={0.8}>
-          <Text style={styles.avatarText}>{initial}</Text>
+        <TouchableOpacity
+          style={styles.avatarPill}
+          onPress={() => setDropdownOpen(v => !v)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{initial}</Text>
+          </View>
+          <Ionicons
+            name={dropdownOpen ? 'chevron-up' : 'chevron-down'}
+            size={14}
+            color="rgba(255,255,255,0.7)"
+          />
         </TouchableOpacity>
       </View>
 
@@ -79,84 +75,125 @@ export default function HomeScreen() {
 
         <View style={styles.grid}>
 
-          {/* Vendas card — collapses to CARD_SIZE, expands to full width */}
-          <Animated.View style={[
-            styles.vendasCard,
-            vendaOpen ? styles.vendasCardOpen : styles.vendasCardClosed,
-            { height: cardHeight },
-          ]}>
-            {vendaOpen ? (
-              <View style={styles.expandedFace}>
-                {/* Header — tap to collapse */}
+          {/* Row 1: Vendas — collapsed or expanded full width */}
+          <View style={vendaOpen ? styles.gridRowExpanded : styles.gridRowCollapsed}>
+            <View style={[
+              styles.vendasCard,
+              vendaOpen ? styles.vendasCardOpen : styles.vendasCardClosed,
+            ]}>
+              {vendaOpen ? (
+                <View style={styles.expandedFace}>
+                  <TouchableOpacity
+                    style={styles.vendasHeader}
+                    onPress={toggleVendas}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.vendasHeaderLeft}>
+                      <Ionicons name="bag-handle-outline" size={20} color={theme.colors.accent} />
+                      <Text style={styles.vendasHeaderLabel}>VENDAS</Text>
+                    </View>
+                    <Ionicons name="chevron-up" size={18} color={theme.colors.accent} />
+                  </TouchableOpacity>
+
+                  <View style={styles.subGrid}>
+                    <TouchableOpacity
+                      style={styles.subCard}
+                      onPress={() => router.push('/(app)/vendas/sacolas')}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="layers-outline" size={22} color={theme.colors.accent} />
+                      <Text style={styles.subLabel} numberOfLines={1}>Sacolas</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.subCard}
+                      onPress={() => Alert.alert('Em breve', 'Módulo de provas chegando em breve.')}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="shirt-outline" size={22} color={theme.colors.textMuted} />
+                      <Text style={[styles.subLabel, styles.subLabelDim]} numberOfLines={1}>Provas</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.subCard}
+                      onPress={() => Alert.alert('Em breve', 'Módulo de relatórios chegando em breve.')}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="bar-chart-outline" size={22} color={theme.colors.textMuted} />
+                      <Text style={[styles.subLabel, styles.subLabelDim]} numberOfLines={1}>Relatório</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
                 <TouchableOpacity
-                  style={styles.vendasHeader}
-                  onPress={closeVendas}
+                  style={styles.collapsedFace}
+                  onPress={toggleVendas}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.vendasHeaderLeft}>
-                    <Ionicons name="bag-handle-outline" size={20} color={theme.colors.accent} />
-                    <Text style={styles.vendasHeaderLabel}>VENDAS</Text>
-                  </View>
-                  <Ionicons name="chevron-up" size={18} color={theme.colors.accent} />
+                  <Ionicons name="bag-handle-outline" size={32} color="rgba(255,255,255,0.5)" />
+                  <Text style={styles.cardLabel}>Vendas</Text>
                 </TouchableOpacity>
+              )}
+            </View>
+          </View>
 
-                {/* Sub-cards: Sacolas / Provas / Relatório */}
-                <View style={styles.subGrid}>
-                  <TouchableOpacity
-                    style={styles.subCard}
-                    onPress={() => router.push('/(app)/vendas/sacolas')}
-                    activeOpacity={0.75}
-                  >
-                    <Ionicons name="layers-outline" size={22} color={theme.colors.accent} />
-                    <Text style={styles.subLabel}>Sacolas</Text>
-                  </TouchableOpacity>
+          {/* Row 2: Clientes + Suporte — always side by side */}
+          <View style={styles.gridRowCollapsed}>
+            <TouchableOpacity
+              style={[styles.card, { flex: 1, width: undefined }]}
+              onPress={() => Alert.alert('Em breve', 'Módulo de clientes chegando em breve.')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="people-outline" size={32} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.cardLabel}>Clientes</Text>
+            </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.subCard}
-                    onPress={() => Alert.alert('Em breve', 'Módulo de provas chegando em breve.')}
-                    activeOpacity={0.75}
-                  >
-                    <Ionicons name="shirt-outline" size={22} color={theme.colors.textMuted} />
-                    <Text style={[styles.subLabel, styles.subLabelDim]}>Provas</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.subCard}
-                    onPress={() => Alert.alert('Em breve', 'Módulo de relatórios chegando em breve.')}
-                    activeOpacity={0.75}
-                  >
-                    <Ionicons name="bar-chart-outline" size={22} color={theme.colors.textMuted} />
-                    <Text style={[styles.subLabel, styles.subLabelDim]}>Relatório</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.collapsedFace}
-                onPress={openVendas}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="bag-handle-outline" size={32} color="rgba(255,255,255,0.5)" />
-                <Text style={styles.cardLabel}>Vendas</Text>
-              </TouchableOpacity>
-            )}
-          </Animated.View>
-
-          {/* Clientes card — always visible, below Vendas when expanded */}
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => {
-              if (vendaOpen) closeVendas()
-              Alert.alert('Em breve', 'Módulo de clientes chegando em breve.')
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="people-outline" size={32} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.cardLabel}>Clientes</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.card, { flex: 1, width: undefined }]}
+              onPress={() => Alert.alert('Em breve', 'Módulo de suporte chegando em breve.')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="headset-outline" size={32} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.cardLabel}>Suporte</Text>
+            </TouchableOpacity>
+          </View>
 
         </View>
       </ScrollView>
+
+      {/* Overlay — captures outside tap to close dropdown */}
+      {dropdownOpen && (
+        <TouchableOpacity
+          style={[styles.overlay, { top: topBarH }]}
+          onPress={() => setDropdownOpen(false)}
+          activeOpacity={1}
+        />
+      )}
+
+      {/* User dropdown card */}
+      {dropdownOpen && (
+        <View style={[styles.dropdown, { top: topBarH + 8 }]}>
+          <Text style={styles.dropName}>{usuario?.nome ?? '—'}</Text>
+          <Text style={styles.dropRole}>{usuario?.nivel ?? '—'}</Text>
+          <View style={styles.divider} />
+          <TouchableOpacity
+            style={styles.dropRow}
+            onPress={() => {
+              setDropdownOpen(false)
+              Alert.alert('Em breve', 'Funcionalidade disponível em breve.')
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="person-outline" size={16} color={theme.colors.textMuted} />
+            <Text style={styles.dropRowText}>Meus dados</Text>
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.dropRow} onPress={handleSair} activeOpacity={0.7}>
+            <Ionicons name="log-out-outline" size={16} color={theme.colors.danger} />
+            <Text style={[styles.dropRowText, styles.dropRowDanger]}>Sair</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </LinearGradient>
   )
 }
@@ -170,19 +207,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingTop: 56,
     paddingBottom: theme.spacing.md,
+    zIndex: 20,
   },
+  logoCol: { flexDirection: 'column' },
   logoRow: { flexDirection: 'row', alignItems: 'flex-end' },
   logoArke: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: 1.5 },
   logoVest: { fontSize: 22, fontWeight: '800', color: theme.colors.accent, letterSpacing: 1.5 },
+  userName: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+  },
+
   avatarPill: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 4,
+    paddingRight: 10,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderWidth: 0.5,
+    borderColor: theme.colors.accent,
+    borderRadius: 20,
+  },
+  avatarCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  avatarText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
   content: { paddingHorizontal: theme.spacing.lg, paddingBottom: 32 },
   sectionLabel: {
     color: theme.colors.textMuted,
@@ -194,15 +252,23 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
   },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  grid: { flexDirection: 'column', gap: 12 },
 
-  // Vendas animated card
+  gridRowCollapsed: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  gridRowExpanded: {
+    flexDirection: 'column',
+  },
+
   vendasCard: {
     borderRadius: theme.borderRadius.lg,
     overflow: 'hidden',
   },
   vendasCardClosed: {
-    width: CARD_SIZE,
+    flex: 1,
+    height: CARD_SIZE,
     backgroundColor: theme.colors.cardBg,
     borderWidth: 0.5,
     borderColor: theme.colors.cardBorder,
@@ -220,14 +286,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-
   expandedFace: {
-    flex: 1,
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 14,
   },
-
   vendasHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -246,14 +309,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.5,
   },
-
   subGrid: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 8,
   },
   subCard: {
     flex: 1,
-    height: 96,
+    aspectRatio: 1,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.1)',
@@ -269,7 +332,6 @@ const styles = StyleSheet.create({
   },
   subLabelDim: { color: theme.colors.textMuted },
 
-  // Clientes (and any future same-row card)
   card: {
     width: CARD_SIZE,
     height: CARD_SIZE,
@@ -285,5 +347,56 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 13,
     fontWeight: '600',
+  },
+
+  overlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 5,
+  },
+
+  dropdown: {
+    position: 'absolute',
+    right: theme.spacing.lg,
+    zIndex: 10,
+    backgroundColor: 'rgba(10, 25, 55, 0.97)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    minWidth: 200,
+  },
+  dropName: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  dropRole: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    textTransform: 'capitalize',
+    marginBottom: 10,
+  },
+  divider: {
+    height: 0.5,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginVertical: 8,
+  },
+  dropRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 6,
+  },
+  dropRowText: {
+    color: theme.colors.text,
+    fontSize: 14,
+  },
+  dropRowDanger: {
+    color: theme.colors.danger,
   },
 })
