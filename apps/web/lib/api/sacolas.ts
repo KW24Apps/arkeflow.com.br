@@ -61,4 +61,7 @@ export const sacolasApi = {
 
   puxar: (id: string) =>
     api.put<SacolaRemota>(`/sacolas/${id}/puxar`).then(r => r.data),
+
+  devolver: (id: string) =>
+    api.put<SacolaRemota>(`/sacolas/${id}/devolver`).then(r => r.data),
 }

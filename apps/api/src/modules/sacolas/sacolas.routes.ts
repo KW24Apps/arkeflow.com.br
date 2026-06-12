@@ -263,6 +263,22 @@ export async function sacolasRoutes(app: FastifyInstance) {
     }
   })
 
+  // PUT /sacolas/:id/devolver — return bag from caixa back to aguardando (no stock change)
+  app.put('/:id/devolver', { preHandler: auth }, async (req, reply) => {
+    const pool = getTenantPoolFromRequest(req)
+    const { id } = req.params as { id: string }
+
+    const { rows: [sacola] } = await pool.query(
+      `SELECT * FROM sacolas WHERE id = $1 AND status = 'em_atendimento'`, [id]
+    )
+    if (!sacola) throw new AppError('Sacola não encontrada ou não está no caixa.', 404)
+
+    const { rows: [updated] } = await pool.query(
+      `UPDATE sacolas SET status = 'aguardando', atualizado_em = NOW() WHERE id = $1 RETURNING *`, [id]
+    )
+    return reply.send(updated)
+  })
+
   // PUT /sacolas/:id/puxar — cashier pulls bag into POS
   // Accepts both 'aguardando' and 'em_atendimento' (re-pulling is valid for switching bags)
   app.put('/:id/puxar', { preHandler: auth }, async (req, reply) => {

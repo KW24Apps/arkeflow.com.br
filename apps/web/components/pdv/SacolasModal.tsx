@@ -96,14 +96,14 @@ export function SacolasModal({ open, onClose, onCarregada }: Props) {
     doCarregar(sacola)
   }
 
-  // ── Confirm swap: cancel old sacola, clear cart, load new (FIX 3) ────────────
+  // ── Confirm swap: return old sacola to aguardando, clear cart, load new ──────
   async function handleConfirmTroca() {
     if (!confirmSacola || trocando) return
     setTrocando(true); setErro('')
     try {
-      // Cancel the previously loaded sacola so stock is restored
+      // Return old sacola to aguardando (stock stays decremented — items still reserved)
       if (sacolaAtualId) {
-        try { await sacolasApi.cancelar(sacolaAtualId) } catch {}
+        try { await sacolasApi.devolver(sacolaAtualId) } catch {}
       }
       limpar()
       await doCarregar(confirmSacola)
@@ -155,7 +155,7 @@ export function SacolasModal({ open, onClose, onCarregada }: Props) {
                 Substituir sacola atual?
               </p>
               <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
-                Os itens do carrinho serão removidos e a sacola anterior será cancelada. Esta ação não pode ser desfeita.
+                Os itens do carrinho serão removidos e a sacola anterior voltará para a fila de espera.
               </p>
             </div>
             {erro && (
