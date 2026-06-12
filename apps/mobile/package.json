@@ -29,7 +29,6 @@
     "@babel/core": "^7.20.0",
     "@babel/runtime": "^7.20.0",
     "@types/react": "~19.1.17",
-    "babel-preset-expo": "~13.0.0",
     "typescript": "~5.9.3"
   }
 }
