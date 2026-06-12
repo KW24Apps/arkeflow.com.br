@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "turbo": "^2.0.0",
-    "metro-runtime": "^0.83.1"
+    "metro-runtime": "^0.83.1",
+    "babel-preset-expo": "~13.0.0"
   }
 }
