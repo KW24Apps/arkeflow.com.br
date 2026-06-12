@@ -123,6 +123,11 @@ export default function CaixaPage() {
   const { itens, cliente_id, cliente_nome, vendedor_nome, vendedorDaSacola, addItem, addItemQtd, removeItem, setQtd, setCliente, setVendedor: setVendedorStore, limpar, clientePerguntado, setClientePerguntado } = usePDVStore()
   const usuario = useAuthStore(s => s.usuario)
 
+  // When a sacola is loaded, vendedorDaSacola=true + vendedor_nome set in store but local vendedor=null
+  // Use store values as fallback so the UI reflects the sacola's vendedor
+  const vendedorDisplayNome = vendedor?.nome ?? (vendedorDaSacola ? vendedor_nome : null)
+  const hasVendedor = !!vendedorDisplayNome
+
   // ── Abertura ──────────────────────────────────────────────────────────────
   const [saldoInicial, setSaldoInicial] = useState(0)
   const [obsAbertura,  setObsAbertura]  = useState('')
@@ -1170,13 +1175,13 @@ export default function CaixaPage() {
                     <div
                       role="button"
                       onClick={() => setModalVendedor(true)}
-                      style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '14px 4px', borderRadius: '9px', cursor: 'pointer', overflow: 'hidden', background: vendedor ? 'rgba(0,239,255,0.07)' : 'rgba(255,255,255,0.03)', border: vendedor ? '0.5px solid rgba(0,239,255,0.35)' : '0.5px dashed rgba(255,255,255,0.14)' }}
+                      style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '14px 4px', borderRadius: '9px', cursor: 'pointer', overflow: 'hidden', background: hasVendedor ? 'rgba(0,239,255,0.07)' : 'rgba(255,255,255,0.03)', border: hasVendedor ? '0.5px solid rgba(0,239,255,0.35)' : '0.5px dashed rgba(255,255,255,0.14)' }}
                     >
-                      <Briefcase size={19} style={{ color: vendedor ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                      <Briefcase size={19} style={{ color: hasVendedor ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
                       <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Vendedor</span>
-                      {vendedor && (
+                      {hasVendedor && (
                         <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', padding: '0 14px', textAlign: 'center' }}>
-                          {vendedor.nome}
+                          {vendedorDisplayNome}
                         </span>
                       )}
                       {vendedor && !vendedorDaSacola && (
