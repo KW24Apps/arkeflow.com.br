@@ -3,13 +3,14 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@arkeflow/shared": ["../../packages/shared/src/index.ts"]
+      "@arkeflow/shared": [
+        "../../packages/shared/src/index.ts"
+      ]
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".expo/types/**/*.d.ts",
-    "expo-env.d.ts"
+    ".expo/types/**/*.d.ts"
   ]
 }

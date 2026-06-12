@@ -18,7 +18,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-camera"
+      "expo-camera",
+      "expo-secure-store"
     ]
   }
 }
