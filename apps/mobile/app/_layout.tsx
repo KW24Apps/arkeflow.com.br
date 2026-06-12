@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router'
 import { useEffect } from 'react'
 import * as SplashScreen from 'expo-splash-screen'
+import * as Updates from 'expo-updates'
 import { StatusBar } from 'expo-status-bar'
 import { useAuthStore } from '../lib/store/auth.store'
 
@@ -12,6 +13,21 @@ export default function RootLayout() {
   useEffect(() => {
     if (hasHydrated) SplashScreen.hideAsync()
   }, [hasHydrated])
+
+  useEffect(() => {
+    async function checkForUpdates() {
+      try {
+        const update = await Updates.checkForUpdateAsync()
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync()
+          await Updates.reloadAsync()
+        }
+      } catch {
+        // ignore in dev / no network
+      }
+    }
+    if (!__DEV__) checkForUpdates()
+  }, [])
 
   return (
     <>
