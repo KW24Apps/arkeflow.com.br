@@ -123,11 +123,6 @@ export default function CaixaPage() {
   const { itens, cliente_id, cliente_nome, vendedor_nome, vendedorDaSacola, addItem, addItemQtd, removeItem, setQtd, setCliente, setVendedor: setVendedorStore, limpar, clientePerguntado, setClientePerguntado } = usePDVStore()
   const usuario = useAuthStore(s => s.usuario)
 
-  // When a sacola is loaded, vendedorDaSacola=true + vendedor_nome set in store but local vendedor=null
-  // Use store values as fallback so the UI reflects the sacola's vendedor
-  const vendedorDisplayNome = vendedor?.nome ?? (vendedorDaSacola ? vendedor_nome : null)
-  const hasVendedor = !!vendedorDisplayNome
-
   // ── Abertura ──────────────────────────────────────────────────────────────
   const [saldoInicial, setSaldoInicial] = useState(0)
   const [obsAbertura,  setObsAbertura]  = useState('')
@@ -160,6 +155,10 @@ export default function CaixaPage() {
 
   const [modalVendedor,      setModalVendedor]      = useState(false)
   const [vendedor,           setVendedor]           = useState<Colaborador | null>(null)
+  // When a sacola is loaded, vendedorDaSacola=true + vendedor_nome set in store but local vendedor=null
+  // Use store values as fallback so the UI reflects the sacola's vendedor
+  const vendedorDisplayNome = vendedor?.nome ?? (vendedorDaSacola ? vendedor_nome : null)
+  const hasVendedor = !!vendedorDisplayNome
   const [modalSacolas,       setModalSacolas]       = useState(false)
   const [modalDadosCliente,  setModalDadosCliente]  = useState(false)
 
