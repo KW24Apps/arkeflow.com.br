@@ -24,7 +24,8 @@
     "plugins": [
       "expo-router",
       "expo-camera",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-updates"
     ],
     "extra": {
       "router": {},
