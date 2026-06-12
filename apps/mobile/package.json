@@ -20,8 +20,6 @@
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-updates": "~29.0.18",
-    "metro": "~0.81.0",
-    "metro-runtime": "~0.81.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-screens": "~4.16.0",
