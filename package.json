@@ -1,7 +1,6 @@
 {
   "name": "arkeflow",
   "private": true,
-  "packageManager": "pnpm@11.6.0",
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
