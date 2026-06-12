@@ -1,8 +1,8 @@
 import {
   View, Text, TextInput, StyleSheet, KeyboardAvoidingView,
-  Platform, TouchableOpacity, ScrollView,
+  Platform, TouchableOpacity, ScrollView, Alert,
 } from 'react-native'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import { Button } from '../../components/ui/Button'
@@ -11,26 +11,55 @@ import { theme } from '../../constants/theme'
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { login, isLoading } = useAuthStore()
+  const { login, isLoading, sessaoAtiva, clearSessaoAtiva } = useAuthStore()
 
-  const [email,  setEmail]  = useState('')
-  const [senha,  setSenha]  = useState('')
-  const [erro,   setErro]   = useState('')
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erro,  setErro]  = useState('')
 
-  async function handleLogin() {
+  async function handleLogin(forcar?: boolean) {
     if (!email.trim() || !senha.trim()) {
       setErro('Preencha e-mail e senha.')
       return
     }
     setErro('')
     try {
-      await login(email.trim(), senha)
+      await login(email.trim(), senha, forcar)
       router.replace('/(app)/')
     } catch (e: any) {
       const msg = e?.response?.data?.error ?? e?.response?.data?.message ?? 'Credenciais inválidas.'
       setErro(msg)
     }
   }
+
+  const handleForcar = useCallback(async () => {
+    clearSessaoAtiva()
+    setErro('')
+    try {
+      await login(email.trim(), senha, true)
+      router.replace('/(app)/')
+    } catch (e: any) {
+      const msg = e?.response?.data?.error ?? e?.response?.data?.message ?? 'Credenciais inválidas.'
+      setErro(msg)
+    }
+  }, [email, senha, login, clearSessaoAtiva, router])
+
+  useEffect(() => {
+    if (!sessaoAtiva) return
+    const em = sessaoAtiva.em
+      ? new Date(sessaoAtiva.em).toLocaleString('pt-BR')
+      : '—'
+    const ip = sessaoAtiva.ip ?? '—'
+    Alert.alert(
+      'Sessão ativa',
+      `Você já está conectado em outro dispositivo.\nIP: ${ip} · Desde: ${em}\n\nDeseja continuar?`,
+      [
+        { text: 'Cancelar', style: 'cancel', onPress: clearSessaoAtiva },
+        { text: 'Entrar mesmo assim', style: 'destructive', onPress: handleForcar },
+      ],
+      { cancelable: true, onDismiss: clearSessaoAtiva }
+    )
+  }, [sessaoAtiva])
 
   return (
     <LinearGradient
@@ -78,14 +107,14 @@ export default function LoginScreen() {
               secureTextEntry
               autoComplete="password"
               returnKeyType="done"
-              onSubmitEditing={handleLogin}
+              onSubmitEditing={() => handleLogin()}
             />
 
             {erro ? <Text style={styles.erro}>{erro}</Text> : null}
 
             <Button
               label="Entrar"
-              onPress={handleLogin}
+              onPress={() => handleLogin()}
               loading={isLoading}
               style={styles.btn}
             />

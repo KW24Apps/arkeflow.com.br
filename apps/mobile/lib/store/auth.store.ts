@@ -10,13 +10,20 @@ const secureStorage = {
   removeItem: (name: string) => SecureStore.deleteItemAsync(name),
 }
 
+export interface SessaoAtivaInfo {
+  ip: string | null
+  em: string | null
+}
+
 interface AuthStore {
   token: string | null
   usuario: JwtPayload | null
   isLoading: boolean
+  sessaoAtiva: SessaoAtivaInfo | null
   _hasHydrated: boolean
   setHasHydrated: (v: boolean) => void
-  login: (email: string, senha: string) => Promise<void>
+  login: (email: string, senha: string, forcar?: boolean) => Promise<void>
+  clearSessaoAtiva: () => void
   logout: () => void
 }
 
@@ -26,25 +33,27 @@ export const useAuthStore = create<AuthStore>()(
       token: null,
       usuario: null,
       isLoading: false,
+      sessaoAtiva: null,
       _hasHydrated: false,
       setHasHydrated: (v) => set({ _hasHydrated: v }),
 
-      login: async (email, senha) => {
+      login: async (email, senha, forcar) => {
         set({ isLoading: true })
-        console.log('[AUTH] tentativa:', email, '| senha len:', senha.length)
         try {
-          const { token, usuario } = await loginRequest(email, senha)
-          console.log('[AUTH] sucesso:', usuario?.email, '| token:', token?.slice(0, 30) + '...')
+          const { token, usuario } = await loginRequest(email, senha, forcar)
           await SecureStore.setItemAsync('arkevest_token', token)
-          set({ token, usuario, isLoading: false })
+          set({ token, usuario, isLoading: false, sessaoAtiva: null })
         } catch (e: any) {
-          console.log('[AUTH] erro status:', e?.response?.status)
-          console.log('[AUTH] erro data:', JSON.stringify(e?.response?.data))
-          console.log('[AUTH] erro message:', e?.message)
           set({ isLoading: false })
+          if (e?.response?.status === 409 && e?.response?.data?.code === 'SESSAO_ATIVA') {
+            set({ sessaoAtiva: { ip: e.response.data.ip ?? null, em: e.response.data.em ?? null } })
+            return
+          }
           throw e
         }
       },
+
+      clearSessaoAtiva: () => set({ sessaoAtiva: null }),
 
       logout: () => {
         SecureStore.deleteItemAsync('arkevest_token').catch(() => {})

@@ -15,4 +15,5 @@ export interface JwtPayload {
   banco_id: string | null  // nome do banco PostgreSQL da loja
   permissoes: string[]     // slugs de menu liberados; dono_loja sempre tem ['*']
   sid?: string             // session id; ausente em tokens pré-v2 (retrocompatibilidade)
+  plataforma?: 'web' | 'mobile' | 'desktop'
 }

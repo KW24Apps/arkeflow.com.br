@@ -4,11 +4,11 @@ import { login } from './auth.service'
 import { AppError } from '../../core/errors/AppError'
 
 export async function loginHandler(request: FastifyRequest, reply: FastifyReply) {
-  const { email, senha, forcar } = loginSchema.parse(request.body)
+  const { email, senha, forcar, plataforma } = loginSchema.parse(request.body)
   const ip = request.headers['x-forwarded-for']?.toString() || request.ip
 
   try {
-    const payload = await login(email, senha, ip, forcar)
+    const payload = await login(email, senha, ip, forcar, plataforma)
     const token = await reply.jwtSign(payload, { expiresIn: '7d' })
     return reply.send({ token, usuario: payload })
   } catch (err) {
