@@ -11,7 +11,9 @@ function conflitaPlataforma(atual: string, entrando: string): boolean {
 }
 
 export async function login(
-  email: string, senha: string, ip?: string, forcar?: boolean, plataforma: 'web' | 'mobile' | 'desktop' = 'web'
+  email: string, senha: string, ip?: string, forcar?: boolean,
+  plataforma: 'web' | 'mobile' | 'desktop' = 'web',
+  currentSid?: string | null
 ): Promise<JwtPayload> {
   const { rows } = await platformPool.query(
     `SELECT u.id, u.nome, u.email, u.username, u.senha_hash, u.nivel, u.loja_id,
@@ -69,11 +71,13 @@ export async function login(
 
   const ultimoAcesso: Date | null = usuario.ultimo_acesso ?? null
   const sessaoPlataformaAtual = (usuario.sessao_plataforma as string) ?? 'web'
+  const mesmoDispositivo = currentSid != null && currentSid === usuario.sessao_atual
   const sessaoAtiva =
     usuario.sessao_atual !== null &&
     ultimoAcesso !== null &&
     (Date.now() - (ultimoAcesso as Date).getTime()) / 60000 <= inatividadeMinutos &&
-    conflitaPlataforma(sessaoPlataformaAtual, plataforma)
+    conflitaPlataforma(sessaoPlataformaAtual, plataforma) &&
+    !mesmoDispositivo
 
   if (sessaoAtiva && !forcar) {
     throw new AppError('Sessão ativa em outro dispositivo', 409, 'SESSAO_ATIVA', {
