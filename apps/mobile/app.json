@@ -2,6 +2,7 @@
   "expo": {
     "name": "ARKEVest",
     "slug": "arkevest",
+    "owner": "gabriel.acker",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -14,12 +15,22 @@
       "package": "com.arkeflow.arkevest",
       "adaptiveIcon": {
         "backgroundColor": "#0d1f3c"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-camera",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "83cd8f1c-59e2-42f2-b7c0-c1a7a2be891e"
+      }
+    }
   }
 }
