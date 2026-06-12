@@ -19,6 +19,8 @@
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "metro": "~0.81.0",
+    "metro-runtime": "~0.81.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-screens": "~4.16.0",
@@ -28,7 +30,6 @@
     "@babel/core": "^7.20.0",
     "@babel/runtime": "^7.20.0",
     "@types/react": "~19.1.17",
-    "metro-runtime": "^0.83.1",
     "typescript": "~5.9.3"
   }
 }
