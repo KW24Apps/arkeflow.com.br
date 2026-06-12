@@ -31,11 +31,16 @@ export const useAuthStore = create<AuthStore>()(
 
       login: async (email, senha) => {
         set({ isLoading: true })
+        console.log('[AUTH] tentativa:', email, '| senha len:', senha.length)
         try {
           const { token, usuario } = await loginRequest(email, senha)
+          console.log('[AUTH] sucesso:', usuario?.email, '| token:', token?.slice(0, 30) + '...')
           await SecureStore.setItemAsync('arkevest_token', token)
           set({ token, usuario, isLoading: false })
-        } catch (e) {
+        } catch (e: any) {
+          console.log('[AUTH] erro status:', e?.response?.status)
+          console.log('[AUTH] erro data:', JSON.stringify(e?.response?.data))
+          console.log('[AUTH] erro message:', e?.message)
           set({ isLoading: false })
           throw e
         }
