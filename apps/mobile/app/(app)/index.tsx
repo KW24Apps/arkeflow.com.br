@@ -9,7 +9,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { useAuthStore } from '../../lib/store/auth.store'
 import { theme } from '../../constants/theme'
 
-const EXPAND_HEIGHT = 128
+const CARD_SIZE = 148
+const EXPANDED_HEIGHT = 178
 
 export default function HomeScreen() {
   const router = useRouter()
@@ -18,18 +19,26 @@ export default function HomeScreen() {
   const [vendaOpen, setVendaOpen] = useState(false)
   const expandAnim = useRef(new Animated.Value(0)).current
 
-  const toggleVenda = () => {
+  const openVendas = () => {
+    setVendaOpen(true)
     Animated.spring(expandAnim, {
-      toValue: vendaOpen ? 0 : 1,
+      toValue: 1,
       useNativeDriver: false,
-      bounciness: 4,
+      bounciness: 5,
     }).start()
-    setVendaOpen(v => !v)
   }
 
-  const expandHeight = expandAnim.interpolate({
+  const closeVendas = () => {
+    Animated.spring(expandAnim, {
+      toValue: 0,
+      useNativeDriver: false,
+      bounciness: 2,
+    }).start(() => setVendaOpen(false))
+  }
+
+  const cardHeight = expandAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, EXPAND_HEIGHT],
+    outputRange: [CARD_SIZE, EXPANDED_HEIGHT],
   })
 
   const initial = usuario?.nome?.charAt(0).toUpperCase() ?? '?'
@@ -43,10 +52,7 @@ export default function HomeScreen() {
         {
           text: 'Sair',
           style: 'destructive',
-          onPress: () => {
-            logout()
-            router.replace('/(auth)/login')
-          },
+          onPress: () => { logout(); router.replace('/(auth)/login') },
         },
         { text: 'Cancelar', style: 'cancel' },
       ]
@@ -58,7 +64,6 @@ export default function HomeScreen() {
       colors={[theme.colors.bgGradientTop, theme.colors.bgGradientBottom]}
       style={styles.gradient}
     >
-      {/* TopBar */}
       <View style={styles.topBar}>
         <View style={styles.logoRow}>
           <Text style={styles.logoArke}>ARKE</Text>
@@ -72,58 +77,78 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionLabel}>O que vamos fazer hoje?</Text>
 
-        {/* Cards grid */}
         <View style={styles.grid}>
 
-          {/* Vendas card — expandable */}
-          <View style={styles.cardWrapper}>
-            <TouchableOpacity
-              style={[styles.card, vendaOpen && styles.cardActive]}
-              onPress={toggleVenda}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="bag-handle-outline"
-                size={32}
-                color={vendaOpen ? theme.colors.accent : 'rgba(255,255,255,0.5)'}
-              />
-              <Text style={[styles.cardLabel, vendaOpen && styles.cardLabelActive]}>Vendas</Text>
-              <Ionicons
-                name={vendaOpen ? 'chevron-up' : 'chevron-down'}
-                size={14}
-                color={vendaOpen ? theme.colors.accent : theme.colors.textFaint}
-                style={styles.chevron}
-              />
-            </TouchableOpacity>
-
-            {/* Sub-cards */}
-            <Animated.View style={[styles.subCards, { height: expandHeight, overflow: 'hidden' }]}>
-              <View style={styles.subRow}>
+          {/* Vendas card — collapses to CARD_SIZE, expands to full width */}
+          <Animated.View style={[
+            styles.vendasCard,
+            vendaOpen ? styles.vendasCardOpen : styles.vendasCardClosed,
+            { height: cardHeight },
+          ]}>
+            {vendaOpen ? (
+              <View style={styles.expandedFace}>
+                {/* Header — tap to collapse */}
                 <TouchableOpacity
-                  style={styles.subCard}
-                  onPress={() => router.push('/(app)/vendas/sacolas')}
+                  style={styles.vendasHeader}
+                  onPress={closeVendas}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="layers-outline" size={20} color={theme.colors.accent} />
-                  <Text style={styles.subLabel}>Sacolas</Text>
+                  <View style={styles.vendasHeaderLeft}>
+                    <Ionicons name="bag-handle-outline" size={20} color={theme.colors.accent} />
+                    <Text style={styles.vendasHeaderLabel}>VENDAS</Text>
+                  </View>
+                  <Ionicons name="chevron-up" size={18} color={theme.colors.accent} />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.subCard}
-                  onPress={() => Alert.alert('Em breve', 'Módulo de provas chegando em breve.')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="shirt-outline" size={20} color={theme.colors.textMuted} />
-                  <Text style={[styles.subLabel, { color: theme.colors.textMuted }]}>Provas</Text>
-                </TouchableOpacity>
+                {/* Sub-cards: Sacolas / Provas / Relatório */}
+                <View style={styles.subGrid}>
+                  <TouchableOpacity
+                    style={styles.subCard}
+                    onPress={() => router.push('/(app)/vendas/sacolas')}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="layers-outline" size={22} color={theme.colors.accent} />
+                    <Text style={styles.subLabel}>Sacolas</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.subCard}
+                    onPress={() => Alert.alert('Em breve', 'Módulo de provas chegando em breve.')}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="shirt-outline" size={22} color={theme.colors.textMuted} />
+                    <Text style={[styles.subLabel, styles.subLabelDim]}>Provas</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.subCard}
+                    onPress={() => Alert.alert('Em breve', 'Módulo de relatórios chegando em breve.')}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="bar-chart-outline" size={22} color={theme.colors.textMuted} />
+                    <Text style={[styles.subLabel, styles.subLabelDim]}>Relatório</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </Animated.View>
-          </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.collapsedFace}
+                onPress={openVendas}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="bag-handle-outline" size={32} color="rgba(255,255,255,0.5)" />
+                <Text style={styles.cardLabel}>Vendas</Text>
+              </TouchableOpacity>
+            )}
+          </Animated.View>
 
-          {/* Clientes card */}
+          {/* Clientes card — always visible, below Vendas when expanded */}
           <TouchableOpacity
             style={styles.card}
-            onPress={() => Alert.alert('Em breve', 'Módulo de clientes chegando em breve.')}
+            onPress={() => {
+              if (vendaOpen) closeVendas()
+              Alert.alert('Em breve', 'Módulo de clientes chegando em breve.')
+            }}
             activeOpacity={0.8}
           >
             <Ionicons name="people-outline" size={32} color="rgba(255,255,255,0.5)" />
@@ -135,8 +160,6 @@ export default function HomeScreen() {
     </LinearGradient>
   )
 }
-
-const CARD_SIZE = 148
 
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
@@ -170,12 +193,83 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     marginTop: theme.spacing.md,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+
+  // Vendas animated card
+  vendasCard: {
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden',
   },
-  cardWrapper: { flexDirection: 'column' },
+  vendasCardClosed: {
+    width: CARD_SIZE,
+    backgroundColor: theme.colors.cardBg,
+    borderWidth: 0.5,
+    borderColor: theme.colors.cardBorder,
+  },
+  vendasCardOpen: {
+    width: '100%',
+    backgroundColor: 'rgba(0,60,140,0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,150,255,0.3)',
+  },
+
+  collapsedFace: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  expandedFace: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+
+  vendasHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 40,
+    marginBottom: 12,
+  },
+  vendasHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  vendasHeaderLabel: {
+    color: theme.colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
+
+  subGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  subCard: {
+    flex: 1,
+    height: 96,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  subLabel: {
+    color: theme.colors.accent,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  subLabelDim: { color: theme.colors.textMuted },
+
+  // Clientes (and any future same-row card)
   card: {
     width: CARD_SIZE,
     height: CARD_SIZE,
@@ -187,39 +281,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  cardActive: {
-    backgroundColor: 'rgba(0,200,255,0.07)',
-    borderColor: 'rgba(0,200,255,0.25)',
-  },
   cardLabel: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 13,
-    fontWeight: '600',
-  },
-  cardLabelActive: { color: theme.colors.accent },
-  chevron: { position: 'absolute', bottom: 10 },
-  subCards: {
-    width: CARD_SIZE,
-  },
-  subRow: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingTop: 8,
-  },
-  subCard: {
-    flex: 1,
-    height: CARD_SIZE * 0.7,
-    backgroundColor: theme.colors.cardBg,
-    borderWidth: 0.5,
-    borderColor: theme.colors.cardBorder,
-    borderRadius: theme.borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  subLabel: {
-    color: theme.colors.accent,
-    fontSize: 11,
     fontWeight: '600',
   },
 })
