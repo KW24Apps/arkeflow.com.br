@@ -55,7 +55,7 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View style={styles.form}>
-            <Text style={styles.label}>E-mail ou usuário</Text>
+            <Text style={styles.label}>E-mail</Text>
             <TextInput
               style={styles.input}
               value={email}

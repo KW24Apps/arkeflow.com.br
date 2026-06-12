@@ -22,7 +22,7 @@ let redirecting = false
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401 && !redirecting) {
+    if (error.response?.status === 401 && !redirecting && !error.config?.url?.includes('/auth/login')) {
       redirecting = true
       try {
         await SecureStore.deleteItemAsync('arkevest_token')
