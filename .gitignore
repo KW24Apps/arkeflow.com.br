@@ -9,3 +9,4 @@ dist/
 projeto/
 apps/mobile/.expo/
 apps/mobile/node_modules/
+apps/mobile/builds/
