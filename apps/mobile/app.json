@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "ARKEVest",
+    "slug": "arkevest",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "arkevest",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.arkeflow.arkevest"
+    },
+    "android": {
+      "package": "com.arkeflow.arkevest",
+      "adaptiveIcon": {
+        "backgroundColor": "#0d1f3c"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-camera"
+    ]
+  }
+}

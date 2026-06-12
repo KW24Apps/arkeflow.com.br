@@ -1,0 +1,33 @@
+export const theme = {
+  colors: {
+    bg: '#111318',
+    bgGradientTop: '#0d1f3c',
+    bgGradientBottom: '#111318',
+    primary: '#0055ff',
+    primaryLight: '#00aaff',
+    accent: '#00c8ff',
+    text: '#ffffff',
+    textMuted: 'rgba(255,255,255,0.4)',
+    textFaint: 'rgba(255,255,255,0.2)',
+    cardBg: 'rgba(255,255,255,0.05)',
+    cardBorder: 'rgba(255,255,255,0.09)',
+    inputBg: 'rgba(255,255,255,0.07)',
+    inputBorder: 'rgba(255,255,255,0.1)',
+    danger: 'rgba(240,100,100,0.8)',
+    success: 'rgba(100,220,160,0.8)',
+  },
+  borderRadius: {
+    sm: 10,
+    md: 14,
+    lg: 18,
+    xl: 24,
+    full: 999,
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+  },
+}
