@@ -1,7 +1,7 @@
 'use client'
 
 import { forwardRef, useEffect, useRef, useState } from 'react'
-import { clientesApi, type Cliente } from '@/lib/api/clientes'
+import { clientesApi, getCadastroCfg, type Cliente } from '@/lib/api/clientes'
 
 interface Props {
   open:        boolean
@@ -54,12 +54,19 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
   const [clientes,  setClientes]  = useState<Cliente[]>([])
   const [buscando,  setBuscando]  = useState(false)
 
-  const [novoNome,   setNovoNome]   = useState('')
-  const [novoTels,   setNovoTels]   = useState<string[]>([''])
-  const [novoCPF,    setNovoCPF]    = useState('')
-  const [novoEmails, setNovoEmails] = useState<string[]>([''])
-  const [salvando,   setSalvando]   = useState(false)
-  const [erroNovo,   setErroNovo]   = useState('')
+  const [novoNome,    setNovoNome]    = useState('')
+  const [novoTels,    setNovoTels]    = useState<string[]>([''])
+  const [novoCPF,     setNovoCPF]     = useState('')
+  const [novoEmails,  setNovoEmails]  = useState<string[]>([''])
+  const [salvando,    setSalvando]    = useState(false)
+  const [erroNovo,    setErroNovo]    = useState('')
+  const [cadastroCfg, setCadastroCfg] = useState<Awaited<ReturnType<typeof getCadastroCfg>> | null>(null)
+
+  // ── Load cadastro config once on first open ───────────────────────────────
+  useEffect(() => {
+    if (!open || cadastroCfg) return
+    getCadastroCfg().then(setCadastroCfg).catch(() => {})
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Reset on open ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -121,6 +128,9 @@ export function CustomerSearchModal({ open, onClose, onSelect, autoAberto }: Pro
   // ── Save new customer ─────────────────────────────────────────────────────
   async function handleSalvar() {
     if (!novoNome.trim()) { setErroNovo('Nome é obrigatório.'); return }
+    if (cadastroCfg?.exige_cpf      && !novoCPF.trim())                            { setErroNovo('CPF é obrigatório conforme configuração da loja.'); return }
+    if (cadastroCfg?.exige_email    && !novoEmails.find((e: string) => e.trim()))  { setErroNovo('E-mail é obrigatório conforme configuração da loja.'); return }
+    if (cadastroCfg?.exige_endereco)                                               { setErroNovo('Endereço é obrigatório. Use o cadastro completo em Clientes.'); return }
     setSalvando(true); setErroNovo('')
     try {
       const c = await clientesApi.create({

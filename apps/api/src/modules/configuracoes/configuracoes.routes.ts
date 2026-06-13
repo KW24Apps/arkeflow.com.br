@@ -8,7 +8,15 @@ const dono = [authMiddleware, authorize('dono_loja')]
 const auth = [authMiddleware, authorize('dono_loja', 'vendedor')]
 
 const schema = z.object({
-  controle_estoque: z.boolean().optional(),
+  controle_estoque:          z.boolean().optional(),
+  cadastro_exige_cpf:        z.boolean().optional(),
+  cadastro_exige_email:      z.boolean().optional(),
+  cadastro_exige_endereco:   z.boolean().optional(),
+  crediario_exige_email:     z.boolean().optional(),
+  crediario_exige_endereco:  z.boolean().optional(),
+  prova_exige_cpf:           z.boolean().optional(),
+  prova_exige_email:         z.boolean().optional(),
+  prova_exige_endereco:      z.boolean().optional(),
 })
 
 export async function configuracoesRoutes(app: FastifyInstance) {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ImageIcon, Package, Tag, ShieldCheck, Banknote, Keyboard, Gift, Timer } from 'lucide-react'
+import { ImageIcon, Package, Tag, ShieldCheck, Banknote, Keyboard, Gift, Timer, Users } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -34,7 +34,15 @@ interface SistemaConfig {
   cashback_limite_percentual: string | number
   cashback_carencia_dias:     string | number
   cashback_validade_meses:    string | number
-  inatividade_minutos?:       number | string
+  inatividade_minutos?:        number | string
+  cadastro_exige_cpf?:         boolean
+  cadastro_exige_email?:       boolean
+  cadastro_exige_endereco?:    boolean
+  crediario_exige_email?:      boolean
+  crediario_exige_endereco?:   boolean
+  prova_exige_cpf?:            boolean
+  prova_exige_email?:          boolean
+  prova_exige_endereco?:       boolean
 }
 
 async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
@@ -74,7 +82,7 @@ const ATALHO_ACTIONS = [
   { actionKey: 'fecharCaixa', label: 'Fechar caixa',  fKey: 'F10' },
 ] as const
 
-type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao' | null
+type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao' | 'cadastro' | null
 
 export default function ConfigSistemaPage() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -131,6 +139,17 @@ export default function ConfigSistemaPage() {
   const [inatividadeHoras, setInatividadeHoras] = useState(6)
   const [sessaoSaved,      setSessaoSaved]      = useState(false)
 
+  // ── Cadastro state ────────────────────────────────────────────────────────
+  const [cadastroExigeCpf,       setCadastroExigeCpf]       = useState(false)
+  const [cadastroExigeEmail,     setCadastroExigeEmail]     = useState(false)
+  const [cadastroExigeEndereco,  setCadastroExigeEndereco]  = useState(false)
+  const [crediarioExigeEmail,    setCrediarioExigeEmail]    = useState(true)
+  const [crediarioExigeEndereco, setCrediarioExigeEndereco] = useState(true)
+  const [provaExigeCpf,          setProvaExigeCpf]          = useState(true)
+  const [provaExigeEmail,        setProvaExigeEmail]        = useState(false)
+  const [provaExigeEndereco,     setProvaExigeEndereco]     = useState(true)
+  const [cadastroSaved,          setCadastroSaved]          = useState(false)
+
   // ── Atalhos state ─────────────────────────────────────────────────────────
   const [atalhosCfg,      setAtalhosCfg]      = useState<Record<string, string>>({})
   const [atalhosSaved,    setAtalhosSaved]    = useState(false)
@@ -178,6 +197,14 @@ export default function ConfigSistemaPage() {
       setCashbackCarenciaDias(Number(d.cashback_carencia_dias ?? 0))
       setCashbackValidadeMeses(Number(d.cashback_validade_meses ?? 0))
       setInatividadeHoras(Math.round((Number(d.inatividade_minutos ?? 360)) / 60))
+      setCadastroExigeCpf(d.cadastro_exige_cpf ?? false)
+      setCadastroExigeEmail(d.cadastro_exige_email ?? false)
+      setCadastroExigeEndereco(d.cadastro_exige_endereco ?? false)
+      setCrediarioExigeEmail(d.crediario_exige_email ?? true)
+      setCrediarioExigeEndereco(d.crediario_exige_endereco ?? true)
+      setProvaExigeCpf(d.prova_exige_cpf ?? true)
+      setProvaExigeEmail(d.prova_exige_email ?? false)
+      setProvaExigeEndereco(d.prova_exige_endereco ?? true)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -331,6 +358,12 @@ export default function ConfigSistemaPage() {
 
   // ── Cashback handlers ────────────────────────────────────────────────────
 
+  async function saveCadastro(patch: Record<string, boolean>) {
+    await api.put('/dados-loja/sistema', patch)
+    setCadastroSaved(true)
+    setTimeout(() => setCadastroSaved(false), 2000)
+  }
+
   async function handleSaveCashback(fields: Record<string, any>) {
     try {
       await api.put('/dados-loja/sistema', fields)
@@ -424,7 +457,7 @@ export default function ConfigSistemaPage() {
   const supervisores = colaboradores.filter(c => c.is_supervisor)
   const semMetodoAuth = supervisaoHabilitada && !senhaMestraDefinida && supervisores.length === 0
 
-  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao'
+  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao' | 'cadastro'
   const PANEL_ICON: Record<SecaoNonNull, React.ReactNode> = {
     logo:       <ImageIcon   size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     estoque:    <Package     size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
@@ -434,10 +467,12 @@ export default function ConfigSistemaPage() {
     atalhos:    <Keyboard    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     cashback:   <Gift        size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
     sessao:     <Timer       size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    cadastro:   <Users       size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
   }
   const PANEL_LABEL: Record<SecaoNonNull, string> = {
     logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão',
     caixa: 'Limite de caixa', atalhos: 'Atalhos do caixa', cashback: 'Cashback', sessao: 'Sessão',
+    cadastro: 'Cadastro de clientes',
   }
 
   return (
@@ -469,6 +504,7 @@ export default function ConfigSistemaPage() {
               {secao === 'atalhos'    && atalhosSaved    && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'cashback'   && cashbackSaved   && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'sessao'     && sessaoSaved     && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
+              {secao === 'cadastro'   && cadastroSaved   && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
             </div>
 
             {/* Panel body */}
@@ -1155,6 +1191,95 @@ export default function ConfigSistemaPage() {
                 </div>
               )}
 
+              {/* ── Cadastro de clientes ─────────────────────────────── */}
+              {secao === 'cadastro' && (() => {
+                const BADGE_SISTEMA: React.CSSProperties = {
+                  fontSize: '9px', background: 'rgba(255,255,255,0.06)',
+                  border: '0.5px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.25)',
+                  textTransform: 'uppercase', letterSpacing: '0.05em',
+                  padding: '2px 6px', borderRadius: '20px',
+                }
+                const BADGE_PRE: React.CSSProperties = {
+                  fontSize: '9px', background: 'rgba(0,239,255,0.05)',
+                  border: '0.5px solid rgba(0,239,255,0.2)', color: 'rgba(0,239,255,0.5)',
+                  textTransform: 'uppercase', letterSpacing: '0.05em',
+                  padding: '2px 6px', borderRadius: '20px',
+                }
+                function Toggle({ on, onChange, locked }: { on: boolean; onChange?: (v: boolean) => void; locked?: boolean }) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onChange?.(!on)}
+                      className="relative shrink-0"
+                      style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: on ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: locked ? 'default' : 'pointer' }}
+                    >
+                      <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: on ? '21px' : '3px' }} />
+                    </button>
+                  )
+                }
+                function Row({ label, badge, on, onChange, locked }: { label: string; badge?: React.ReactNode; on: boolean; onChange?: (v: boolean) => void; locked?: boolean }) {
+                  return (
+                    <div className="flex items-center justify-between gap-3" style={{ opacity: locked ? 0.35 : 1, pointerEvents: locked ? 'none' : 'auto' }}>
+                      <div className="flex items-center gap-2 flex-1">
+                        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{label}</p>
+                        {badge}
+                      </div>
+                      <Toggle on={on} onChange={onChange} locked={locked} />
+                    </div>
+                  )
+                }
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+
+                    {/* LEFT: Cadastro mínimo */}
+                    <div className="flex flex-col gap-3">
+                      <p style={LBL9}>Cadastro mínimo</p>
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
+                        Nome e telefone são exigidos pelo sistema.
+                      </p>
+                      <div style={DIV_HR} />
+                      <Row label="Nome"     badge={<span style={BADGE_SISTEMA}>sistema</span>}   on={true}                  locked />
+                      <div style={DIV_HR} />
+                      <Row label="Telefone" badge={<span style={BADGE_SISTEMA}>sistema</span>}   on={true}                  locked />
+                      <div style={DIV_HR} />
+                      <Row label="CPF"      on={cadastroExigeCpf}      onChange={v => { setCadastroExigeCpf(v);      saveCadastro({ cadastro_exige_cpf: v })      }} />
+                      <div style={DIV_HR} />
+                      <Row label="E-mail"   on={cadastroExigeEmail}    onChange={v => { setCadastroExigeEmail(v);    saveCadastro({ cadastro_exige_email: v })    }} />
+                      <div style={DIV_HR} />
+                      <Row label="Endereço" on={cadastroExigeEndereco} onChange={v => { setCadastroExigeEndereco(v); saveCadastro({ cadastro_exige_endereco: v }) }} />
+                    </div>
+
+                    {/* RIGHT: Crediário + Prova em casa */}
+                    <div className="flex flex-col gap-5">
+
+                      <div className="flex flex-col gap-3">
+                        <p style={LBL9}>Crediário</p>
+                        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>CPF é exigido pelo sistema.</p>
+                        <div style={DIV_HR} />
+                        <Row label="CPF"      badge={<span style={BADGE_SISTEMA}>sistema</span>}   on={true}                    locked />
+                        <div style={DIV_HR} />
+                        <Row label="E-mail"   badge={<span style={BADGE_PRE}>pré-configurado</span>} on={crediarioExigeEmail}    onChange={v => { setCrediarioExigeEmail(v);    saveCadastro({ crediario_exige_email: v })    }} />
+                        <div style={DIV_HR} />
+                        <Row label="Endereço" badge={<span style={BADGE_PRE}>pré-configurado</span>} on={crediarioExigeEndereco} onChange={v => { setCrediarioExigeEndereco(v); saveCadastro({ crediario_exige_endereco: v }) }} />
+                      </div>
+
+                      <div style={DIV_HR} />
+
+                      <div className="flex flex-col gap-3">
+                        <p style={LBL9}>Prova em casa</p>
+                        <div style={DIV_HR} />
+                        <Row label="CPF"      badge={<span style={BADGE_PRE}>pré-configurado</span>} on={provaExigeCpf}      onChange={v => { setProvaExigeCpf(v);      saveCadastro({ prova_exige_cpf: v })      }} />
+                        <div style={DIV_HR} />
+                        <Row label="E-mail"   on={provaExigeEmail}    onChange={v => { setProvaExigeEmail(v);    saveCadastro({ prova_exige_email: v })    }} />
+                        <div style={DIV_HR} />
+                        <Row label="Endereço" badge={<span style={BADGE_PRE}>pré-configurado</span>} on={provaExigeEndereco} onChange={v => { setProvaExigeEndereco(v); saveCadastro({ prova_exige_endereco: v }) }} />
+                      </div>
+
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* ── Sessão ───────────────────────────────────────────── */}
               {secao === 'sessao' && (
                 <div className="flex flex-col gap-4" style={{ maxWidth: '400px' }}>
@@ -1217,6 +1342,7 @@ export default function ConfigSistemaPage() {
               { key: 'atalhos'    as const, label: 'Atalhos do caixa',  Icon: Keyboard    },
               { key: 'cashback'   as const, label: 'Cashback',          Icon: Gift        },
               { key: 'sessao'     as const, label: 'Sessão',            Icon: Timer       },
+              { key: 'cadastro'   as const, label: 'Cadastro',          Icon: Users       },
             ] satisfies { key: Secao; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => {
               const sel = secao === key
               return (

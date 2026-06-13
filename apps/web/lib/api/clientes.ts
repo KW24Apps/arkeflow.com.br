@@ -53,3 +53,20 @@ export const clientesApi = {
   remove: (id: string) =>
     api.delete(`/clientes/${id}`),
 }
+
+export async function getCadastroCfg(): Promise<{
+  exige_cpf: boolean
+  exige_email: boolean
+  exige_endereco: boolean
+  crediario_exige_email: boolean
+  crediario_exige_endereco: boolean
+}> {
+  const { data } = await api.get('/dados-loja/sistema')
+  return {
+    exige_cpf:                data.cadastro_exige_cpf       ?? false,
+    exige_email:              data.cadastro_exige_email      ?? false,
+    exige_endereco:           data.cadastro_exige_endereco   ?? false,
+    crediario_exige_email:    data.crediario_exige_email     ?? true,
+    crediario_exige_endereco: data.crediario_exige_endereco  ?? true,
+  }
+}

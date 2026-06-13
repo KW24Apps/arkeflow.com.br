@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
-import { clientesApi } from '@/lib/api/clientes'
+import { clientesApi, getCadastroCfg } from '@/lib/api/clientes'
 import { cashbackApi, type RegraCashback } from '@/lib/api/cashback'
 
 const CARD = {
@@ -100,12 +100,14 @@ export default function NovoClientePage() {
   const [cidade,      setCidade]      = useState('')
   const [estado,      setEstado]      = useState('')
 
-  const [buscandoCnpj, setBuscandoCnpj] = useState(false)
-  const [buscandoCep,  setBuscandoCep]  = useState(false)
-  const [loading,      setLoading]      = useState(false)
-  const [erro,         setErro]         = useState('')
+  const [buscandoCnpj,  setBuscandoCnpj]  = useState(false)
+  const [buscandoCep,   setBuscandoCep]   = useState(false)
+  const [loading,       setLoading]       = useState(false)
+  const [erro,          setErro]          = useState('')
+  const [cadastroCfg,   setCadastroCfg]   = useState<Awaited<ReturnType<typeof getCadastroCfg>> | null>(null)
 
   useEffect(() => {
+    getCadastroCfg().then(setCadastroCfg).catch(() => {})
     cashbackApi.list().then(rs => {
       setRegras(rs)
       const padrao = rs.find(r => r.padrao)
@@ -156,6 +158,9 @@ export default function NovoClientePage() {
   async function handleSalvar(goToList: boolean) {
     setErro('')
     if (!nome.trim()) { setErro('Nome é obrigatório.'); return }
+    if (cadastroCfg?.exige_cpf      && !cpf.trim())                          { setErro('CPF é obrigatório conforme configuração da loja.'); return }
+    if (cadastroCfg?.exige_email    && !emails.find((e: string) => e.trim())) { setErro('E-mail é obrigatório conforme configuração da loja.'); return }
+    if (cadastroCfg?.exige_endereco && !cep.trim())                           { setErro('Endereço (CEP) é obrigatório conforme configuração da loja.'); return }
     setLoading(true)
     try {
       const c = await clientesApi.create({

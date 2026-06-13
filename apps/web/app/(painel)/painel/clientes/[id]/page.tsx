@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { clientesApi, type Cliente, type VendaHistorico } from '@/lib/api/clientes'
+import { clientesApi, getCadastroCfg, type Cliente, type VendaHistorico } from '@/lib/api/clientes'
 import { cashbackApi, type RegraCashback } from '@/lib/api/cashback'
 import { catalogosApi, type ItemCatalogo } from '@/lib/api/catalogos'
 import { api } from '@/lib/api/client'
@@ -148,6 +148,7 @@ export default function ClienteDetalhe() {
   const [creditoLiberado, setCreditoLiberado] = useState(false)
   const [limiteCredito,   setLimiteCredito]   = useState('')
   const [creditoSaldo,    setCreditoSaldo]    = useState({ ocupado: 0, disponivel: 0 })
+  const [cadastroCfg,     setCadastroCfg]     = useState<Awaited<ReturnType<typeof getCadastroCfg>> | null>(null)
 
   // Medidas
   const [medidasDisponiveis, setMedidasDisponiveis] = useState<ItemCatalogo[]>([])
@@ -156,6 +157,10 @@ export default function ClienteDetalhe() {
   const [novaMedNome,        setNovaMedNome]        = useState('')
   const [novaMedValor,       setNovaMedValor]       = useState('')
   const [salvandoMed,        setSalvandoMed]        = useState(false)
+
+  useEffect(() => {
+    getCadastroCfg().then(setCadastroCfg).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     Promise.all([
@@ -240,9 +245,10 @@ export default function ClienteDetalhe() {
   }
 
   async function handleSalvar(goToList = false) {
-    if (creditoLiberado && (!cpf || !logradouro || !numero || !bairro || !cidade || !estado)) {
-      alert('Para liberar crédito, preencha CPF e endereço completo (logradouro, número, bairro, cidade, estado).')
-      return
+    if (creditoLiberado) {
+      if (!cpf.trim()) { setErroSalvar('CPF é obrigatório para crediário.'); return }
+      if (cadastroCfg?.crediario_exige_email && !emails.find((e: string) => e.trim())) { setErroSalvar('E-mail é obrigatório para crediário conforme configuração da loja.'); return }
+      if (cadastroCfg?.crediario_exige_endereco && (!logradouro || !numero || !bairro || !cidade || !estado)) { setErroSalvar('Endereço completo é obrigatório para crediário conforme configuração da loja.'); return }
     }
     setSalvando(true); setErroSalvar(null)
     try {
