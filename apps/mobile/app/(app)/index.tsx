@@ -15,6 +15,18 @@ if (Platform.OS === 'android') {
 
 const CARD_SIZE = 148
 
+type MenuItem = {
+  id: string
+  label: string
+  icon: keyof typeof Ionicons.glyphMap
+  expandable: boolean
+}
+
+const MENU_ITEMS: MenuItem[] = [
+  { id: 'vendas', label: 'Vendas', icon: 'bag-handle-outline', expandable: true },
+  { id: 'clientes', label: 'Clientes', icon: 'people-outline', expandable: false },
+]
+
 export default function HomeScreen() {
   const router = useRouter()
   const { usuario, logout } = useAuthStore()
@@ -34,6 +46,129 @@ export default function HomeScreen() {
     setDropdownOpen(false)
     await logout()
     router.replace('/(auth)/login')
+  }
+
+  function isOpen(id: string) {
+    if (id === 'vendas') return vendaOpen
+    return false
+  }
+
+  function handleItemPress(item: MenuItem) {
+    if (item.id === 'vendas')   { toggleVendas(); return }
+    if (item.id === 'clientes') { router.push('/(app)/clientes'); return }
+    Alert.alert('Em breve', `Módulo de ${item.label.toLowerCase()} chegando em breve.`)
+  }
+
+  function renderExpandedContent(id: string) {
+    if (id === 'vendas') {
+      return (
+        <View style={styles.expandedFace}>
+          <TouchableOpacity
+            style={styles.vendasHeader}
+            onPress={toggleVendas}
+            activeOpacity={0.8}
+          >
+            <View style={styles.vendasHeaderLeft}>
+              <Ionicons name="bag-handle-outline" size={20} color={theme.colors.accent} />
+              <Text style={styles.vendasHeaderLabel}>VENDAS</Text>
+            </View>
+            <Ionicons name="chevron-up" size={18} color={theme.colors.accent} />
+          </TouchableOpacity>
+
+          <View style={styles.subGrid}>
+            <TouchableOpacity
+              style={styles.subCard}
+              onPress={() => router.push('/(app)/vendas/sacolas')}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="layers-outline" size={22} color={theme.colors.accent} />
+              <Text style={styles.subLabel} numberOfLines={1}>Sacolas</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.subCard}
+              onPress={() => Alert.alert('Em breve', 'Módulo de provas chegando em breve.')}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="shirt-outline" size={22} color={theme.colors.textMuted} />
+              <Text style={[styles.subLabel, styles.subLabelDim]} numberOfLines={1}>Provas</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.subCard}
+              onPress={() => Alert.alert('Em breve', 'Módulo de relatórios chegando em breve.')}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="bar-chart-outline" size={22} color={theme.colors.textMuted} />
+              <Text style={[styles.subLabel, styles.subLabelDim]} numberOfLines={1}>Relatório</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )
+    }
+    return null
+  }
+
+  function renderCard(item: MenuItem) {
+    const open = isOpen(item.id)
+    if (item.expandable) {
+      return (
+        <View
+          key={item.id}
+          style={[styles.vendasCard, open ? styles.vendasCardOpen : styles.vendasCardClosed]}
+        >
+          {open ? renderExpandedContent(item.id) : (
+            <TouchableOpacity
+              style={styles.collapsedFace}
+              onPress={() => handleItemPress(item)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name={item.icon} size={32} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.cardLabel}>{item.label}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )
+    }
+
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={[styles.card, { flex: 1, width: undefined }]}
+        onPress={() => handleItemPress(item)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name={item.icon} size={32} color="rgba(255,255,255,0.5)" />
+        <Text style={styles.cardLabel}>{item.label}</Text>
+      </TouchableOpacity>
+    )
+  }
+
+  function renderGrid() {
+    const rows = []
+    let i = 0
+    while (i < MENU_ITEMS.length) {
+      const item = MENU_ITEMS[i]
+      if (item.expandable && isOpen(item.id)) {
+        rows.push(
+          <View key={item.id} style={styles.gridRowExpanded}>
+            {renderCard(item)}
+          </View>
+        )
+        i++
+      } else {
+        const next = MENU_ITEMS[i + 1]
+        const takePair = next != null && !(next.expandable && isOpen(next.id))
+        const pair = takePair ? [item, next] : [item]
+        rows.push(
+          <View key={pair.map(p => p.id).join('-')} style={styles.gridRowCollapsed}>
+            {pair.map(p => renderCard(p))}
+          </View>
+        )
+        i += pair.length
+      }
+    }
+    return rows
   }
 
   return (
@@ -72,96 +207,11 @@ export default function HomeScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionLabel}>O que vamos fazer hoje?</Text>
-
         <View style={styles.grid}>
-
-          {/* Row 1: Vendas — collapsed or expanded full width */}
-          <View style={vendaOpen ? styles.gridRowExpanded : styles.gridRowCollapsed}>
-            <View style={[
-              styles.vendasCard,
-              vendaOpen ? styles.vendasCardOpen : styles.vendasCardClosed,
-            ]}>
-              {vendaOpen ? (
-                <View style={styles.expandedFace}>
-                  <TouchableOpacity
-                    style={styles.vendasHeader}
-                    onPress={toggleVendas}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.vendasHeaderLeft}>
-                      <Ionicons name="bag-handle-outline" size={20} color={theme.colors.accent} />
-                      <Text style={styles.vendasHeaderLabel}>VENDAS</Text>
-                    </View>
-                    <Ionicons name="chevron-up" size={18} color={theme.colors.accent} />
-                  </TouchableOpacity>
-
-                  <View style={styles.subGrid}>
-                    <TouchableOpacity
-                      style={styles.subCard}
-                      onPress={() => router.push('/(app)/vendas/sacolas')}
-                      activeOpacity={0.75}
-                    >
-                      <Ionicons name="layers-outline" size={22} color={theme.colors.accent} />
-                      <Text style={styles.subLabel} numberOfLines={1}>Sacolas</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.subCard}
-                      onPress={() => Alert.alert('Em breve', 'Módulo de provas chegando em breve.')}
-                      activeOpacity={0.75}
-                    >
-                      <Ionicons name="shirt-outline" size={22} color={theme.colors.textMuted} />
-                      <Text style={[styles.subLabel, styles.subLabelDim]} numberOfLines={1}>Provas</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.subCard}
-                      onPress={() => Alert.alert('Em breve', 'Módulo de relatórios chegando em breve.')}
-                      activeOpacity={0.75}
-                    >
-                      <Ionicons name="bar-chart-outline" size={22} color={theme.colors.textMuted} />
-                      <Text style={[styles.subLabel, styles.subLabelDim]} numberOfLines={1}>Relatório</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.collapsedFace}
-                  onPress={toggleVendas}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="bag-handle-outline" size={32} color="rgba(255,255,255,0.5)" />
-                  <Text style={styles.cardLabel}>Vendas</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {/* Row 2: Clientes + Suporte — always side by side */}
-          <View style={styles.gridRowCollapsed}>
-            <TouchableOpacity
-              style={[styles.card, { flex: 1, width: undefined }]}
-              onPress={() => Alert.alert('Em breve', 'Módulo de clientes chegando em breve.')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="people-outline" size={32} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.cardLabel}>Clientes</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.card, { flex: 1, width: undefined }]}
-              onPress={() => Alert.alert('Em breve', 'Módulo de suporte chegando em breve.')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="headset-outline" size={32} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.cardLabel}>Suporte</Text>
-            </TouchableOpacity>
-          </View>
-
+          {renderGrid()}
         </View>
       </ScrollView>
 
-      {/* Overlay — captures outside tap to close dropdown */}
       {dropdownOpen && (
         <TouchableOpacity
           style={[styles.overlay, { top: topBarH }]}
@@ -170,7 +220,6 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* User dropdown card */}
       {dropdownOpen && (
         <View style={[styles.dropdown, { top: topBarH + 8 }]}>
           <Text style={styles.dropName}>{usuario?.nome ?? '—'}</Text>
