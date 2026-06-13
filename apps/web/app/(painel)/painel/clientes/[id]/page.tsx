@@ -245,9 +245,21 @@ export default function ClienteDetalhe() {
   }
 
   async function handleSalvar(goToList = false) {
-    console.log('cadastroCfg:', cadastroCfg, 'cpf:', cpf)
+    if (cadastroCfg?.exige_cpf === true) {
+      if (!cpf.trim()) { setErroSalvar('CPF é obrigatório conforme configuração da loja.'); return }
+      if (!validateCPF(cpf)) { setErroSalvar('CPF inválido.'); return }
+    }
+    if (cadastroCfg?.exige_email === true && !emails.find((e: string) => e.trim())) {
+      setErroSalvar('E-mail é obrigatório conforme configuração da loja.')
+      return
+    }
+    if (cadastroCfg?.exige_endereco === true && !cep.trim()) {
+      setErroSalvar('Endereço (CEP) é obrigatório conforme configuração da loja.')
+      return
+    }
     if (creditoLiberado) {
       if (!cpf.trim()) { setErroSalvar('CPF é obrigatório para crediário.'); return }
+      if (!validateCPF(cpf)) { setErroSalvar('CPF inválido.'); return }
       if (cadastroCfg?.crediario_exige_email === true && !emails.find((e: string) => e.trim())) { setErroSalvar('E-mail é obrigatório para crediário conforme configuração da loja.'); return }
       if (cadastroCfg?.crediario_exige_endereco === true && (!logradouro || !numero || !bairro || !cidade || !estado)) { setErroSalvar('Endereço completo é obrigatório para crediário conforme configuração da loja.'); return }
     }
