@@ -159,7 +159,7 @@ export default function ClienteDetalhe() {
   const [salvandoMed,        setSalvandoMed]        = useState(false)
 
   useEffect(() => {
-    getCadastroCfg().then(setCadastroCfg).catch(() => {})
+    getCadastroCfg().then(setCadastroCfg).catch(console.error)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -245,10 +245,11 @@ export default function ClienteDetalhe() {
   }
 
   async function handleSalvar(goToList = false) {
+    console.log('cadastroCfg:', cadastroCfg, 'cpf:', cpf)
     if (creditoLiberado) {
       if (!cpf.trim()) { setErroSalvar('CPF é obrigatório para crediário.'); return }
-      if (cadastroCfg?.crediario_exige_email && !emails.find((e: string) => e.trim())) { setErroSalvar('E-mail é obrigatório para crediário conforme configuração da loja.'); return }
-      if (cadastroCfg?.crediario_exige_endereco && (!logradouro || !numero || !bairro || !cidade || !estado)) { setErroSalvar('Endereço completo é obrigatório para crediário conforme configuração da loja.'); return }
+      if (cadastroCfg?.crediario_exige_email === true && !emails.find((e: string) => e.trim())) { setErroSalvar('E-mail é obrigatório para crediário conforme configuração da loja.'); return }
+      if (cadastroCfg?.crediario_exige_endereco === true && (!logradouro || !numero || !bairro || !cidade || !estado)) { setErroSalvar('Endereço completo é obrigatório para crediário conforme configuração da loja.'); return }
     }
     setSalvando(true); setErroSalvar(null)
     try {
