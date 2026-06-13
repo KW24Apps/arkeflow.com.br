@@ -50,4 +50,7 @@ export const sacolasApi = {
 
   cancelar: (id: string) =>
     api.put<Sacola>(`/sacolas/${id}/cancelar`).then(r => r.data),
+
+  update: (id: string, data: { itens: SacolaItem[] }) =>
+    api.put<Sacola>(`/sacolas/${id}`, data).then(r => r.data),
 }
