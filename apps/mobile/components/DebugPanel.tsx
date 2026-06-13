@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native'
 
 const debugLogs: string[] = []
-const subscribers = new Set<() => void>()
+const subscribers = new Set<(logs: string[]) => void>()
 
 export function addDebugLog(
   message: string,
@@ -10,17 +10,22 @@ export function addDebugLog(
 ) {
   const ts = new Date().toISOString().slice(11, 19)
   debugLogs.push(`${ts} [${category}] ${message}`)
-  subscribers.forEach(fn => fn())
+  subscribers.forEach(fn => fn([...debugLogs]))
+}
+
+function subscribe(fn: (logs: string[]) => void) {
+  subscribers.add(fn)
+  return () => { subscribers.delete(fn) }
 }
 
 function useDebugLogs() {
-  const [, rerender] = useState(0)
+  const [logs, setLogs] = useState<string[]>([])
   useEffect(() => {
-    const fn = () => rerender(n => n + 1)
-    subscribers.add(fn)
-    return () => { subscribers.delete(fn) }
+    setLogs([...debugLogs])
+    const unsub = subscribe((newLogs) => setLogs(newLogs))
+    return unsub
   }, [])
-  return [...debugLogs].reverse()
+  return [...logs].reverse()
 }
 
 export function DebugPanel() {
@@ -29,7 +34,7 @@ export function DebugPanel() {
 
   function clearLogs() {
     debugLogs.length = 0
-    subscribers.forEach(fn => fn())
+    subscribers.forEach(fn => fn([]))
   }
 
   return (

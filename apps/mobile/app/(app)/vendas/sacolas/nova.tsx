@@ -2,14 +2,15 @@ import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { theme } from '../../../../constants/theme'
-import { clientesApi, type ClienteSimples } from '../../../../lib/api/clientes'
+import { clientesApi, getCadastroCfg, type ClienteSimples } from '../../../../lib/api/clientes'
 import { produtosApi, type ProdutoSimples, type VersaoProduto } from '../../../../lib/api/produtos'
 import { sacolasApi, type SacolaItem } from '../../../../lib/api/sacolas'
+import { addDebugLog } from '../../../../components/DebugPanel'
 
 function fmtR(v: number) {
   return `R$ ${v.toFixed(2).replace('.', ',')}`
@@ -18,6 +19,8 @@ function fmtR(v: number) {
 function fmtAtrib(a: Record<string, string>) {
   return Object.values(a).join(' / ')
 }
+
+type CadastroCfg = { exige_cpf: boolean; exige_email: boolean; exige_endereco: boolean }
 
 export default function NovaSacolaScreen() {
   const router = useRouter()
@@ -30,27 +33,45 @@ export default function NovaSacolaScreen() {
   const [busca,       setBusca]       = useState('')
   const [resultados,  setResultados]  = useState<ClienteSimples[]>([])
   const [buscando,    setBuscando]    = useState(false)
-  const [criando,     setCriando]     = useState(false)
+
+  // Inline create form
+  const [showCriarForm,  setShowCriarForm]  = useState(false)
+  const [criarNome,      setCriarNome]      = useState('')
+  const [criarTelefone,  setCriarTelefone]  = useState('')
+  const [criarCpf,       setCriarCpf]       = useState('')
+  const [criarEmail,     setCriarEmail]     = useState('')
+  const [erroFormCriar,  setErroFormCriar]  = useState('')
+  const [criando,        setCriando]        = useState(false)
+
+  // Store config
+  const [cadastroCfg, setCadastroCfg] = useState<CadastroCfg | null>(null)
 
   // Step 2 — products
-  const [itens,               setItens]               = useState<SacolaItem[]>([])
-  const [buscaProduto,        setBuscaProduto]        = useState('')
-  const [resultadosProdutos,  setResultadosProdutos]  = useState<ProdutoSimples[]>([])
-  const [buscandoProduto,     setBuscandoProduto]     = useState(false)
-  const [versaoSeletor,       setVersaoSeletor]       = useState<ProdutoSimples | null>(null)
-  const [salvando,            setSalvando]            = useState(false)
-  const [erro,                setErro]                = useState('')
+  const [itens,              setItens]              = useState<SacolaItem[]>([])
+  const [buscaProduto,       setBuscaProduto]       = useState('')
+  const [resultadosProdutos, setResultadosProdutos] = useState<ProdutoSimples[]>([])
+  const [buscandoProduto,    setBuscandoProduto]    = useState(false)
+  const [versaoSeletor,      setVersaoSeletor]      = useState<ProdutoSimples | null>(null)
+  const [salvando,           setSalvando]           = useState(false)
+  const [erro,               setErro]               = useState('')
 
   const debounceCliente = useRef<ReturnType<typeof setTimeout> | null>(null)
   const debounceProduto = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    addDebugLog('nova sacola aberta', 'NAV')
+    getCadastroCfg().then(setCadastroCfg).catch(console.error)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Step 1: client search ─────────────────────────────────────────────────
 
   function onBuscaChange(q: string) {
     setBusca(q)
+    setShowCriarForm(false)
     if (debounceCliente.current) clearTimeout(debounceCliente.current)
     if (!q.trim()) { setResultados([]); return }
     debounceCliente.current = setTimeout(async () => {
+      addDebugLog(`buscar cliente: "${q.trim()}"`, 'API')
       setBuscando(true)
       try { setResultados(await clientesApi.buscar(q.trim())) }
       catch { setResultados([]) }
@@ -58,16 +79,34 @@ export default function NovaSacolaScreen() {
     }, 400)
   }
 
-  async function handleCriarCliente() {
-    if (!busca.trim() || criando) return
-    setCriando(true)
+  function openCriarForm() {
+    setCriarNome(busca.trim())
+    setCriarTelefone('')
+    setCriarCpf('')
+    setCriarEmail('')
+    setErroFormCriar('')
+    setShowCriarForm(true)
+  }
+
+  async function handleSubmitCriarCliente() {
+    if (!criarNome.trim()) { setErroFormCriar('Nome é obrigatório.'); return }
+    if (cadastroCfg?.exige_cpf && !criarCpf.trim()) { setErroFormCriar('CPF é obrigatório conforme configuração da loja.'); return }
+    if (cadastroCfg?.exige_email && !criarEmail.trim()) { setErroFormCriar('E-mail é obrigatório conforme configuração da loja.'); return }
+    if (criando) return
+    setCriando(true); setErroFormCriar('')
     try {
-      const c = await clientesApi.criar({ nome: busca.trim() })
+      const c = await clientesApi.criar({
+        nome:     criarNome.trim(),
+        telefone: criarTelefone.trim() || null,
+        cpf:      criarCpf.trim()      || null,
+        email:    criarEmail.trim()    || null,
+      })
       setClienteId(c.id)
       setClienteNome(c.nome)
+      setShowCriarForm(false)
       setStep(2)
     } catch {
-      // user can retry
+      setErroFormCriar('Erro ao criar cliente. Tente novamente.')
     } finally {
       setCriando(false)
     }
@@ -93,10 +132,17 @@ export default function NovaSacolaScreen() {
     if (debounceProduto.current) clearTimeout(debounceProduto.current)
     if (!q.trim()) { setResultadosProdutos([]); return }
     debounceProduto.current = setTimeout(async () => {
+      addDebugLog(`buscar produto: "${q.trim()}"`, 'API')
       setBuscandoProduto(true)
-      try { setResultadosProdutos(await produtosApi.buscar(q.trim())) }
-      catch { setResultadosProdutos([]) }
-      finally { setBuscandoProduto(false) }
+      try {
+        const res = await produtosApi.buscar(q.trim())
+        setResultadosProdutos(Array.isArray(res) ? res : [])
+      } catch (e) {
+        addDebugLog(`buscar produto erro: ${String(e)}`, 'ERROR')
+        setResultadosProdutos([])
+      } finally {
+        setBuscandoProduto(false)
+      }
     }, 400)
   }
 
@@ -152,6 +198,7 @@ export default function NovaSacolaScreen() {
 
   async function handleSalvar() {
     if (itens.length === 0 || salvando) return
+    addDebugLog(`salvar sacola: ${itens.length} itens`, 'API')
     setSalvando(true); setErro('')
     try {
       await sacolasApi.create({
@@ -199,7 +246,9 @@ export default function NovaSacolaScreen() {
             <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 20 }} />
           ) : (
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 100 }}>
-              {resultados.map((c, idx) => (
+
+              {/* Results — hidden when criar form is open */}
+              {!showCriarForm && resultados.map((c, idx) => (
                 <TouchableOpacity
                   key={c.id}
                   style={[styles.resultRow, idx > 0 && styles.resultSep]}
@@ -214,16 +263,83 @@ export default function NovaSacolaScreen() {
               ))}
 
               {busca.trim() ? (
-                <TouchableOpacity
-                  style={[styles.criarBtn, resultados.length > 0 && { marginTop: 12 }]}
-                  onPress={handleCriarCliente}
-                  disabled={criando}
-                >
-                  {criando
-                    ? <ActivityIndicator size="small" color={theme.colors.accent} />
-                    : <Text style={styles.criarText}>+ Criar cliente "{busca.trim()}"</Text>
-                  }
-                </TouchableOpacity>
+                showCriarForm ? (
+                  /* ── Inline create form ── */
+                  <View style={styles.criarForm}>
+                    <Text style={styles.criarFormTitle}>Novo cliente</Text>
+
+                    <TextInput
+                      style={styles.input}
+                      value={criarNome}
+                      onChangeText={setCriarNome}
+                      placeholder="Nome *"
+                      placeholderTextColor={theme.colors.textFaint}
+                      returnKeyType="next"
+                    />
+                    <TextInput
+                      style={[styles.input, { marginTop: 8 }]}
+                      value={criarTelefone}
+                      onChangeText={setCriarTelefone}
+                      placeholder="Telefone"
+                      placeholderTextColor={theme.colors.textFaint}
+                      keyboardType="phone-pad"
+                      returnKeyType="next"
+                    />
+                    {cadastroCfg?.exige_cpf && (
+                      <TextInput
+                        style={[styles.input, { marginTop: 8 }]}
+                        value={criarCpf}
+                        onChangeText={setCriarCpf}
+                        placeholder="CPF *"
+                        placeholderTextColor={theme.colors.textFaint}
+                        keyboardType="numeric"
+                        returnKeyType="next"
+                      />
+                    )}
+                    {cadastroCfg?.exige_email && (
+                      <TextInput
+                        style={[styles.input, { marginTop: 8 }]}
+                        value={criarEmail}
+                        onChangeText={setCriarEmail}
+                        placeholder="E-mail *"
+                        placeholderTextColor={theme.colors.textFaint}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        returnKeyType="done"
+                      />
+                    )}
+
+                    {erroFormCriar ? (
+                      <Text style={styles.erroText}>{erroFormCriar}</Text>
+                    ) : null}
+
+                    <TouchableOpacity
+                      style={[styles.salvarBtn, { marginTop: 14 }, criando && styles.salvarBtnDisabled]}
+                      onPress={handleSubmitCriarCliente}
+                      disabled={criando}
+                      activeOpacity={0.8}
+                    >
+                      {criando
+                        ? <ActivityIndicator size="small" color="#0a0a1a" />
+                        : <Text style={styles.salvarText}>Salvar cliente</Text>
+                      }
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setShowCriarForm(false)}
+                      style={{ alignItems: 'center', marginTop: 10 }}
+                    >
+                      <Text style={styles.versaoCancelar}>Cancelar</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  /* ── "Criar" trigger button ── */
+                  <TouchableOpacity
+                    style={[styles.criarBtn, resultados.length > 0 && { marginTop: 12 }]}
+                    onPress={openCriarForm}
+                  >
+                    <Text style={styles.criarText}>+ Criar cliente "{busca.trim()}"</Text>
+                  </TouchableOpacity>
+                )
               ) : (
                 <TouchableOpacity
                   style={styles.resultRow}
@@ -243,6 +359,11 @@ export default function NovaSacolaScreen() {
   }
 
   // ── STEP 2 ────────────────────────────────────────────────────────────────
+
+  // Guard: filter malformed results before rendering to prevent white screen
+  const produtosValidos = resultadosProdutos.filter(
+    p => p && p.id && Array.isArray(p.versoes)
+  )
 
   return (
     <LinearGradient colors={[theme.colors.bgGradientTop, theme.colors.bgGradientBottom]} style={styles.gradient}>
@@ -324,13 +445,13 @@ export default function NovaSacolaScreen() {
 
           {/* Product search */}
           <View style={styles.prodSearchArea}>
-            {resultadosProdutos.length > 0 && (
+            {produtosValidos.length > 0 && (
               <ScrollView
                 style={styles.prodResults}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
-                {resultadosProdutos.map((p, idx) => (
+                {produtosValidos.map((p, idx) => (
                   <TouchableOpacity
                     key={p.id}
                     style={[styles.resultRow, idx > 0 && styles.resultSep, { paddingHorizontal: 12 }]}
@@ -402,10 +523,10 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: theme.spacing.md,
   },
-  backBtn:   { padding: 4, marginRight: 8 },
-  title:     { flex: 1, fontSize: 20, fontWeight: '700', color: '#fff' },
-  trocarBtn: { paddingHorizontal: 8, paddingVertical: 4 },
-  trocarText:{ color: theme.colors.accent, fontSize: 12 },
+  backBtn:    { padding: 4, marginRight: 8 },
+  title:      { flex: 1, fontSize: 20, fontWeight: '700', color: '#fff' },
+  trocarBtn:  { paddingHorizontal: 8, paddingVertical: 4 },
+  trocarText: { color: theme.colors.accent, fontSize: 12 },
 
   // Input
   searchBox: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.sm },
@@ -420,7 +541,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 
-  // Result rows (shared step 1 + product results)
+  // Result rows
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -432,7 +553,7 @@ const styles = StyleSheet.create({
   resultNome: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   resultSub:  { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
 
-  // "Criar" button
+  // "Criar" trigger button
   criarBtn: {
     marginHorizontal: theme.spacing.lg,
     borderWidth: 1,
@@ -443,6 +564,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   criarText: { color: theme.colors.accent, fontSize: 14, fontWeight: '500' },
+
+  // Inline create form
+  criarForm: {
+    marginHorizontal: theme.spacing.lg,
+    marginTop: 8,
+    backgroundColor: 'rgba(0,200,255,0.05)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,200,255,0.2)',
+    borderRadius: theme.borderRadius.md,
+    padding: 16,
+  },
+  criarFormTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
 
   // Items
   itemsContent: { padding: theme.spacing.lg, paddingBottom: 8, gap: 0 },
@@ -514,6 +654,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: 6,
+    marginTop: 4,
   },
 
   // Bottom bar
