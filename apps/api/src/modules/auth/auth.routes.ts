@@ -17,12 +17,16 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.send({ ok: true })
   })
 
-  // Registra saída e invalida sessão
+  // Registra saída e invalida sessão da plataforma atual
   app.post('/logout', { preHandler: authMiddleware }, async (req, reply) => {
     const user = req.user as JwtPayload
+    const isWeb = user.plataforma === 'web' || user.plataforma === 'desktop'
+    const clearCol = isWeb
+      ? 'sessao_web = NULL, sessao_web_ip = NULL, sessao_web_em = NULL'
+      : 'sessao_mobile = NULL, sessao_mobile_ip = NULL, sessao_mobile_em = NULL'
     await Promise.all([
       platformPool.query(
-        `UPDATE usuarios SET sessao_atual = NULL, sessao_ip = NULL WHERE id = $1`,
+        `UPDATE usuarios SET ${clearCol} WHERE id = $1`,
         [user.id]
       ),
       platformPool.query(

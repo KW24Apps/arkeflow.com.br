@@ -4,12 +4,6 @@ import { platformPool, getTenantPool } from '../../config/database'
 import { AppError } from '../../core/errors/AppError'
 import type { JwtPayload } from '@arkeflow/shared'
 
-function conflitaPlataforma(atual: string, entrando: string): boolean {
-  if (entrando === 'mobile') return atual === 'mobile'
-  // web e desktop conflitam entre si, mas não com mobile
-  return atual === 'web' || atual === 'desktop'
-}
-
 export async function login(
   email: string, senha: string, ip?: string, forcar?: boolean,
   plataforma: 'web' | 'mobile' | 'desktop' = 'web',
@@ -18,7 +12,9 @@ export async function login(
   const { rows } = await platformPool.query(
     `SELECT u.id, u.nome, u.email, u.username, u.senha_hash, u.nivel, u.loja_id,
             u.dias_semana, u.hora_inicio, u.hora_fim,
-            u.sessao_atual, u.sessao_ip, u.sessao_em, u.sessao_plataforma, u.ultimo_acesso,
+            u.sessao_web, u.sessao_web_ip, u.sessao_web_em,
+            u.sessao_mobile, u.sessao_mobile_ip, u.sessao_mobile_em,
+            u.ultimo_acesso,
             COALESCE(mp.permissoes, u.permissoes, '[]'::jsonb) AS permissoes
      FROM usuarios u
      LEFT JOIN modelos_permissao mp ON mp.id = u.modelo_permissao_id
@@ -69,40 +65,38 @@ export async function login(
     inatividadeMinutos = cfg?.inatividade_minutos ?? 360
   }
 
+  const isWeb = plataforma === 'web' || plataforma === 'desktop'
+  const sessaoAtualSid = isWeb ? (usuario.sessao_web  ?? null) : (usuario.sessao_mobile  ?? null)
+  const sessaoAtualIp  = isWeb ? (usuario.sessao_web_ip ?? null) : (usuario.sessao_mobile_ip ?? null)
+  const sessaoAtualEm  = isWeb ? (usuario.sessao_web_em ?? null) : (usuario.sessao_mobile_em ?? null)
   const ultimoAcesso: Date | null = usuario.ultimo_acesso ?? null
-  const sessaoPlataformaAtual = (usuario.sessao_plataforma as string) ?? 'web'
-  const mesmoDispositivo = currentSid != null && currentSid === usuario.sessao_atual
-  console.log('[AUTH] login check:', {
-    email,
-    plataforma,
-    sessaoPlataformaAtual: sessaoPlataformaAtual,
-    mesmoDispositivo,
-    ultimoAcesso: ultimoAcesso,
-    forcar,
-    conflita: usuario.sessao_atual !== null && ultimoAcesso !== null
-      ? conflitaPlataforma(sessaoPlataformaAtual, plataforma)
-      : 'n/a'
-  })
+  const mesmoDispositivo = currentSid != null && currentSid === sessaoAtualSid
+
   const sessaoAtiva =
-    usuario.sessao_atual !== null &&
+    sessaoAtualSid !== null &&
     ultimoAcesso !== null &&
-    (Date.now() - (ultimoAcesso as Date).getTime()) / 60000 <= inatividadeMinutos &&
-    conflitaPlataforma(sessaoPlataformaAtual, plataforma) &&
+    (Date.now() - ultimoAcesso.getTime()) / 60000 <= inatividadeMinutos &&
     !mesmoDispositivo
 
   if (sessaoAtiva && !forcar) {
     throw new AppError('Sessão ativa em outro dispositivo', 409, 'SESSAO_ATIVA', {
-      ip: usuario.sessao_ip,
-      em: usuario.sessao_em,
+      ip: sessaoAtualIp,
+      em: sessaoAtualEm,
     })
   }
 
-  // Cria nova sessão (sobrescreve qualquer sessão anterior)
   const sid = randomUUID()
-  await platformPool.query(
-    `UPDATE usuarios SET sessao_atual = $2, sessao_ip = $3, sessao_em = NOW(), ultimo_acesso = NOW(), sessao_plataforma = $4 WHERE id = $1`,
-    [usuario.id, sid, ip ?? null, plataforma]
-  )
+  if (isWeb) {
+    await platformPool.query(
+      `UPDATE usuarios SET sessao_web = $2, sessao_web_ip = $3, sessao_web_em = NOW(), ultimo_acesso = NOW() WHERE id = $1`,
+      [usuario.id, sid, ip ?? null]
+    )
+  } else {
+    await platformPool.query(
+      `UPDATE usuarios SET sessao_mobile = $2, sessao_mobile_ip = $3, sessao_mobile_em = NOW(), ultimo_acesso = NOW() WHERE id = $1`,
+      [usuario.id, sid, ip ?? null]
+    )
+  }
 
   await platformPool.query(
     `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo) VALUES ($1, $2, $3, 'login')`,
