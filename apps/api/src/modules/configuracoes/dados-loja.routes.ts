@@ -172,7 +172,12 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
       cashback_limite_modo, cashback_limite_percentual, cashback_carencia_dias, cashback_validade_meses,
       inatividade_minutos,
       senha_mestra,
+      cadastro_exige_cpf, cadastro_exige_email, cadastro_exige_endereco,
+      crediario_exige_email, crediario_exige_endereco,
+      prova_exige_cpf, prova_exige_email, prova_exige_endereco,
     } = req.body as any
+
+    console.log('PUT sistema body:', JSON.stringify(req.body))
 
     if (cashback_limite_modo !== undefined && !['livre', 'percentual'].includes(cashback_limite_modo)) {
       return reply.status(400).send({ error: 'cashback_limite_modo inválido.' })
@@ -237,7 +242,15 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     if (cashback_limite_percentual !== undefined) { val.push(cashback_limite_percentual);   upd.push(`cashback_limite_percentual = $${val.length}`) }
     if (cashback_carencia_dias !== undefined)     { val.push(cashback_carencia_dias);       upd.push(`cashback_carencia_dias = $${val.length}`) }
     if (cashback_validade_meses !== undefined)    { val.push(cashback_validade_meses);      upd.push(`cashback_validade_meses = $${val.length}`) }
-    if (inatividadeMinutosVal !== undefined)      { val.push(inatividadeMinutosVal);         upd.push(`inatividade_minutos = $${val.length}`) }
+    if (inatividadeMinutosVal !== undefined)          { val.push(inatividadeMinutosVal);          upd.push(`inatividade_minutos = $${val.length}`) }
+    if (cadastro_exige_cpf !== undefined)             { val.push(cadastro_exige_cpf);             upd.push(`cadastro_exige_cpf = $${val.length}`) }
+    if (cadastro_exige_email !== undefined)           { val.push(cadastro_exige_email);           upd.push(`cadastro_exige_email = $${val.length}`) }
+    if (cadastro_exige_endereco !== undefined)        { val.push(cadastro_exige_endereco);        upd.push(`cadastro_exige_endereco = $${val.length}`) }
+    if (crediario_exige_email !== undefined)          { val.push(crediario_exige_email);          upd.push(`crediario_exige_email = $${val.length}`) }
+    if (crediario_exige_endereco !== undefined)       { val.push(crediario_exige_endereco);       upd.push(`crediario_exige_endereco = $${val.length}`) }
+    if (prova_exige_cpf !== undefined)                { val.push(prova_exige_cpf);                upd.push(`prova_exige_cpf = $${val.length}`) }
+    if (prova_exige_email !== undefined)              { val.push(prova_exige_email);              upd.push(`prova_exige_email = $${val.length}`) }
+    if (prova_exige_endereco !== undefined)           { val.push(prova_exige_endereco);           upd.push(`prova_exige_endereco = $${val.length}`) }
     if (senha_mestra && typeof senha_mestra === 'string' && senha_mestra.trim()) {
       const hash = await bcrypt.hash(senha_mestra.trim(), 10)
       val.push(hash); upd.push(`senha_mestra_hash = $${val.length}`)
