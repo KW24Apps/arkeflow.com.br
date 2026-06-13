@@ -72,6 +72,17 @@ export async function login(
   const ultimoAcesso: Date | null = usuario.ultimo_acesso ?? null
   const sessaoPlataformaAtual = (usuario.sessao_plataforma as string) ?? 'web'
   const mesmoDispositivo = currentSid != null && currentSid === usuario.sessao_atual
+  console.log('[AUTH] login check:', {
+    email,
+    plataforma,
+    sessaoPlataformaAtual: sessaoPlataformaAtual,
+    mesmoDispositivo,
+    ultimoAcesso: ultimoAcesso,
+    forcar,
+    conflita: usuario.sessao_atual !== null && ultimoAcesso !== null
+      ? conflitaPlataforma(sessaoPlataformaAtual, plataforma)
+      : 'n/a'
+  })
   const sessaoAtiva =
     usuario.sessao_atual !== null &&
     ultimoAcesso !== null &&
