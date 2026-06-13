@@ -33,6 +33,8 @@ export async function configuracoesRoutes(app: FastifyInstance) {
     const pool = getTenantPoolFromRequest(req)
     const data = schema.parse(req.body)
 
+    console.log('PUT sistema body:', JSON.stringify(data))
+
     const keys   = Object.keys(data)
     const values = Object.values(data)
     const set    = keys.map((k, i) => `${k} = $${i + 1}`).join(', ')
