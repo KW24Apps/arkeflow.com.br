@@ -139,15 +139,22 @@ export async function vendasRoutes(app: FastifyInstance) {
         }
       }
 
+      // Vincula ao turno ativo do usuário
+      const { rows: [turnoAtivo] } = await client.query(
+        `SELECT id FROM turnos_caixa WHERE status = 'aberto' AND usuario_id = $1 LIMIT 1`,
+        [user.id]
+      )
+      const turno_id = turnoAtivo?.id ?? null
+
       // Cria venda
       const { rows: [venda] } = await client.query(
         `INSERT INTO vendas (cliente_id, usuario_id, subtotal, desconto_promocao,
            desconto_pagamento, cashback_usado, total, cashback_gerado, status,
-           vendedor_id, vendedor_nome)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'finalizada',$9,$10) RETURNING id`,
+           vendedor_id, vendedor_nome, turno_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'finalizada',$9,$10,$11) RETURNING id`,
         [data.cliente_id ?? null, user.id, subtotal, data.desconto_promocao,
          data.desconto_pagamento, data.cashback_usado, total, cashback_gerado,
-         data.vendedor_id ?? null, data.vendedor_nome ?? null]
+         data.vendedor_id ?? null, data.vendedor_nome ?? null, turno_id]
       )
       const venda_id = venda.id
 

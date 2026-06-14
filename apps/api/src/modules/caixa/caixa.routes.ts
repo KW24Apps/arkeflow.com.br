@@ -25,17 +25,13 @@ export async function caixaRoutes(app: FastifyInstance) {
       `SELECT t.*,
          COALESCE((
            SELECT SUM(v.total) FROM vendas v
-           WHERE v.usuario_id = t.usuario_id
+           WHERE v.turno_id = t.id
              AND v.status = 'finalizada'
-             AND v.criado_em >= t.aberto_em
-             AND (t.fechado_em IS NULL OR v.criado_em <= t.fechado_em)
          ), 0)::numeric AS total_vendas,
          COALESCE((
            SELECT COUNT(v.id)::int FROM vendas v
-           WHERE v.usuario_id = t.usuario_id
+           WHERE v.turno_id = t.id
              AND v.status = 'finalizada'
-             AND v.criado_em >= t.aberto_em
-             AND (t.fechado_em IS NULL OR v.criado_em <= t.fechado_em)
          ), 0)::int AS qtd_vendas,
          COALESCE((
            SELECT SUM(mv.valor) FROM movimentos_caixa mv
@@ -52,9 +48,7 @@ export async function caixaRoutes(app: FastifyInstance) {
            JOIN vendas v            ON v.id  = pv.venda_id
            WHERE fp.tipo = 'dinheiro'
              AND v.status = 'finalizada'
-             AND v.usuario_id = t.usuario_id
-             AND v.criado_em >= t.aberto_em
-             AND (t.fechado_em IS NULL OR v.criado_em <= t.fechado_em)
+             AND v.turno_id = t.id
          ), 0)::numeric AS vendas_dinheiro
        FROM turnos_caixa t
        WHERE t.status = 'aberto'
@@ -70,17 +64,13 @@ export async function caixaRoutes(app: FastifyInstance) {
         `SELECT t.*,
            COALESCE((
              SELECT SUM(v.total) FROM vendas v
-             WHERE v.usuario_id = t.usuario_id
+             WHERE v.turno_id = t.id
                AND v.status = 'finalizada'
-               AND v.criado_em >= t.aberto_em
-               AND v.criado_em <= t.fechado_em
            ), 0)::numeric AS total_vendas,
            COALESCE((
              SELECT COUNT(v.id)::int FROM vendas v
-             WHERE v.usuario_id = t.usuario_id
+             WHERE v.turno_id = t.id
                AND v.status = 'finalizada'
-               AND v.criado_em >= t.aberto_em
-               AND v.criado_em <= t.fechado_em
            ), 0)::int AS qtd_vendas
          FROM turnos_caixa t
          WHERE DATE(t.aberto_em) = CURRENT_DATE
@@ -151,10 +141,8 @@ export async function caixaRoutes(app: FastifyInstance) {
          JOIN vendas v            ON v.id  = pv.venda_id
          WHERE fp.tipo = 'dinheiro'
            AND v.status = 'finalizada'
-           AND v.usuario_id = $1
-           AND v.criado_em >= $2
-           AND v.criado_em <= NOW()`,
-        [turno.usuario_id, turno.aberto_em]
+           AND v.turno_id = $1`,
+        [turno.id]
       ),
       pool.query<{ suprimentos: string; sangrias: string }>(
         `SELECT
@@ -250,10 +238,8 @@ export async function caixaRoutes(app: FastifyInstance) {
            JOIN vendas v            ON v.id  = pv.venda_id
            WHERE fp.tipo = 'dinheiro'
              AND v.status = 'finalizada'
-             AND v.usuario_id = $1
-             AND v.criado_em >= $2
-             AND v.criado_em <= NOW()`,
-          [t.usuario_id, t.aberto_em]
+             AND v.turno_id = $1`,
+          [t.id]
         ),
         pool.query<{ suprimentos: string; sangrias: string }>(
           `SELECT
