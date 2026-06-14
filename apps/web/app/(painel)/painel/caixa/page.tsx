@@ -21,6 +21,7 @@ import { CustomerSearchModal } from '@/components/pdv/CustomerSearchModal'
 import { ClienteDadosModal } from '@/components/pdv/ClienteDadosModal'
 import { SalespersonSearchModal } from '@/components/pdv/SalespersonSearchModal'
 import { SacolasModal }           from '@/components/pdv/SacolasModal'
+import { ProvasModal }            from '@/components/pdv/ProvasModal'
 import type { Cliente } from '@/lib/api/clientes'
 import type { Colaborador } from '@/lib/api/colaboradores'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -160,6 +161,7 @@ export default function CaixaPage() {
   const vendedorDisplayNome = vendedor?.nome ?? (vendedorDaSacola ? vendedor_nome : null)
   const hasVendedor = !!vendedorDisplayNome
   const [modalSacolas,       setModalSacolas]       = useState(false)
+  const [modalProvas,        setModalProvas]        = useState(false)
   const [modalDadosCliente,  setModalDadosCliente]  = useState(false)
 
   const [modalMov,   setModalMov]    = useState<'sangria' | 'suprimento' | null>(null)
@@ -345,7 +347,7 @@ export default function CaixaPage() {
         cliente:     { action: abrirCliente,                                                                   enabled: true               },
         vendedor:    { action: () => setModalVendedor(true),                                                   enabled: true               },
         sacolas:     { action: () => setModalSacolas(true),                                                    enabled: true               },
-        provas:      { action: () => router.push('/painel/prova-em-casa'),                                     enabled: true               },
+        provas:      { action: () => setModalProvas(true),                                                      enabled: true               },
         sangria:     { action: () => { setValorMov(0); setMotivoMov(''); setModalMov('sangria') },             enabled: true               },
         suprimento:  { action: () => { setValorMov(0); setMotivoMov(''); setModalMov('suprimento') },          enabled: true               },
         fecharVenda: { action: () => setModalCheckout(true),                                                   enabled: itens.length > 0   },
@@ -382,6 +384,7 @@ export default function CaixaPage() {
       if (modalCliente)      { e.preventDefault(); setModalCliente(false); setClienteAutoAberto(false); setTimeout(() => focusScanSafe(), 100); return }
       if (modalVendedor)     { e.preventDefault(); setModalVendedor(false);     setTimeout(() => focusScanSafe(), 100); return }
       if (modalSacolas)      { e.preventDefault(); setModalSacolas(false);      setTimeout(() => focusScanSafe(), 100); return }
+      if (modalProvas)       { e.preventDefault(); setModalProvas(false);       setTimeout(() => focusScanSafe(), 100); return }
       if (modalDadosCliente) { e.preventDefault(); setModalDadosCliente(false); return }
       if (modalFechar)       { e.preventDefault(); setModalFechar(false);       return }
       if (modalMov)          { e.preventDefault(); closeModalMov();             setTimeout(() => focusScanSafe(), 100); return }
@@ -648,7 +651,7 @@ export default function CaixaPage() {
   const MOD_LABEL: React.CSSProperties = { fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '10px' }
 
   // Keep modalAbertoRef current on every render so setTimeout callbacks read live state
-  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || !!modalMov || modalFechar || modalDadosCliente || !!gateItem || !!gateFechar || avisoLimite || locked || confirmCancelVenda || gateCancelVenda
+  modalAbertoRef.current = modalBusca || modalCheckout || modalVariacao || modalCliente || modalVendedor || modalSacolas || modalProvas || !!modalMov || modalFechar || modalDadosCliente || !!gateItem || !!gateFechar || avisoLimite || locked || confirmCancelVenda || gateCancelVenda
 
   function focusScanSafe() {
     if (!modalAbertoRef.current) scanRef.current?.focus()
@@ -661,7 +664,7 @@ export default function CaixaPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '7px' }}>
         {([
           { key: 'sacolas',    icon: <ShoppingBag size={18} />, label: 'Sacolas',    onClick: () => setModalSacolas(true) },
-          { key: 'provas',     icon: <Home        size={18} />, label: 'Provas',     onClick: () => router.push('/painel/prova-em-casa') },
+          { key: 'provas',     icon: <Home        size={18} />, label: 'Provas',     onClick: () => setModalProvas(true) },
           { key: 'sangria',    icon: <ArrowUp     size={18} />, label: 'Sangria',    onClick: () => { setValorMov(0); setMotivoMov(''); setModalMov('sangria') } },
           { key: 'suprimento', icon: <ArrowDown   size={18} />, label: 'Suprimento', onClick: () => { setValorMov(0); setMotivoMov(''); setModalMov('suprimento') } },
         ] as const).map(btn => (
@@ -1283,6 +1286,12 @@ export default function CaixaPage() {
       <SacolasModal
         open={modalSacolas}
         onClose={() => { setModalSacolas(false); setTimeout(() => focusScanSafe(), 100) }}
+        onCarregada={() => setTimeout(() => focusScanSafe(), 100)}
+      />
+
+      <ProvasModal
+        open={modalProvas}
+        onClose={() => { setModalProvas(false); setTimeout(() => focusScanSafe(), 100) }}
         onCarregada={() => setTimeout(() => focusScanSafe(), 100)}
       />
 

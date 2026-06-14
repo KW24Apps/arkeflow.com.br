@@ -19,6 +19,7 @@ interface PDVStore {
   cliente_id:         string | null
   cliente_nome:       string | null
   sacola_id:          string | null  // remote bag this cart was loaded from
+  prova_id:           string | null  // prova em casa this cart was loaded from
   vendedor_id:        string | null
   vendedor_nome:      string | null
   clientePerguntado:  boolean        // persisted: modal asked once per sale
@@ -33,6 +34,8 @@ interface PDVStore {
   setClientePerguntado:  (v: boolean) => void
   // Loads a remote bag into the cart (replaces current cart)
   carregarSacola:(sacola_id: string, itens: SacolaItemRemoto[], cliente_id: string | null, cliente_nome: string | null, vendedor_id?: string | null, vendedor_nome?: string | null) => void
+  // Loads a prova em casa into the cart (non-devolvido items only)
+  carregarProva: (prova_id: string, itens: SacolaItemRemoto[], cliente_id: string | null, cliente_nome: string | null, vendedor_id?: string | null, vendedor_nome?: string | null) => void
   limpar:        () => void
 }
 
@@ -43,6 +46,7 @@ export const usePDVStore = create<PDVStore>()(
       cliente_id:        null,
       cliente_nome:      null,
       sacola_id:         null,
+      prova_id:          null,
       vendedor_id:       null,
       vendedor_nome:     null,
       clientePerguntado: false,
@@ -86,6 +90,7 @@ export const usePDVStore = create<PDVStore>()(
 
       carregarSacola: (sacola_id, itens, cliente_id, cliente_nome, vendedor_id = null, vendedor_nome = null) => set({
         sacola_id,
+        prova_id: null,
         cliente_id,
         cliente_nome,
         vendedor_id,
@@ -102,7 +107,26 @@ export const usePDVStore = create<PDVStore>()(
         })),
       }),
 
-      limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null, vendedor_id: null, vendedor_nome: null, clientePerguntado: false, vendedorDaSacola: false }),
+      carregarProva: (prova_id, itens, cliente_id, cliente_nome, vendedor_id = null, vendedor_nome = null) => set({
+        prova_id,
+        sacola_id: null,
+        cliente_id,
+        cliente_nome,
+        vendedor_id,
+        vendedor_nome,
+        vendedorDaSacola: vendedor_id != null,
+        itens: itens.map(i => ({
+          versao_id:      i.versao_id,
+          produto_id:     i.produto_id,
+          nome:           i.nome,
+          atributos:      i.atributos,
+          preco_unitario: i.preco_unitario,
+          quantidade:     i.quantidade,
+          codigo_barras:  i.codigo_barras ?? null,
+        })),
+      }),
+
+      limpar: () => set({ itens: [], cliente_id: null, cliente_nome: null, sacola_id: null, prova_id: null, vendedor_id: null, vendedor_nome: null, clientePerguntado: false, vendedorDaSacola: false }),
     }),
     {
       name: 'pdv-store',
@@ -112,6 +136,7 @@ export const usePDVStore = create<PDVStore>()(
         cliente_nome:      state.cliente_nome,
         clientePerguntado: state.clientePerguntado,
         sacola_id:         state.sacola_id,
+        prova_id:          state.prova_id,
       }),
     }
   )

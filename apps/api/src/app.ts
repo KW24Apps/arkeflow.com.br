@@ -21,6 +21,7 @@ import { promocoesRoutes }          from './modules/promocoes/promocoes.routes'
 import { vendasRoutes }             from './modules/vendas/vendas.routes'
 import { caixaRoutes }              from './modules/caixa/caixa.routes'
 import { sacolasRoutes }            from './modules/sacolas/sacolas.routes'
+import { provasRoutes }             from './modules/provas/provas.routes'
 import { fornecedoresRoutes }       from './modules/fornecedores/fornecedores.routes'
 import { autorizacoesRoutes }       from './modules/autorizacoes/autorizacoes.routes'
 import { relatoriosRoutes }         from './modules/relatorios/relatorios.routes'
@@ -52,6 +53,7 @@ export function buildApp() {
   app.register(vendasRoutes,           { prefix: '/vendas' })
   app.register(caixaRoutes,            { prefix: '/caixa' })
   app.register(sacolasRoutes,          { prefix: '/sacolas' })
+  app.register(provasRoutes,           { prefix: '/provas-em-casa' })
   app.register(fornecedoresRoutes,     { prefix: '/fornecedores' })
   app.register(autorizacoesRoutes,     { prefix: '/autorizacoes' })
   app.register(relatoriosRoutes,       { prefix: '/relatorios' })

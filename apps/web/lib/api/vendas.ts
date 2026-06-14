@@ -21,6 +21,7 @@ export interface PagamentoVenda {
 export interface NovaVendaPayload {
   cliente_id?:          string | null
   sacola_id?:           string | null  // remote bag origin, for tracking
+  prova_id?:            string | null  // prova em casa origin, for tracking
   itens:                ItemVenda[]
   pagamentos:           PagamentoVenda[]
   cashback_usado:       number

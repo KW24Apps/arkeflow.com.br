@@ -30,6 +30,7 @@ const pagamentoSchema = z.object({
 const vendaSchema = z.object({
   cliente_id:        z.string().uuid().optional().nullable(),
   sacola_id:         z.string().uuid().optional().nullable(),
+  prova_id:          z.string().uuid().optional().nullable(),
   itens:             z.array(itemSchema).min(1),
   pagamentos:        z.array(pagamentoSchema).min(1),
   cashback_usado:    z.coerce.number().min(0).default(0),
@@ -264,6 +265,15 @@ export async function vendasRoutes(app: FastifyInstance) {
           `UPDATE sacolas SET status = 'finalizada', atualizado_em = NOW()
            WHERE id = $1 AND status = 'em_atendimento'`,
           [data.sacola_id]
+        )
+      }
+
+      // Mark the originating prova as finalizada (outside the transaction — non-critical)
+      if (data.prova_id) {
+        await pool.query(
+          `UPDATE provas_em_casa SET status = 'finalizada', atualizado_em = NOW()
+           WHERE id = $1 AND status IN ('em_prova', 'aguardando_caixa')`,
+          [data.prova_id]
         )
       }
 
