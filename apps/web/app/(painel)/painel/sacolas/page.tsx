@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, RefreshCw, ShoppingBag } from 'lucide-react'
+import { ArrowLeft, Briefcase, RefreshCw, ShoppingBag, User, X } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
+import { ClienteDadosModal } from '@/components/pdv/ClienteDadosModal'
 import { CustomerSearchModal } from '@/components/pdv/CustomerSearchModal'
 import { SalespersonSearchModal } from '@/components/pdv/SalespersonSearchModal'
 import { sacolasApi, type SacolaRemota, type SacolaItemRemoto } from '@/lib/api/sacolas'
@@ -88,6 +89,8 @@ export default function SacolasPage() {
   // ── Modals ──────────────────────────────────────────────────────────────────
   const [modalCliente,  setModalCliente]  = useState(false)
   const [modalVendedor, setModalVendedor] = useState(false)
+  const [modalDados,    setModalDados]    = useState(false)
+  const [sistemaConfig, setSistemaConfig] = useState<any>(null)
   const [modalVariacao, setModalVariacao] = useState<{ produto: any; qty: number } | null>(null)
   const [focadoIdx,     setFocadoIdx]     = useState(0)
 
@@ -106,6 +109,10 @@ export default function SacolasPage() {
   }
 
   useEffect(() => { loadGrid() }, [])
+
+  useEffect(() => {
+    api.get('/dados-loja/sistema').then(r => setSistemaConfig(r.data)).catch(() => {})
+  }, [])
 
   // ── Open builder ─────────────────────────────────────────────────────────────
   function openCreate() {
@@ -538,52 +545,60 @@ export default function SacolasPage() {
             {/* ── RIGHT: client + vendedor + total + actions ── */}
             <div style={{ width: '256px', flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px', gap: '10px', overflowY: 'auto' }}>
 
-              {/* Cliente */}
-              <div style={{ ...PANEL, padding: '12px' }}>
-                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '8px' }}>Cliente *</p>
-                {clienteId ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                    <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {clienteNome}
-                    </p>
-                    <button
-                      onClick={() => setModalCliente(true)}
-                      style={{ fontSize: '11px', color: 'rgba(0,239,255,0.7)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#0ef' }}
-                      onMouseLeave={e => { e.currentTarget.style.color = 'rgba(0,239,255,0.7)' }}
-                    >Trocar</button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setModalCliente(true)}
-                    style={{ width: '100%', padding: '7px 0', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,100,100,0.6)', fontSize: '12px', textAlign: 'left' }}
-                    onMouseEnter={e => { e.currentTarget.style.color = 'rgba(240,100,100,0.9)' }}
-                    onMouseLeave={e => { e.currentTarget.style.color = 'rgba(240,100,100,0.6)' }}
+              {/* ATRIBUIÇÃO DA VENDA */}
+              <div style={{ background: 'rgba(8,18,30,0.52)', border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: '10px', padding: '12px' }}>
+                <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: '10px' }}>Atribuição da venda</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px' }}>
+                  {/* Cliente card */}
+                  <div
+                    role="button"
+                    onClick={() => { if (clienteId) setModalDados(true); else setModalCliente(true) }}
+                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '14px 4px', borderRadius: '9px', cursor: 'pointer', overflow: 'hidden', background: clienteId ? 'rgba(0,239,255,0.07)' : 'rgba(255,255,255,0.03)', border: clienteId ? '0.5px solid rgba(0,239,255,0.35)' : '0.5px dashed rgba(255,255,255,0.14)' }}
                   >
-                    Vincular cliente (obrigatório)
-                  </button>
-                )}
-              </div>
-
-              {/* Vendedor — editable in create mode, read-only in edit mode (FIX 4) */}
-              <div style={{ ...PANEL, padding: '12px' }}>
-                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '6px' }}>Vendedor</p>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {vendedorNome ?? '—'}
-                  </p>
-                  {!editingId && (
-                    <button
-                      onClick={() => setModalVendedor(true)}
-                      style={{ fontSize: '11px', color: 'rgba(0,239,255,0.7)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
-                      onMouseEnter={e => { e.currentTarget.style.color = '#0ef' }}
-                      onMouseLeave={e => { e.currentTarget.style.color = 'rgba(0,239,255,0.7)' }}
-                    >Trocar</button>
-                  )}
+                    <User size={19} style={{ color: clienteId ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                    <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Cliente</span>
+                    {clienteNome && (
+                      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', padding: '0 14px', textAlign: 'center' }}>
+                        {clienteNome}
+                      </span>
+                    )}
+                    {!clienteId && (
+                      <span style={{ fontSize: '9px', color: 'rgba(240,100,100,0.6)', textAlign: 'center', padding: '0 6px', lineHeight: 1.3 }}>
+                        Vincular cliente
+                      </span>
+                    )}
+                    {clienteId && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setClienteId(null); setClienteNome(null) }}
+                        style={{ position: 'absolute', top: '5px', right: '5px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px' }}
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
+                  </div>
+                  {/* Vendedor card */}
+                  <div
+                    role="button"
+                    onClick={() => { if (!editingId) setModalVendedor(true) }}
+                    style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '5px', padding: '14px 4px', borderRadius: '9px', cursor: editingId ? 'default' : 'pointer', overflow: 'hidden', background: vendedorId ? 'rgba(0,239,255,0.07)' : 'rgba(255,255,255,0.03)', border: vendedorId ? '0.5px solid rgba(0,239,255,0.35)' : '0.5px dashed rgba(255,255,255,0.14)' }}
+                  >
+                    <Briefcase size={19} style={{ color: vendedorId ? 'rgba(0,239,255,0.8)' : 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                    <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Vendedor</span>
+                    {vendedorNome && (
+                      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%', padding: '0 14px', textAlign: 'center' }}>
+                        {vendedorNome}
+                      </span>
+                    )}
+                    {!editingId && vendedorId && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setVendedorId(null); setVendedorNome(null) }}
+                        style={{ position: 'absolute', top: '5px', right: '5px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px' }}
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                {!editingId && (
-                  <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginTop: '2px' }}>logado automaticamente</p>
-                )}
               </div>
 
               {/* Total */}
@@ -640,13 +655,30 @@ export default function SacolasPage() {
       <CustomerSearchModal
         open={modalCliente}
         onClose={() => setModalCliente(false)}
-        onSelect={(c: any) => { setClienteId(c.id); setClienteNome(c.nome); setModalCliente(false) }}
+        onSelect={(c: any) => {
+          setClienteId(c.id)
+          setClienteNome(c.nome)
+          setModalCliente(false)
+          const missing =
+            (sistemaConfig?.cadastro_exige_cpf && !c.cpf) ||
+            (sistemaConfig?.cadastro_exige_email && !c.email) ||
+            (sistemaConfig?.cadastro_exige_endereco && (!c.cep && !c.logradouro)) ||
+            !c.telefone
+          if (missing) setModalDados(true)
+        }}
       />
 
       <SalespersonSearchModal
         open={modalVendedor}
         onClose={() => setModalVendedor(false)}
         onSelect={(c: any) => { setVendedorId(c.id); setVendedorNome(c.nome); setModalVendedor(false) }}
+      />
+
+      <ClienteDadosModal
+        open={modalDados}
+        clienteId={clienteId}
+        onClose={() => setModalDados(false)}
+        onSaved={(c) => { setClienteNome(c.nome) }}
       />
 
       {/* ── Variation picker — card grid matching caixa (FIX 2) ── */}
