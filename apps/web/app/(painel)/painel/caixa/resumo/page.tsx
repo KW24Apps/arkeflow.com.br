@@ -350,11 +350,13 @@ function VendaRow({
 
 export default function ResumoCaixaPage() {
   const { status, turno, carregar } = useCaixaStore()
-  const authNome                    = useAuthStore(s => (s.usuario as any)?.nome ?? (s.usuario as any)?.username ?? null)
+  const usuario                     = useAuthStore(s => s.usuario)
+  const authNome                    = (usuario as any)?.nome ?? (usuario as any)?.username ?? null
   const [vendas,     setVendas]     = useState<VendaHistoricoItem[]>([])
   const [carregando, setCarregando] = useState(true)
   const [details,    setDetails]    = useState<DetailMap>({})
   const [busca,      setBusca]      = useState('')
+  const [viewMode,   setViewMode]   = useState<'caixa' | 'vendas'>('caixa')
 
   // Always refresh caixa status on mount
   useEffect(() => { carregar() }, [])
@@ -397,6 +399,14 @@ export default function ResumoCaixaPage() {
     vendasApi.get(id).then(d => setDetails(prev => ({ ...prev, [id]: d })))
   }
 
+  // If user is not the operator of this shift, default to vendas view
+  useEffect(() => {
+    if (!carregando && turno && authNome) {
+      const isOp = (turno as any)?.usuario_nome === authNome || (turno as any)?.usuario_id === (usuario as any)?.id
+      if (!isOp) setViewMode('vendas')
+    }
+  }, [carregando, (turno as any)?.id, authNome])
+
   // ── Aggregations ──
   const totalGeral = vendas.reduce((s, v) => s + Number(v.total), 0)
 
@@ -418,8 +428,15 @@ export default function ResumoCaixaPage() {
   const totalSuprimentos = Number((turno as any)?.total_suprimentos  ?? 0)
   const esperadoGaveta   = saldoInicial + vendasDinheiro + totalSuprimentos - totalSangrias
 
+  // ── Toggle mode ──
+  const ehOperador   = (turno as any)?.usuario_nome === authNome || (turno as any)?.usuario_id === (usuario as any)?.id
+  const minhasVendas = vendas.filter((v: any) => v.vendedor_nome === authNome)
+  const temVendas    = minhasVendas.length > 0
+  const showToggle   = ehOperador && temVendas
+
   // ── Client-side search filter ──
-  const vendasFiltradas = vendas.filter(v => {
+  const baseVendas      = viewMode === 'vendas' ? minhasVendas : vendas
+  const vendasFiltradas = baseVendas.filter(v => {
     if (!busca.trim()) return true
     const q = busca.toLowerCase()
     const clienteNome = (v.cliente_nome ?? 'sem cliente').toLowerCase()
@@ -490,9 +507,28 @@ export default function ResumoCaixaPage() {
   return (
     <>
     <TopBar />
+    {showToggle && (
+      <div style={{ display: 'flex', gap: '6px', padding: '8px 12px 0' }}>
+        <button onClick={() => setViewMode('caixa')}
+          style={{ padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: '0.5px solid', ...(viewMode === 'caixa'
+            ? { background: 'rgba(0,239,255,0.15)', borderColor: 'rgba(0,239,255,0.4)', color: '#0ef' }
+            : { background: 'transparent', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' }
+          ) }}>
+          Caixa
+        </button>
+        <button onClick={() => setViewMode('vendas')}
+          style={{ padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: '0.5px solid', ...(viewMode === 'vendas'
+            ? { background: 'rgba(0,239,255,0.15)', borderColor: 'rgba(0,239,255,0.4)', color: '#0ef' }
+            : { background: 'transparent', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' }
+          ) }}>
+          Vendas
+        </button>
+      </div>
+    )}
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto' }}>
 
       {/* ── Section 1: Three summary cards ── */}
+      {viewMode === 'caixa' && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
 
         {/* Receita total — with operador/abertura folded in */}
@@ -561,6 +597,20 @@ export default function ResumoCaixaPage() {
           )}
         </div>
       </div>
+      )}
+
+      {/* ── Minhas vendas KPI ── */}
+      {viewMode === 'vendas' && (
+        <div style={{ ...CARD, maxWidth: '280px' }}>
+          <span style={SEC_LABEL}>Minhas vendas</span>
+          <p style={{ fontSize: '22px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', margin: '0 0 2px' }}>
+            {fmt(minhasVendas.reduce((s, v) => s + Number(v.total), 0))}
+          </p>
+          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', margin: 0 }}>
+            {minhasVendas.length} venda{minhasVendas.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+      )}
 
       {/* ── Section 2: Search box ── */}
       <div style={{ position: 'relative' }}>
@@ -588,7 +638,7 @@ export default function ResumoCaixaPage() {
       </div>
 
       {/* ── Section 3: Two-column parity sale list ── */}
-      {vendas.length === 0 ? (
+      {baseVendas.length === 0 ? (
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', padding: '32px 0' }}>
           Nenhuma venda neste turno
         </p>
