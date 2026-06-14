@@ -5,11 +5,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { TopBar } from '@/components/layout/TopBar'
 import { formatCurrency, initCurrency, parseCurrency } from '@/lib/utils/currency'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
-import { colaboradoresApi, type Colaborador, type LogAcesso, type ColaboradorPerfil } from '@/lib/api/colaboradores'
+import { colaboradoresApi, type Colaborador, type ColaboradorPerfil } from '@/lib/api/colaboradores'
 import { SeletorHorario } from '@/components/painel/SeletorHorario'
 import { api } from '@/lib/api/client'
-
-type View = 'main' | 'logs'
 
 interface DocItem { id: string; nome: string; tipo_mime: string; tamanho: number; criado_em: string }
 
@@ -112,16 +110,13 @@ export default function ColaboradorDetalhe() {
   const router   = useRouter()
   const fileRef  = useRef<HTMLInputElement>(null)
 
-  const [view,     setView]     = useState<View>('main')
   const [modal, setModal] = useState<{ open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void }>({ open: false, title: '', message: '', confirmLabel: 'Confirmar', onConfirm: () => {} })
   const [colab,    setColab]    = useState<Colaborador | null>(null)
-  const [logs,     setLogs]     = useState<LogAcesso[]>([])
   const [docs,     setDocs]     = useState<DocItem[]>([])
   const [loading,  setLoading]  = useState(true)
   const [salvando,      setSalvando]      = useState(false)
   const [salvoFeedback, setSalvoFeedback] = useState(false)
   const [msg,           setMsg]           = useState('')
-  const [expandedLog,   setExpandedLog]   = useState<number | null>(null)
 
   const [modelos,  setModelos]  = useState<any[]>([])
   const [modeloId, setModeloId] = useState<string>('')
@@ -170,10 +165,9 @@ export default function ColaboradorDetalhe() {
 
     Promise.all([
       colaboradoresApi.get(id),
-      colaboradoresApi.logs(id),
       api.get<DocItem[]>(`/colaboradores/${id}/documentos`).then(r => r.data),
-    ]).then(([c, l, d]) => {
-      setColab(c); setLogs(l); setDocs(d)
+    ]).then(([c, d]) => {
+      setColab(c); setDocs(d)
       setNome(c.nome); setEmail(c.email ?? ''); setUsername((c as any).username ?? '')
       setPermissoes(Array.isArray(c.permissoes) ? c.permissoes : [])
       setModeloId((c as any).modelo_permissao_id ?? '')
@@ -382,33 +376,12 @@ export default function ColaboradorDetalhe() {
             </div>
           </div>
 
-          {/* Tab bar — always visible */}
-          <div style={{ background: 'rgba(8,18,30,0.4)', borderRadius: '8px', padding: '3px' }} className="flex shrink-0">
-            <button onClick={() => setView('main')}
-              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: view === 'main' ? 'default' : 'pointer', transition: 'background 0.15s, color 0.15s',
-                background: view === 'main' ? 'rgba(0,239,255,0.15)' : 'transparent',
-                color:      view === 'main' ? '#0ef' : 'rgba(255,255,255,0.4)',
-              }}>
-              Dados cadastrais
-            </button>
-            <button onClick={() => setView('logs')}
-              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 500, border: 'none', cursor: view === 'logs' ? 'default' : 'pointer', transition: 'background 0.15s, color 0.15s', whiteSpace: 'nowrap',
-                background: view === 'logs' ? 'rgba(0,239,255,0.15)' : 'transparent',
-                color:      view === 'logs' ? '#0ef' : 'rgba(255,255,255,0.4)',
-              }}>
-              Logs ({logs.length})
-            </button>
-          </div>
         </div>
 
         {/* ── Scrollable content ─────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto p-3">
 
-          {/* ══════════════════════════════════════════════════════════════ */}
-          {/* MAIN VIEW                                                     */}
-          {/* ══════════════════════════════════════════════════════════════ */}
-          {view === 'main' && (
-            <div className="grid grid-cols-2 gap-3 items-start">
+          <div className="grid grid-cols-2 gap-3 items-start">
 
               {/* ── LEFT column ──────────────────────────────────────── */}
               <div className="flex flex-col gap-2">
@@ -657,76 +630,11 @@ export default function ColaboradorDetalhe() {
               </div>
 
             </div>
-          )}
-
-          {/* ══════════════════════════════════════════════════════════════ */}
-          {/* LOGS VIEW                                                     */}
-          {/* ══════════════════════════════════════════════════════════════ */}
-          {view === 'logs' && (
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => setView('main')}
-                style={{ fontSize: '12px', color: 'rgba(0,239,255,0.7)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', textAlign: 'left', marginBottom: '4px' }}
-              >
-                ← Voltar
-              </button>
-
-              <div style={CARD} className="flex flex-col gap-3">
-                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)' }}>Histórico de acessos</p>
-
-                {logs.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '24px 0' }}>Nenhum acesso registrado</p>
-                ) : (
-                  <div className="flex flex-col gap-1.5">
-                    {logs.map((l, i) => {
-                      const expanded = expandedLog === i
-                      const motivoLabel =
-                        l.motivo === 'manual'      ? 'Saída manual' :
-                        l.motivo === 'substituido' ? 'Substituído por outro dispositivo' :
-                        l.motivo === 'expirado'    ? 'Expirado por inatividade' : null
-                      const dt = new Date(l.criado_em)
-                      const dtStr = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                      return (
-                        <div key={i} style={ROW}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <p style={{ fontSize: '12px', fontWeight: 500, flexShrink: 0, color: l.tipo === 'login' ? 'rgba(100,220,160,0.85)' : 'rgba(255,255,255,0.4)' }}>
-                              {l.tipo === 'login' ? '▶ Login' : '◀ Logout'}
-                            </p>
-                            {l.plataforma && (
-                              <span style={l.plataforma === 'mobile'
-                                ? { fontSize: '9px', background: 'rgba(0,239,255,0.1)', color: '#0ef', borderRadius: '9999px', padding: '1px 6px', flexShrink: 0 }
-                                : { fontSize: '9px', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', borderRadius: '9999px', padding: '1px 6px', flexShrink: 0 }
-                              }>
-                                {l.plataforma === 'mobile' ? 'app' : 'web'}
-                              </span>
-                            )}
-                            <span style={{ flex: 1 }} />
-                            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>{dtStr}</p>
-                            <button
-                              onClick={() => setExpandedLog(expanded ? null : i)}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)', fontSize: '14px', padding: '0 2px', flexShrink: 0, display: 'inline-flex', alignItems: 'center', transition: 'transform 0.15s', transform: expanded ? 'rotate(90deg)' : 'none' }}
-                            >›</button>
-                          </div>
-                          {expanded && (
-                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
-                              {l.ip && <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>IP: {l.ip}</p>}
-                              {motivoLabel && <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>Motivo: {motivoLabel}</p>}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
         </div>
 
         {/* ── Fixed footer ───────────────────────────────────────────────── */}
-        {view === 'main' && (
-          <div
+        <div
             className="shrink-0 flex flex-col gap-1.5 px-4 py-3"
             style={{ background: 'rgba(8,18,30,0.65)', backdropFilter: 'blur(8px)', borderTop: '0.5px solid rgba(255,255,255,0.07)' }}
           >
@@ -759,7 +667,6 @@ export default function ColaboradorDetalhe() {
               </button>
             </div>
           </div>
-        )}
 
       </main>
       <ConfirmModal
