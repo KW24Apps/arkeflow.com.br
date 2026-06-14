@@ -152,7 +152,8 @@ export async function caixaRoutes(app: FastifyInstance) {
          WHERE fp.tipo = 'dinheiro'
            AND v.status = 'finalizada'
            AND v.usuario_id = $1
-           AND v.criado_em >= $2`,
+           AND v.criado_em >= $2
+           AND v.criado_em <= NOW()`,
         [turno.usuario_id, turno.aberto_em]
       ),
       pool.query<{ suprimentos: string; sangrias: string }>(
@@ -250,7 +251,8 @@ export async function caixaRoutes(app: FastifyInstance) {
            WHERE fp.tipo = 'dinheiro'
              AND v.status = 'finalizada'
              AND v.usuario_id = $1
-             AND v.criado_em >= $2`,
+             AND v.criado_em >= $2
+             AND v.criado_em <= NOW()`,
           [t.usuario_id, t.aberto_em]
         ),
         pool.query<{ suprimentos: string; sangrias: string }>(
