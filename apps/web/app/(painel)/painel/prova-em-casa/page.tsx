@@ -62,13 +62,6 @@ const CARD: React.CSSProperties = {
   borderRadius:   '10px',
 }
 
-const TAB_LINKS = [
-  { label: 'Caixa',         href: '/painel/caixa' },
-  { label: 'Sacolas',       href: '/painel/sacolas' },
-  { label: 'Prova em Casa', href: '/painel/prova-em-casa' },
-  { label: 'Resumo',        href: '/painel/caixa/resumo' },
-]
-
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ProvaEmCasaPage() {
   const [view,            setView]            = useState<'grid' | 'builder'>('grid')
@@ -140,30 +133,6 @@ export default function ProvaEmCasaPage() {
 
         /* ══════════════════════════════════ GRID VIEW ══════════════════════════ */
         <main className="flex-1 min-h-0 overflow-y-auto p-4 md:p-5 pb-24 flex flex-col gap-4">
-
-          {/* Secondary nav tabs */}
-          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-            {TAB_LINKS.map(t => {
-              const active = t.href === '/painel/prova-em-casa'
-              return (
-                <Link
-                  key={t.href}
-                  href={t.href}
-                  style={{
-                    fontSize: '12px', fontWeight: active ? 600 : 400,
-                    color: active ? '#0ef' : 'rgba(255,255,255,0.4)',
-                    background: active ? 'rgba(0,239,255,0.08)' : 'transparent',
-                    border: active ? '0.5px solid rgba(0,239,255,0.25)' : '0.5px solid transparent',
-                    borderRadius: '6px', padding: '5px 12px',
-                    textDecoration: 'none', whiteSpace: 'nowrap',
-                    transition: 'color 120ms, background 120ms',
-                  }}
-                >
-                  {t.label}
-                </Link>
-              )
-            })}
-          </div>
 
           {/* Module disabled notice */}
           {!loading && !provaHabilitada && (
