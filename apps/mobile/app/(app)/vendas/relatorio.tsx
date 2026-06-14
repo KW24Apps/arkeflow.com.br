@@ -1,14 +1,14 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, Dimensions } from 'react-native'
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, Dimensions, ScrollView } from 'react-native'
 import { useState, useCallback } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
 import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuthStore } from '../../../lib/store/auth.store'
-import { vendasApi, type VendaMobile } from '../../../lib/api/vendas'
+import { vendasApi, type VendaMobile, type VendaDetalhe } from '../../../lib/api/vendas'
 import { theme } from '../../../constants/theme'
 
-const { width } = Dimensions.get('window')
+const { width, height } = Dimensions.get('window')
 const CARD_GAP  = 8
 const PADDING   = 16
 const CARD_W    = Math.floor((width - PADDING * 2 - CARD_GAP * 2) / 3)
@@ -24,10 +24,12 @@ function fmtHora(iso: string) {
 export default function RelatorioVendasScreen() {
   const router  = useRouter()
   const usuario = useAuthStore(s => s.usuario)
-  const [vendas,       setVendas]       = useState<VendaMobile[]>([])
-  const [loading,      setLoading]      = useState(true)
-  const [erro,         setErro]         = useState('')
-  const [detalheVenda, setDetalheVenda] = useState<VendaMobile | null>(null)
+  const [vendas,          setVendas]          = useState<VendaMobile[]>([])
+  const [loading,         setLoading]         = useState(true)
+  const [erro,            setErro]            = useState('')
+  const [detalheVenda,    setDetalheVenda]    = useState<VendaMobile | null>(null)
+  const [detalheCompleto, setDetalheCompleto] = useState<VendaDetalhe | null>(null)
+  const [loadingDetalhe,  setLoadingDetalhe]  = useState(false)
 
   async function load() {
     if (!usuario?.id) return
@@ -43,6 +45,25 @@ export default function RelatorioVendasScreen() {
   }
 
   useFocusEffect(useCallback(() => { load() }, [usuario?.id]))
+
+  async function abrirDetalhe(v: VendaMobile) {
+    setDetalheVenda(v)
+    setDetalheCompleto(null)
+    setLoadingDetalhe(true)
+    try {
+      const d = await vendasApi.getDetalhe(v.id)
+      setDetalheCompleto(d)
+    } catch {
+      setDetalheCompleto(null)
+    } finally {
+      setLoadingDetalhe(false)
+    }
+  }
+
+  function fecharModal() {
+    setDetalheVenda(null)
+    setDetalheCompleto(null)
+  }
 
   const totalHoje = vendas.reduce((s, v) => s + Number(v.total), 0)
 
@@ -96,7 +117,7 @@ export default function RelatorioVendasScreen() {
             <TouchableOpacity
               style={styles.card}
               activeOpacity={0.75}
-              onPress={() => setDetalheVenda(v)}
+              onPress={() => abrirDetalhe(v)}
             >
               <Text style={styles.cardHora}>{fmtHora(v.criado_em)}</Text>
               <Text style={styles.cardCliente} numberOfLines={2}>{v.cliente_nome ?? 'Sem cliente'}</Text>
@@ -107,27 +128,156 @@ export default function RelatorioVendasScreen() {
         />
       )}
 
-      {/* Detalhe de venda */}
+      {/* ── Detalhe de venda ── */}
       <Modal visible={!!detalheVenda} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalCliente}>{detalheVenda?.cliente_nome ?? 'Sem cliente'}</Text>
+          <View style={[styles.modalCard, { maxHeight: height * 0.88 }]}>
+
+            {/* ── Header: cliente + hora + vendedor ── */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalCliente}>
+                {detalheCompleto?.cliente_nome ?? detalheVenda?.cliente_nome ?? 'Sem cliente'}
+              </Text>
+              {!!detalheVenda?.cliente_telefone && (
+                <Text style={styles.modalSubInfo}>{detalheVenda.cliente_telefone}</Text>
+              )}
+              <Text style={styles.modalSubInfo}>
+                {detalheVenda ? fmtHora(detalheVenda.criado_em) : ''}
+                {(detalheCompleto?.vendedor_nome ?? detalheVenda?.vendedor_nome)
+                  ? ` · ${detalheCompleto?.vendedor_nome ?? detalheVenda?.vendedor_nome}`
+                  : ''}
+              </Text>
+            </View>
+
             <View style={styles.modalDivider} />
-            <View style={styles.modalRow}>
-              <Text style={styles.modalLabel}>Hora</Text>
-              <Text style={styles.modalVal}>{detalheVenda ? fmtHora(detalheVenda.criado_em) : ''}</Text>
-            </View>
-            <View style={styles.modalRow}>
-              <Text style={styles.modalLabel}>Total</Text>
-              <Text style={[styles.modalVal, { color: theme.colors.accent }]}>{detalheVenda ? fmtR(Number(detalheVenda.total)) : ''}</Text>
-            </View>
-            <View style={styles.modalRow}>
-              <Text style={styles.modalLabel}>Itens</Text>
-              <Text style={styles.modalVal}>{detalheVenda?.total_itens}</Text>
-            </View>
-            <TouchableOpacity style={styles.modalBtn} onPress={() => setDetalheVenda(null)}>
+
+            {/* ── Body ── */}
+            {loadingDetalhe ? (
+              <View style={styles.modalLoadingRow}>
+                <ActivityIndicator color={theme.colors.accent} size="small" />
+              </View>
+            ) : detalheCompleto ? (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1 }}>
+
+                {/* ── PRODUTOS ── */}
+                <Text style={styles.sectionLabel}>PRODUTOS</Text>
+                {detalheCompleto.itens.map((item, idx) => {
+                  const atribs   = Object.values(item.atributos_json ?? {}).join(' · ')
+                  const itemTotal = Number(item.preco_unitario) * item.quantidade
+                  return (
+                    <View key={idx} style={styles.produtoBlock}>
+                      <View style={styles.modalRow}>
+                        <View style={styles.produtoLeft}>
+                          <Text style={styles.produtoNome}>{item.produto_nome}</Text>
+                          {!!atribs && <Text style={styles.produtoAtribs}>{atribs}</Text>}
+                        </View>
+                        <Text style={styles.modalVal} numberOfLines={1}>
+                          {item.quantidade}× {fmtR(Number(item.preco_unitario))}
+                        </Text>
+                      </View>
+                      {Number(item.desconto_item) > 0 && (
+                        <View style={[styles.modalRow, styles.indented]}>
+                          <Text style={styles.descontoLabel}>{item.promocao_nome ?? 'Promoção'}</Text>
+                          <Text style={styles.greenVal}>-{fmtR(Number(item.desconto_item))}</Text>
+                        </View>
+                      )}
+                    </View>
+                  )
+                })}
+
+                <View style={styles.modalDivider} />
+
+                {/* ── TOTAIS ── */}
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Subtotal</Text>
+                  <Text style={styles.modalVal}>{fmtR(Number(detalheCompleto.subtotal))}</Text>
+                </View>
+
+                {Number(detalheCompleto.desconto_promocao) > 0 && (
+                  <View style={styles.modalRow}>
+                    <Text style={styles.modalLabel}>Promoção</Text>
+                    <Text style={styles.greenVal}>-{fmtR(Number(detalheCompleto.desconto_promocao))}</Text>
+                  </View>
+                )}
+
+                {Number(detalheCompleto.desconto_pagamento) > 0 && (
+                  <View style={styles.modalRow}>
+                    <Text style={styles.modalLabel}>Desconto</Text>
+                    <Text style={styles.greenVal}>-{fmtR(Number(detalheCompleto.desconto_pagamento))}</Text>
+                  </View>
+                )}
+
+                {Number(detalheCompleto.cashback_usado) > 0 && (
+                  <View style={styles.modalRow}>
+                    <Text style={styles.modalLabel}>Cashback usado</Text>
+                    <Text style={styles.greenVal}>-{fmtR(Number(detalheCompleto.cashback_usado))}</Text>
+                  </View>
+                )}
+
+                <View style={styles.modalRow}>
+                  <Text style={[styles.modalLabel, { fontWeight: '700', color: 'rgba(255,255,255,0.85)' }]}>Total</Text>
+                  <Text style={[styles.modalVal, { color: theme.colors.accent }]}>{fmtR(Number(detalheCompleto.total))}</Text>
+                </View>
+
+                <View style={styles.modalDivider} />
+
+                {/* ── PAGAMENTO ── */}
+                <Text style={styles.sectionLabel}>PAGAMENTO</Text>
+                {detalheCompleto.pagamentos.map((pag, idx) => (
+                  <View key={idx} style={styles.produtoBlock}>
+                    <View style={styles.modalRow}>
+                      <Text style={styles.modalLabel}>{pag.forma_nome}</Text>
+                      <Text style={styles.modalVal}>{fmtR(Number(pag.valor))}</Text>
+                    </View>
+                    {Number(pag.troco) > 0 && (
+                      <View style={[styles.modalRow, styles.indented]}>
+                        <Text style={styles.descontoLabel}>troco</Text>
+                        <Text style={styles.greenVal}>{fmtR(Number(pag.troco))}</Text>
+                      </View>
+                    )}
+                    {pag.tipo === 'dinheiro' && pag.valor_recebido != null && (
+                      <View style={[styles.modalRow, styles.indented]}>
+                        <Text style={styles.mutedText}>entrou na gaveta</Text>
+                        <Text style={styles.mutedText}>
+                          {fmtR(Number(pag.valor_recebido) - Number(pag.troco ?? 0))}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+
+                {Number(detalheCompleto.cashback_gerado) > 0 && (
+                  <View style={styles.modalRow}>
+                    <Text style={styles.modalLabel}>Cashback gerado</Text>
+                    <Text style={styles.greenVal}>+{fmtR(Number(detalheCompleto.cashback_gerado))}</Text>
+                  </View>
+                )}
+
+                <View style={{ height: 8 }} />
+              </ScrollView>
+
+            ) : (
+              /* fallback — basic info quando detalhe falhou */
+              <View style={{ gap: 12 }}>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Hora</Text>
+                  <Text style={styles.modalVal}>{detalheVenda ? fmtHora(detalheVenda.criado_em) : ''}</Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Total</Text>
+                  <Text style={[styles.modalVal, { color: theme.colors.accent }]}>{detalheVenda ? fmtR(Number(detalheVenda.total)) : ''}</Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Itens</Text>
+                  <Text style={styles.modalVal}>{detalheVenda?.total_itens}</Text>
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.modalBtn} onPress={fecharModal}>
               <Text style={styles.modalBtnText}>← Voltar</Text>
             </TouchableOpacity>
+
           </View>
         </View>
       </Modal>
@@ -179,6 +329,8 @@ const styles = StyleSheet.create({
   cardCliente: { fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center', lineHeight: 14 },
   cardTotal:   { fontSize: 13, fontWeight: '700', color: theme.colors.accent },
   cardItens:   { fontSize: 10, color: theme.colors.textFaint },
+
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.72)',
@@ -195,11 +347,29 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
   },
+  modalHeader:   { alignItems: 'center', gap: 3 },
   modalCliente:  { fontSize: 17, fontWeight: '700', color: '#fff', textAlign: 'center' },
+  modalSubInfo:  { fontSize: 12, color: theme.colors.textMuted, textAlign: 'center' },
   modalDivider:  { height: 0.5, backgroundColor: 'rgba(255,255,255,0.08)' },
-  modalRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalLabel:    { fontSize: 13, color: theme.colors.textMuted },
-  modalVal:      { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+  modalLoadingRow: { alignItems: 'center', paddingVertical: 16 },
+
+  modalRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
+  indented:     { paddingLeft: 14, marginTop: -2 },
+  modalLabel:   { fontSize: 13, color: theme.colors.textMuted, flex: 1 },
+  modalVal:     { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+
+  sectionLabel: {
+    fontSize: 9, textTransform: 'uppercase', letterSpacing: 1,
+    color: 'rgba(255,255,255,0.3)', marginBottom: 6, marginTop: 2,
+  },
+  produtoBlock:  { marginBottom: 4 },
+  produtoLeft:   { flex: 1, paddingRight: 8 },
+  produtoNome:   { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
+  produtoAtribs: { fontSize: 11, color: theme.colors.textFaint, marginTop: 1 },
+  descontoLabel: { fontSize: 12, color: theme.colors.textMuted, fontStyle: 'italic' },
+  greenVal:      { fontSize: 13, fontWeight: '600', color: 'rgba(100,220,160,0.9)' },
+  mutedText:     { fontSize: 12, color: theme.colors.textFaint, fontStyle: 'italic' },
+
   modalBtn: {
     marginTop: 4,
     alignSelf: 'center',
