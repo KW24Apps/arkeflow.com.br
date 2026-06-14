@@ -1,0 +1,3 @@
+ALTER TABLE logs_acesso
+  ADD COLUMN IF NOT EXISTS plataforma TEXT,
+  ADD COLUMN IF NOT EXISTS motivo     TEXT;

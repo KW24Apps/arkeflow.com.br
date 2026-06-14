@@ -14,7 +14,7 @@ export async function login(
             u.dias_semana, u.hora_inicio, u.hora_fim,
             u.sessao_web, u.sessao_web_ip, u.sessao_web_em,
             u.sessao_mobile, u.sessao_mobile_ip, u.sessao_mobile_em,
-            u.ultimo_acesso,
+            u.ultimo_acesso_web, u.ultimo_acesso_mobile,
             COALESCE(mp.permissoes, u.permissoes, '[]'::jsonb) AS permissoes
      FROM usuarios u
      LEFT JOIN modelos_permissao mp ON mp.id = u.modelo_permissao_id
@@ -69,7 +69,9 @@ export async function login(
   const sessaoAtualSid = isWeb ? (usuario.sessao_web  ?? null) : (usuario.sessao_mobile  ?? null)
   const sessaoAtualIp  = isWeb ? (usuario.sessao_web_ip ?? null) : (usuario.sessao_mobile_ip ?? null)
   const sessaoAtualEm  = isWeb ? (usuario.sessao_web_em ?? null) : (usuario.sessao_mobile_em ?? null)
-  const ultimoAcesso: Date | null = usuario.ultimo_acesso ?? null
+  const ultimoAcesso: Date | null = isWeb
+    ? (usuario.ultimo_acesso_web ?? null)
+    : (usuario.ultimo_acesso_mobile ?? null)
   const mesmoDispositivo = currentSid != null && currentSid === sessaoAtualSid
 
   const sessaoAtiva =
@@ -88,19 +90,19 @@ export async function login(
   const sid = randomUUID()
   if (isWeb) {
     await platformPool.query(
-      `UPDATE usuarios SET sessao_web = $2, sessao_web_ip = $3, sessao_web_em = NOW(), ultimo_acesso = NOW() WHERE id = $1`,
+      `UPDATE usuarios SET sessao_web = $2, sessao_web_ip = $3, sessao_web_em = NOW(), ultimo_acesso_web = NOW() WHERE id = $1`,
       [usuario.id, sid, ip ?? null]
     )
   } else {
     await platformPool.query(
-      `UPDATE usuarios SET sessao_mobile = $2, sessao_mobile_ip = $3, sessao_mobile_em = NOW(), ultimo_acesso = NOW() WHERE id = $1`,
+      `UPDATE usuarios SET sessao_mobile = $2, sessao_mobile_ip = $3, sessao_mobile_em = NOW(), ultimo_acesso_mobile = NOW() WHERE id = $1`,
       [usuario.id, sid, ip ?? null]
     )
   }
 
   await platformPool.query(
-    `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo) VALUES ($1, $2, $3, 'login')`,
-    [usuario.id, usuario.loja_id ?? null, ip ?? null]
+    `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo, plataforma) VALUES ($1, $2, $3, 'login', $4)`,
+    [usuario.id, usuario.loja_id ?? null, ip ?? null, plataforma]
   ).catch(() => {})
 
   const permissoes: string[] =

@@ -122,7 +122,7 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const user = req.user as JwtPayload
     const { id } = req.params as { id: string }
     const { rows } = await platformPool.query(
-      `SELECT l.tipo, l.ip, l.criado_em
+      `SELECT l.tipo, l.ip, l.criado_em, l.plataforma, l.motivo
        FROM logs_acesso l
        JOIN usuarios u ON u.id = l.usuario_id
        WHERE l.usuario_id = $1 AND u.loja_id = $2

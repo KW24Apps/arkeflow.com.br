@@ -11,8 +11,10 @@ export async function authRoutes(app: FastifyInstance) {
   // Heartbeat — atualiza ultimo_acesso enquanto o usuário está com a aba aberta
   app.post('/ping', { preHandler: authMiddleware }, async (req, reply) => {
     const user = req.user as JwtPayload
+    const col = (user.plataforma === 'web' || user.plataforma === 'desktop')
+      ? 'ultimo_acesso_web' : 'ultimo_acesso_mobile'
     await platformPool.query(
-      'UPDATE usuarios SET ultimo_acesso = NOW() WHERE id = $1', [user.id]
+      `UPDATE usuarios SET ${col} = NOW() WHERE id = $1`, [user.id]
     )
     return reply.send({ ok: true })
   })
@@ -30,9 +32,10 @@ export async function authRoutes(app: FastifyInstance) {
         [user.id]
       ),
       platformPool.query(
-        `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo) VALUES ($1,$2,$3,'logout')`,
+        `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo, plataforma, motivo) VALUES ($1,$2,$3,'logout',$4,'manual')`,
         [user.id, user.loja_id ?? null,
-         req.headers['x-forwarded-for']?.toString() || req.ip]
+         req.headers['x-forwarded-for']?.toString() || req.ip,
+         user.plataforma ?? 'web']
       ).catch(() => {}),
     ])
     return reply.send({ ok: true })

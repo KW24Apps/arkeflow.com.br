@@ -46,6 +46,8 @@ export interface LogAcesso {
   tipo: 'login' | 'logout'
   ip: string | null
   criado_em: string
+  plataforma?: string | null
+  motivo?: string | null
   nome?: string
   email?: string
   nivel?: string

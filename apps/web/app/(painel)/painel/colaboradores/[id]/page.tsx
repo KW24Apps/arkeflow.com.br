@@ -121,6 +121,7 @@ export default function ColaboradorDetalhe() {
   const [salvando,      setSalvando]      = useState(false)
   const [salvoFeedback, setSalvoFeedback] = useState(false)
   const [msg,           setMsg]           = useState('')
+  const [expandedLog,   setExpandedLog]   = useState<number | null>(null)
 
   const [modelos,  setModelos]  = useState<any[]>([])
   const [modeloId, setModeloId] = useState<string>('')
@@ -677,17 +678,44 @@ export default function ColaboradorDetalhe() {
                   <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)', textAlign: 'center', padding: '24px 0' }}>Nenhum acesso registrado</p>
                 ) : (
                   <div className="flex flex-col gap-1.5">
-                    {logs.map((l, i) => (
-                      <div key={i} style={{ ...ROW, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div>
-                          <p style={{ fontSize: '12px', fontWeight: 500, color: l.tipo === 'login' ? 'rgba(100,220,160,0.85)' : 'rgba(255,255,255,0.4)' }}>
-                            {l.tipo === 'login' ? '▶ Login' : '◀ Logout'}
-                          </p>
-                          {l.ip && <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '1px' }}>IP: {l.ip}</p>}
+                    {logs.map((l, i) => {
+                      const expanded = expandedLog === i
+                      const motivoLabel =
+                        l.motivo === 'manual'      ? 'Saída manual' :
+                        l.motivo === 'substituido' ? 'Substituído por outro dispositivo' :
+                        l.motivo === 'expirado'    ? 'Expirado por inatividade' : null
+                      const dt = new Date(l.criado_em)
+                      const dtStr = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                      return (
+                        <div key={i} style={ROW}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <p style={{ fontSize: '12px', fontWeight: 500, flexShrink: 0, color: l.tipo === 'login' ? 'rgba(100,220,160,0.85)' : 'rgba(255,255,255,0.4)' }}>
+                              {l.tipo === 'login' ? '▶ Login' : '◀ Logout'}
+                            </p>
+                            {l.plataforma && (
+                              <span style={l.plataforma === 'mobile'
+                                ? { fontSize: '9px', background: 'rgba(0,239,255,0.1)', color: '#0ef', borderRadius: '9999px', padding: '1px 6px', flexShrink: 0 }
+                                : { fontSize: '9px', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', borderRadius: '9999px', padding: '1px 6px', flexShrink: 0 }
+                              }>
+                                {l.plataforma === 'mobile' ? 'app' : 'web'}
+                              </span>
+                            )}
+                            <span style={{ flex: 1 }} />
+                            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>{dtStr}</p>
+                            <button
+                              onClick={() => setExpandedLog(expanded ? null : i)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)', fontSize: '14px', padding: '0 2px', flexShrink: 0, display: 'inline-flex', alignItems: 'center', transition: 'transform 0.15s', transform: expanded ? 'rotate(90deg)' : 'none' }}
+                            >›</button>
+                          </div>
+                          {expanded && (
+                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+                              {l.ip && <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>IP: {l.ip}</p>}
+                              {motivoLabel && <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>Motivo: {motivoLabel}</p>}
+                            </div>
+                          )}
                         </div>
-                        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>{new Date(l.criado_em).toLocaleString('pt-BR')}</p>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
