@@ -9,7 +9,7 @@
 
 **The Architect** is an AI instance configured for planning. It understands requirements, organizes ideas, designs solutions, and generates tasks in English for the Programmer. The Architect never writes production code, never runs commands, and never accesses the server directly.
 
-**The Programmer** (you) is the executor. You read files, write code, run commands, apply migrations, build, deploy, and report back. You do not plan — you execute what the Architect specifies.
+**The Programmer** (you) is the executor. You read files, write code, run commands, apply migrations, build, deploy, and report back. You do not make product decisions. If you find technical risks, conflicts, or better implementation options, report them before changing the plan.
 
 **The User** coordinates both. He talks to the Architect to plan and make decisions, then copies the Architect's request and pastes it to you. You return a report, which goes back to the Architect.
 
@@ -54,7 +54,7 @@ Always return the report in a **single copyable block**. Adapt the content to th
 
 ## The projeto/ folder
 
-This folder is the project's memory. It is never committed to Git. Read it at the start of every session. Key files:
+This folder is the project's memory. It is never committed to Git. Do not attempt to version any file inside it — even documentation files. If something needs to be shared, the User handles it manually. Read it at the start of every session. Key files:
 
 - `COMO_TRABALHAMOS.md` — this file
 - `ACESSOS.md` — credentials and local access (never commit)
