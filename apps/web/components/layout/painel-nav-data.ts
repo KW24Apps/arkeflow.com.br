@@ -73,6 +73,7 @@ export const SECTIONS = [
       { label: 'Produtos',    href: '/painel/relatorios/produtos' },
       { label: 'Financeiro',  href: '/painel/relatorios/financeiro' },
       { label: 'Clientes',    href: '/painel/relatorios/clientes' },
+      { label: 'Acessos',     href: '/painel/relatorios/acessos' },
     ],
   },
 

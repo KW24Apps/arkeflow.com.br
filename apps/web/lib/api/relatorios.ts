@@ -11,4 +11,6 @@ export const relatoriosApi = {
   cesta:       (i: string, f: string) => api.get('/relatorios/cesta',       p(i, f)).then(r => r.data),
   financeiro:  (i: string, f: string) => api.get('/relatorios/financeiro',  p(i, f)).then(r => r.data),
   clientesRfm: (i: string, f: string) => api.get('/relatorios/clientes-rfm', p(i, f)).then(r => r.data),
+  acessos: (i: string, f: string, usuario_id?: string, plataforma?: string) =>
+    api.get('/relatorios/acessos', { params: { inicio: i, fim: f, usuario_id, plataforma } }).then(r => r.data),
 }

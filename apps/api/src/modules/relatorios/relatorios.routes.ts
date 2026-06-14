@@ -197,15 +197,32 @@ export async function relatoriosRoutes(app: FastifyInstance) {
     const inativMin     = cfgRes.rows[0]?.inatividade_minutos ?? 360
     const operadorIds   = caixasRes.rows.map(r => r.usuario_id)
 
+    const onlineQuery = `
+      SELECT nome, nivel,
+        'web' AS plataforma,
+        sessao_web_em AS login_em,
+        ultimo_acesso_web AS ultimo_acesso
+      FROM usuarios
+      WHERE loja_id = $1
+        AND sessao_web IS NOT NULL
+        AND ultimo_acesso_web IS NOT NULL
+        AND ultimo_acesso_web >= NOW() - ($2 || ' minutes')::interval
+      UNION ALL
+      SELECT nome, nivel,
+        'mobile' AS plataforma,
+        sessao_mobile_em AS login_em,
+        ultimo_acesso_mobile AS ultimo_acesso
+      FROM usuarios
+      WHERE loja_id = $1
+        AND sessao_mobile IS NOT NULL
+        AND ultimo_acesso_mobile IS NOT NULL
+        AND ultimo_acesso_mobile >= NOW() - ($2 || ' minutes')::interval
+      ORDER BY ultimo_acesso DESC
+    `
+
     const [onlineRes, operadoresRes] = await Promise.all([
-      platformPool.query<{ nome: string; nivel: string; ultimo_acesso: Date }>(
-        `SELECT nome, nivel, ultimo_acesso
-         FROM usuarios
-         WHERE loja_id = $1
-           AND sessao_atual IS NOT NULL
-           AND ultimo_acesso IS NOT NULL
-           AND ultimo_acesso >= NOW() - ($2 || ' minutes')::interval
-         ORDER BY ultimo_acesso DESC`,
+      platformPool.query<{ nome: string; nivel: string; plataforma: string; login_em: Date; ultimo_acesso: Date }>(
+        onlineQuery,
         [user.loja_id, String(inativMin)]),
 
       operadorIds.length > 0
@@ -253,7 +270,11 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         qtd:      Number(contasRes.rows[0].qtd),
       },
       online_agora: onlineRes.rows.map(u => ({
-        nome: u.nome, nivel: u.nivel, ultimo_acesso: u.ultimo_acesso,
+        nome: u.nome,
+        nivel: u.nivel,
+        plataforma: u.plataforma,
+        login_em: u.login_em,
+        ultimo_acesso: u.ultimo_acesso,
       })),
       promocoes_ativas: promoRes.rows.map(p => ({
         id: p.id, nome: p.nome, tipo: p.tipo, inicio: p.inicio, fim: p.fim,
@@ -549,6 +570,76 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         total_suprimentos:Number(t.total_suprimentos),
         total_vendas:     Number(t.total_dinheiro),
       })),
+    })
+  })
+
+  // ── 8. Acessos ─────────────────────────────────────────────────────────────
+  app.get('/acessos', { preHandler: dono }, async (req, reply) => {
+    const user = req.user as JwtPayload
+    const { inicio, fim, usuario_id, plataforma } = req.query as any
+
+    const dataInicio = inicio || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
+    const dataFim = fim || new Date().toISOString().split('T')[0]
+
+    const params: any[] = [user.loja_id, dataInicio, dataFim]
+    let filters = ''
+    if (usuario_id) { params.push(usuario_id); filters += ` AND l.usuario_id = $${params.length}` }
+    if (plataforma) { params.push(plataforma); filters += ` AND l.plataforma = $${params.length}` }
+
+    const [logsRes, kpisRes, porHoraRes, topUsuariosRes, colaboradoresRes] = await Promise.all([
+      platformPool.query(`
+        SELECT l.tipo, l.ip, l.plataforma, l.motivo, l.criado_em, u.nome
+        FROM logs_acesso l
+        JOIN usuarios u ON u.id = l.usuario_id
+        WHERE l.loja_id = $1
+          AND DATE(l.criado_em) BETWEEN $2 AND $3
+          ${filters}
+        ORDER BY l.criado_em DESC
+        LIMIT 200
+      `, params),
+
+      platformPool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE tipo = 'login') AS total_logins,
+          COUNT(DISTINCT usuario_id) AS usuarios_ativos,
+          COUNT(*) FILTER (WHERE plataforma = 'mobile') AS logins_mobile,
+          COUNT(*) FILTER (WHERE plataforma = 'web' OR plataforma IS NULL) AS logins_web
+        FROM logs_acesso
+        WHERE loja_id = $1 AND DATE(criado_em) BETWEEN $2 AND $3 AND tipo = 'login'
+      `, [user.loja_id, dataInicio, dataFim]),
+
+      platformPool.query(`
+        SELECT EXTRACT(HOUR FROM criado_em)::int AS hora, COUNT(*)::int AS total
+        FROM logs_acesso
+        WHERE loja_id = $1 AND DATE(criado_em) BETWEEN $2 AND $3 AND tipo = 'login'
+        GROUP BY hora ORDER BY hora
+      `, [user.loja_id, dataInicio, dataFim]),
+
+      platformPool.query(`
+        SELECT u.nome, COUNT(*) FILTER (WHERE l.tipo = 'login')::int AS logins
+        FROM logs_acesso l
+        JOIN usuarios u ON u.id = l.usuario_id
+        WHERE l.loja_id = $1 AND DATE(l.criado_em) BETWEEN $2 AND $3
+        GROUP BY u.nome ORDER BY logins DESC LIMIT 10
+      `, [user.loja_id, dataInicio, dataFim]),
+
+      platformPool.query(`
+        SELECT id, nome FROM usuarios WHERE loja_id = $1 AND ativo = true ORDER BY nome
+      `, [user.loja_id]),
+    ])
+
+    const k = kpisRes.rows[0]
+    return reply.send({
+      logs: logsRes.rows,
+      kpis: {
+        total_logins:    Number(k.total_logins),
+        usuarios_ativos: Number(k.usuarios_ativos),
+        logins_mobile:   Number(k.logins_mobile),
+        logins_web:      Number(k.logins_web),
+      },
+      porHora:       porHoraRes.rows,
+      topUsuarios:   topUsuariosRes.rows,
+      colaboradores: colaboradoresRes.rows,
     })
   })
 
