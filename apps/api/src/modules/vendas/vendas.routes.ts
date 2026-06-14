@@ -273,12 +273,13 @@ export async function vendasRoutes(app: FastifyInstance) {
   // Histórico de vendas
   app.get('/', { preHandler: auth }, async (req, reply) => {
     const pool = getTenantPoolFromRequest(req)
-    const { de, ate, limit = '50' } = req.query as { de?: string; ate?: string; limit?: string }
+    const { de, ate, limit = '50', vendedor_id } = req.query as { de?: string; ate?: string; limit?: string; vendedor_id?: string }
 
     const params: any[] = []
     const conds: string[] = ['v.status != \'cancelada\'']
-    if (de)  { params.push(de);  conds.push(`DATE(v.criado_em) >= $${params.length}`) }
-    if (ate) { params.push(ate); conds.push(`DATE(v.criado_em) <= $${params.length}`) }
+    if (de)          { params.push(de);          conds.push(`DATE(v.criado_em) >= $${params.length}`) }
+    if (ate)         { params.push(ate);         conds.push(`DATE(v.criado_em) <= $${params.length}`) }
+    if (vendedor_id) { params.push(vendedor_id); conds.push(`v.vendedor_id = $${params.length}`) }
 
     const { rows } = await pool.query(
       `SELECT v.id, v.total, v.subtotal, v.desconto_promocao, v.cashback_usado,
