@@ -410,16 +410,6 @@ export default function ResumoCaixaPage() {
     vendasApi.get(id).then(d => setDetails(prev => ({ ...prev, [id]: d })))
   }
 
-  // Default to vendas mode when user is not the operator (or when caixa is closed)
-  useEffect(() => {
-    if (!carregando && !carregandoHoje && authNome) {
-      const isOp = turno
-        ? ((turno as any)?.usuario_nome === authNome || (turno as any)?.usuario_id === (usuario as any)?.id)
-        : false
-      if (!isOp) setViewMode('vendas')
-    }
-  }, [carregando, carregandoHoje, (turno as any)?.id, authNome])
-
   // ── Aggregations ──
   const totalGeral = vendas.reduce((s, v) => s + Number(v.total), 0)
 
@@ -448,6 +438,11 @@ export default function ResumoCaixaPage() {
   const minhasVendas = vendasHoje.filter((v: any) => v.vendedor_nome === authNome || (v as any).vendedor_id === (usuario as any)?.id)
   const temVendas    = minhasVendas.length > 0
   const showToggle   = showCaixa && temVendas
+
+  // Switch to vendas mode when user is not the caixa operator but has personal sales today
+  useEffect(() => {
+    if (!ehOperador && temVendas) setViewMode('vendas')
+  }, [ehOperador, temVendas])
 
   // ── Client-side search filter ──
   const baseVendas      = viewMode === 'vendas' ? minhasVendas : vendas
