@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, Lock, Search } from 'lucide-react'
+import { ChevronDown, Search } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCaixaStore } from '@/store/caixa.store'
 import { useAuthStore } from '@/store/auth.store'
@@ -352,14 +352,25 @@ export default function ResumoCaixaPage() {
   const { status, turno, carregar } = useCaixaStore()
   const usuario                     = useAuthStore(s => s.usuario)
   const authNome                    = (usuario as any)?.nome ?? (usuario as any)?.username ?? null
-  const [vendas,     setVendas]     = useState<VendaHistoricoItem[]>([])
-  const [carregando, setCarregando] = useState(true)
-  const [details,    setDetails]    = useState<DetailMap>({})
-  const [busca,      setBusca]      = useState('')
-  const [viewMode,   setViewMode]   = useState<'caixa' | 'vendas'>('caixa')
+  const [vendas,        setVendas]        = useState<VendaHistoricoItem[]>([])
+  const [vendasHoje,    setVendasHoje]    = useState<VendaHistoricoItem[]>([])
+  const [carregando,    setCarregando]    = useState(true)
+  const [carregandoHoje,setCarregandoHoje]= useState(true)
+  const [details,       setDetails]       = useState<DetailMap>({})
+  const [busca,         setBusca]         = useState('')
+  const [viewMode,      setViewMode]      = useState<'caixa' | 'vendas'>('caixa')
 
   // Always refresh caixa status on mount
   useEffect(() => { carregar() }, [])
+
+  // Load today's sales regardless of turno — vendedores can view without open register
+  useEffect(() => {
+    const hoje = new Date().toISOString().split('T')[0]
+    vendasApi.historico({ de: hoje, ate: hoje })
+      .then(data => setVendasHoje(data))
+      .catch(() => {})
+      .finally(() => setCarregandoHoje(false))
+  }, [])
 
   // Fetch vendas + eagerly load ALL sale details so aggregations are correct immediately
   useEffect(() => {
@@ -399,13 +410,15 @@ export default function ResumoCaixaPage() {
     vendasApi.get(id).then(d => setDetails(prev => ({ ...prev, [id]: d })))
   }
 
-  // If user is not the operator of this shift, default to vendas view
+  // Default to vendas mode when user is not the operator (or when caixa is closed)
   useEffect(() => {
-    if (!carregando && turno && authNome) {
-      const isOp = (turno as any)?.usuario_nome === authNome || (turno as any)?.usuario_id === (usuario as any)?.id
+    if (!carregando && !carregandoHoje && authNome) {
+      const isOp = turno
+        ? ((turno as any)?.usuario_nome === authNome || (turno as any)?.usuario_id === (usuario as any)?.id)
+        : false
       if (!isOp) setViewMode('vendas')
     }
-  }, [carregando, (turno as any)?.id, authNome])
+  }, [carregando, carregandoHoje, (turno as any)?.id, authNome])
 
   // ── Aggregations ──
   const totalGeral = vendas.reduce((s, v) => s + Number(v.total), 0)
@@ -429,10 +442,12 @@ export default function ResumoCaixaPage() {
   const esperadoGaveta   = saldoInicial + vendasDinheiro + totalSuprimentos - totalSangrias
 
   // ── Toggle mode ──
-  const ehOperador   = (turno as any)?.usuario_nome === authNome || (turno as any)?.usuario_id === (usuario as any)?.id
-  const minhasVendas = vendas.filter((v: any) => v.vendedor_nome === authNome)
+  const caixaAberto  = status === 'aberto' && !!turno
+  const ehOperador   = caixaAberto && ((turno as any)?.usuario_nome === authNome || (turno as any)?.usuario_id === (usuario as any)?.id)
+  const showCaixa    = ehOperador
+  const minhasVendas = vendasHoje.filter((v: any) => v.vendedor_nome === authNome || (v as any).vendedor_id === (usuario as any)?.id)
   const temVendas    = minhasVendas.length > 0
-  const showToggle   = ehOperador && temVendas
+  const showToggle   = showCaixa && temVendas
 
   // ── Client-side search filter ──
   const baseVendas      = viewMode === 'vendas' ? minhasVendas : vendas
@@ -477,23 +492,11 @@ export default function ResumoCaixaPage() {
   }
 
   // ── Loading ──
-  if (status === 'desconhecido' || (status === 'aberto' && carregando)) return (
+  if (status === 'desconhecido' || carregandoHoje) return (
     <>
       <TopBar />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="w-8 h-8 border-2 border-electric-cyan border-t-transparent rounded-full animate-spin" />
-      </div>
-    </>
-  )
-
-  // ── Caixa fechado / sem turno ──
-  if (status !== 'aberto' || !turno) return (
-    <>
-      <TopBar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-        <Lock size={32} style={{ color: 'rgba(255,255,255,0.15)' }} />
-        <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)', fontWeight: 500, margin: 0 }}>Caixa fechado</p>
-        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', margin: 0 }}>Abra o caixa para ver o resumo do turno.</p>
       </div>
     </>
   )
@@ -527,8 +530,8 @@ export default function ResumoCaixaPage() {
     )}
     <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto' }}>
 
-      {/* ── Section 1: Three summary cards ── */}
-      {viewMode === 'caixa' && (
+      {/* ── Section 1: Three summary cards (caixa mode, operator only) ── */}
+      {showCaixa && viewMode === 'caixa' && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
 
         {/* Receita total — with operador/abertura folded in */}
@@ -600,7 +603,7 @@ export default function ResumoCaixaPage() {
       )}
 
       {/* ── Minhas vendas KPI ── */}
-      {viewMode === 'vendas' && (
+      {temVendas && viewMode === 'vendas' && (
         <div style={{ ...CARD, maxWidth: '280px' }}>
           <span style={SEC_LABEL}>Minhas vendas</span>
           <p style={{ fontSize: '22px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', margin: '0 0 2px' }}>
@@ -612,7 +615,16 @@ export default function ResumoCaixaPage() {
         </div>
       )}
 
+      {/* ── Empty state: no caixa, no sales ── */}
+      {!showCaixa && !temVendas && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '48px 0' }}>
+          <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)', fontWeight: 500, margin: 0 }}>Nenhuma atividade hoje</p>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', margin: 0 }}>Você não tem vendas nem caixa aberto.</p>
+        </div>
+      )}
+
       {/* ── Section 2: Search box ── */}
+      {(showCaixa || temVendas) && (
       <div style={{ position: 'relative' }}>
         <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }} />
         <input
@@ -636,11 +648,12 @@ export default function ResumoCaixaPage() {
           onBlur={e  => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }}
         />
       </div>
+      )}
 
       {/* ── Section 3: Two-column parity sale list ── */}
-      {baseVendas.length === 0 ? (
+      {(showCaixa || temVendas) && (baseVendas.length === 0 ? (
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', padding: '32px 0' }}>
-          Nenhuma venda neste turno
+          {viewMode === 'vendas' ? 'Você não tem vendas hoje' : 'Nenhuma venda neste turno'}
         </p>
       ) : vendasFiltradas.length === 0 ? (
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', padding: '32px 0' }}>
@@ -669,7 +682,7 @@ export default function ResumoCaixaPage() {
             ))}
           </div>
         </div>
-      )}
+      ))}
 
     </div>
     </>
