@@ -1,6 +1,6 @@
 # ARKEflow — Convenção de Exibição de Atributos de Variação
 
-> Atualizado em 2026-06-07. Referência obrigatória para todas as telas que exibem atributos de produto.
+> Atualizado em 2026-06-14. Referência obrigatória para todas as telas que exibem atributos de produto.
 
 ---
 

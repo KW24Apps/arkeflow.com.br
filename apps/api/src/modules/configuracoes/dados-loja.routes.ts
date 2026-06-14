@@ -175,6 +175,7 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
       cadastro_exige_cpf, cadastro_exige_email, cadastro_exige_endereco,
       crediario_exige_email, crediario_exige_endereco,
       prova_exige_cpf, prova_exige_email, prova_exige_endereco,
+      prova_habilitada, prova_prazo_obrigatorio, prova_alerta_dias,
     } = req.body as any
 
     console.log('PUT sistema body:', JSON.stringify(req.body))
@@ -251,6 +252,9 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     if (prova_exige_cpf !== undefined)                { val.push(prova_exige_cpf);                upd.push(`prova_exige_cpf = $${val.length}`) }
     if (prova_exige_email !== undefined)              { val.push(prova_exige_email);              upd.push(`prova_exige_email = $${val.length}`) }
     if (prova_exige_endereco !== undefined)           { val.push(prova_exige_endereco);           upd.push(`prova_exige_endereco = $${val.length}`) }
+    if (prova_habilitada !== undefined)               { val.push(prova_habilitada);               upd.push(`prova_habilitada = $${val.length}`) }
+    if (prova_prazo_obrigatorio !== undefined)        { val.push(prova_prazo_obrigatorio);        upd.push(`prova_prazo_obrigatorio = $${val.length}`) }
+    if (prova_alerta_dias !== undefined)              { val.push(Math.max(1, Number(prova_alerta_dias))); upd.push(`prova_alerta_dias = $${val.length}`) }
     if (senha_mestra && typeof senha_mestra === 'string' && senha_mestra.trim()) {
       const hash = await bcrypt.hash(senha_mestra.trim(), 10)
       val.push(hash); upd.push(`senha_mestra_hash = $${val.length}`)

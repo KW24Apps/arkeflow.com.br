@@ -6,7 +6,7 @@
 
 ## Cronologia de desenvolvimento (registro do fundador)
 
-- **Hoje:** 12/06/2026.
+- **Hoje:** 14/06/2026.
 - **Início:** sexta-feira, 05/06/2026, ~21h. Desenvolvimento do zero, com IA como arquiteto.
 - **Maratona inicial:** trabalho praticamente contínuo da sexta 21h até sábado 06/06 ~21h —
   cerca de **24 horas reais** de trabalho (com um intervalo à noite para uma janta e pausas).
@@ -78,6 +78,30 @@
       variações vendidas; se não houver, construir. Bloqueia operação real.
 
 ---
+
+## Entregas das sessões de 12–14/06/2026
+
+Concluído e deployado:
+- [x] **FIX: GET /caixa/vendas — bug de fan-out (pagamentos duplicados com promoção)**
+  - JOIN simultâneo de `itens_venda` + `pagamentos_venda` produzia N×M rows antes do GROUP BY
+  - Corrigido com subquery correlacionada para pagamentos (mesmo padrão já usado no `/status`)
+  - Commit: `6434803`
+- [x] **ARKEVest — tela relatorio.tsx** ("Minhas vendas de hoje")
+  - FlatList 3 colunas; KPI total + count; OceanGlass Modal de detalhe (cliente, hora, total, itens)
+  - Substituiu `Alert.alert` por Modal; `lib/api/vendas.ts` com `vendasApi.minhasHoje()`
+  - OTA: grupo `8c9095ea`; commit: `00fba8b`
+- [x] **FIX: resumo/page.tsx — viewMode nunca alternava para vendedores sem turno aberto**
+  - Removido useEffect gateado em `!carregando && !carregandoHoje && authNome` (race condition com auth store)
+  - Adicionado `useEffect(() => { if (!ehOperador && temVendas) setViewMode('vendas') }, [ehOperador, temVendas])` APÓS as declarações derivadas (evita TDZ)
+  - Commit: `42ed294`
+- [x] **Platform migs 018–020**
+  - 018: sessão per-plataforma — colunas `sessao_web/ip/em` + `sessao_mobile/ip/em` em `usuarios` (substitui sessao_atual/ip/em unificada)
+  - 019: `ultimo_acesso_web` + `ultimo_acesso_mobile` em `usuarios`
+  - 020: `plataforma TEXT` + `motivo TEXT` em `logs_acesso`
+- [x] **Tenant migs 055–057**
+  - 055: `inatividade_minutos INTEGER NOT NULL DEFAULT 360` em `configuracoes_loja`
+  - 056: 8 flags de campos obrigatórios no cadastro em `configuracoes_loja` (`cadastro_exige_*`, `crediario_exige_*`, `prova_exige_*`)
+  - 057: `turno_id UUID REFERENCES turnos_caixa(id)` + índice em `vendas` — vincula cada venda ao turno ativo
 
 ## Entregas da sessão de 12/06/2026
 

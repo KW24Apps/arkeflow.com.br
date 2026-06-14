@@ -1,6 +1,6 @@
 # ARKEflow — Contexto Visual (Design System)
 
-> Atualizado em 2026-06-10. Referência para todos os componentes e padrões visuais do painel.
+> Atualizado em 2026-06-14. Referência para todos os componentes e padrões visuais do painel.
 
 ---
 

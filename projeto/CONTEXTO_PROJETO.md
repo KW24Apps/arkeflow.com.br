@@ -1,6 +1,6 @@
 # ARKEflow — Contexto do Projeto
 
-> Atualizado em 2026-06-12 (sessão 10 — ARKEVest mobile app: EAS Build APK c39157fd, login ✓, home launcher expand/collapse ✓, SESSAO_ATIVA 409 handling ✓, platform-aware session logic ✓, OTA via expo-updates ✓).
+> Atualizado em 2026-06-14 (sessões 11–14 — fix caixa fan-out, mobile relatorio.tsx + OTA, resumo viewMode, platform migs 018–020, tenant migs 055–057).
 
 ---
 
@@ -29,7 +29,7 @@ App React Native construído com Expo SDK 54, distribuído via EAS Build (APK An
 
 ---
 
-## Estado Atual (2026-06-11)
+## Estado Atual (2026-06-14)
 
 ### Módulos funcionais
 
@@ -43,7 +43,7 @@ App React Native construído com Expo SDK 54, distribuído via EAS Build (APK An
 | Financeiro | ✓ | ✓ | Lançamentos, contas a receber, formas de pagamento |
 | Formas de pagamento | ✓ | ✓ | `formas_pagamento.ativo` é a única fonte de verdade para habilitar/desabilitar no caixa; `aceita_desconto` controla se desconto é aplicável; colunas de desconto per-forma removidas do tenant (mig 037) |
 | Vendas / PDV | ✓ | ✓ | CheckoutModal multi-método, cashback, promoções, sacolas, carrinho persistido em localStorage; troco gravado por pagamento; motor de desconto de caixa no CheckoutModal (teto % e R$ + toggle com/sem + restrição por forma); ClienteDadosModal (edição de dados do cliente dentro do PDV); scan two-level com prefixo de quantidade (`3-7891234`) |
-| Caixa | ✓ | ✓ | Turno scoped por usuario_id; "Caixa em dinheiro" = saldo_inicial + vendas_dinheiro + suprimentos − sangrias; página de resumo com histórico |
+| Caixa | ✓ | ✓ | Turno scoped por usuario_id; "Caixa em dinheiro" = saldo_inicial + vendas_dinheiro + suprimentos − sangrias; `GET /caixa/vendas` usa subquery correlacionada para pagamentos (evita fan-out N×M); página de resumo com lógica de viewMode corrigida (useEffect por `[ehOperador, temVendas]`) |
 | Colaboradores | ✓ | ✓ | Perfil completo, documentos, modelos de permissão |
 | Promoções | ✓ | ✓ | Status redesign completo: Ativas/Finalizadas (tabs URL-based via topbar), cards por status (Em execução/Agendadas/Encerradas), badge "DD/MM · Xd", Encerrar + Duplicar; accordion seletor por tipo; conflito com aviso (1 produto + 2+ produtos); `primeira_compra` bloqueada se já existe uma ativa (API + frontend); date picker abre no click; tipo bloqueado na edição; cross-page Duplicar via `?dup=<id>` param |
 | Configurações / Sistema | ✓ | ✓ | Layout de cards quadrados (Logo, Estoque, Desconto, Supervisão) + painel full-width expansível; clica no card para abrir, clica novamente para fechar; nada aberto por padrão. Supervisão: toggle-mãe, senha mestra bcrypt, supervisores chips + modal Gerenciar, toggles de ações protegidas (fechar falta, fechar sobra, cancelar item). Migs 044 + platform 015. |
@@ -91,6 +91,9 @@ Todas as telas do painel seguem o padrão **Ocean Glass**:
 | 015 | `usuarios_is_supervisor` | Adiciona `is_supervisor BOOLEAN NOT NULL DEFAULT false` a `usuarios` |
 | 016 | `usuarios_sessao` | Adiciona `sessao_atual UUID`, `sessao_ip TEXT`, `sessao_em TIMESTAMPTZ` a `usuarios` — controle de sessão ativa |
 | 017 | `usuarios_sessao_plataforma` | Adiciona `sessao_plataforma TEXT CHECK ('web','mobile','desktop')` a `usuarios` — sessão mobile não conflita com web/desktop |
+| 018 | `usuarios_sessao_split` | Substitui sessão unificada por colunas per-plataforma: `sessao_web/ip/em` + `sessao_mobile/ip/em` em `usuarios` |
+| 019 | `usuarios_ultimo_acesso_split` | Adiciona `ultimo_acesso_web TIMESTAMPTZ` + `ultimo_acesso_mobile TIMESTAMPTZ` a `usuarios` |
+| 020 | `logs_acesso_plataforma_motivo` | Adiciona `plataforma TEXT` + `motivo TEXT` a `logs_acesso` |
 
 ### Tenant (`loja_XXXXX`)
 
@@ -150,6 +153,9 @@ Todas as telas do painel seguem o padrão **Ocean Glass**:
 | 052 | `itens_venda_promocao_nome` | Adiciona `promocao_nome TEXT` a `itens_venda` — desnormalização do nome da promoção aplicada para histórico de vendas |
 | 053 | `fix_categorias_alvo_empty_object` | Data fix: corrige rows onde `categorias_alvo` foi gravada como `{}` (objeto vazio) em vez de `[]` (array vazio) |
 | 054 | `promocoes_encerrada` | Adiciona `encerrada BOOLEAN NOT NULL DEFAULT false` a `promocoes` — flag de encerramento definitivo (diferente de `ativo = false` que pode ser reativado) |
+| 055 | `configuracoes_inatividade` | Adiciona `inatividade_minutos INTEGER NOT NULL DEFAULT 360` a `configuracoes_loja` |
+| 056 | `configuracoes_cadastro_cliente` | Adiciona 8 flags a `configuracoes_loja`: `cadastro_exige_cpf/email/endereco`, `crediario_exige_email/endereco`, `prova_exige_cpf/email/endereco` |
+| 057 | `vendas_turno_id` | Adiciona `turno_id UUID REFERENCES turnos_caixa(id)` + índice a `vendas` — vincula venda ao turno do operador no momento da finalização |
 
 ---
 

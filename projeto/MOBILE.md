@@ -1,6 +1,6 @@
 # ARKEVest Mobile — Contexto
 
-> Criado em 2026-06-12 (sessão 10). Documenta tudo específico ao app mobile ARKEVest.
+> Atualizado em 2026-06-14. Documenta tudo específico ao app mobile ARKEVest.
 
 ---
 
@@ -33,10 +33,16 @@ apps/mobile/
 │   ├── (app)/
 │   │   ├── _layout.tsx          # Auth guard (redireciona /(auth)/login se sem token)
 │   │   ├── index.tsx            # Home launcher (Vendas expandível + Clientes)
+│   │   ├── clientes/
+│   │   │   ├── index.tsx        # Lista de clientes (placeholder)
+│   │   │   ├── novo.tsx         # Novo cliente (placeholder)
+│   │   │   └── [id].tsx         # Detalhe cliente (placeholder)
 │   │   └── vendas/
+│   │       ├── relatorio.tsx    # "Minhas vendas de hoje" — FlatList 3 colunas + KPI + Modal Ocean Glass
 │   │       └── sacolas/
 │   │           ├── index.tsx    # Lista de sacolas (placeholder)
-│   │           └── nova.tsx     # Nova sacola (placeholder)
+│   │           ├── nova.tsx     # Nova sacola (placeholder)
+│   │           └── [id].tsx     # Detalhe sacola (placeholder)
 ├── components/
 │   └── ui/
 │       └── Button.tsx
@@ -46,7 +52,10 @@ apps/mobile/
 │   ├── api/
 │   │   ├── client.ts            # Axios base URL + interceptor 401 (ignora /auth/login)
 │   │   ├── auth.ts              # loginRequest — envia sempre plataforma: 'mobile'
-│   │   └── sacolas.ts           # CRUD sacolas
+│   │   ├── sacolas.ts           # CRUD sacolas
+│   │   ├── vendas.ts            # vendasApi.minhasHoje(vendedor_id) → VendaMobile[] (GET /vendas?de&ate&vendedor_id)
+│   │   ├── clientes.ts          # clientesApi (placeholder)
+│   │   └── produtos.ts          # produtosApi (placeholder)
 │   └── store/
 │       └── auth.store.ts        # Zustand: token, usuario, isLoading, sessaoAtiva, _hasHydrated
 ├── app.json                     # slug: arkevest, runtimeVersion: {policy:appVersion}, updates.url
@@ -104,7 +113,14 @@ eas build --platform android --profile preview --non-interactive
 | Runtime version | `1.0.0` |
 | Branch | `preview` |
 | Link | https://expo.dev/accounts/gabriel.acker/projects/arkevest/builds/c39157fd-f3ef-447b-bc4c-cc59c8c13c42 |
-| Último OTA | grupo `671eb07b` — OTA check on launch |
+
+### Histórico de OTA updates
+
+| Grupo | Descrição | Commit |
+|-------|-----------|--------|
+| `34d03efd` | Home layout inicial | — |
+| `671eb07b` | OTA check on launch (`_layout.tsx`) | — |
+| `8c9095ea` | relatorio.tsx — tela Minhas vendas de hoje (Alert → Modal Ocean Glass) | `00fba8b` |
 
 ---
 
@@ -114,10 +130,11 @@ eas build --platform android --profile preview --non-interactive
 |---|------|--------|
 | 1 | **Login** — gradient #0d1f3c→#111318, ARKEvest logo, campo E-mail + Senha, KeyboardAvoidingView | ✓ funcional |
 | 2 | **Home launcher** — dois cards (Vendas/Clientes); Vendas expande com Animated.spring mostrando Sacolas/Provas/Relatório | ✓ funcional |
-| 3 | **Lista de sacolas** — FlatList, badges Aguardando/No caixa, FAB + Nova sacola | placeholder |
-| 4 | **Busca de cliente** (passo 1 nova sacola) — busca fixa topo, lista filtrável, "Cadastrar novo" fixo acima teclado | pendente |
-| 5 | **Cadastro cliente** — scroll com Next entre campos, CEP busca ViaCEP, Salvar fixo rodapé | pendente |
-| 6 | **Adicionar produtos** (passo 2) — lista itens +/-, busca+câmera fixos, bottom sheet variação | pendente |
+| 3 | **Minhas vendas de hoje** (relatorio.tsx) — header com refresh, KPI card total + count, FlatList 3 colunas (hora/cliente/total/itens), Modal detalhe Ocean Glass | ✓ funcional |
+| 4 | **Lista de sacolas** — FlatList, badges Aguardando/No caixa, FAB + Nova sacola | placeholder |
+| 5 | **Busca de cliente** (passo 1 nova sacola) — busca fixa topo, lista filtrável, "Cadastrar novo" fixo acima teclado | pendente |
+| 6 | **Cadastro cliente** — scroll com Next entre campos, CEP busca ViaCEP, Salvar fixo rodapé | pendente |
+| 7 | **Adicionar produtos** (passo 2) — lista itens +/-, busca+câmera fixos, bottom sheet variação | pendente |
 
 ---
 

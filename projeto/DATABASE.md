@@ -1,6 +1,6 @@
 # ARKEflow — Schema do Banco de Dados
 
-> Atualizado em 2026-06-12. Schema do platform atualizado pós migrações 016–017 (sessao_atual/ip/em + sessao_plataforma em usuarios); schema do tenant sem alterações nesta sessão.
+> Atualizado em 2026-06-14. Platform atualizado pós migrações 018–020 (sessão per-plataforma split, ultimo_acesso split, logs plataforma/motivo); tenant atualizado pós migrações 055–057 (inatividade, campos obrigatórios cadastro, vendas.turno_id).
 > Fonte: `projeto/schema_platform.sql` (arkeflow_platform) e `projeto/schema_tenant.sql` (loja_teste).
 > PostgreSQL 16 (Ubuntu).
 >
@@ -119,10 +119,18 @@ O pool da plataforma (`platformPool`) conecta ao `arkeflow_platform`. Para cada 
 | `hora_inicio` | TIME | |
 | `hora_fim` | TIME | |
 | `is_supervisor` | BOOLEAN | NOT NULL DEFAULT false — pode autorizar ações sensíveis no caixa (mig 015) |
-| `sessao_atual` | UUID | NULL — SID da sessão ativa (mig 016) |
-| `sessao_ip` | TEXT | NULL — IP da sessão ativa (mig 016) |
-| `sessao_em` | TIMESTAMPTZ | NULL — timestamp de início da sessão ativa (mig 016) |
-| `sessao_plataforma` | TEXT | NULL — `'web'` \| `'mobile'` \| `'desktop'`; sessão mobile não conflita com web/desktop (mig 017) |
+| `sessao_atual` | UUID | NULL — SID legado (mig 016, supersedido pelas colunas per-plataforma abaixo) |
+| `sessao_ip` | TEXT | NULL — IP legado (mig 016) |
+| `sessao_em` | TIMESTAMPTZ | NULL — timestamp legado (mig 016) |
+| `sessao_plataforma` | TEXT | NULL — legado (mig 017), supersedido pelas colunas split |
+| `sessao_web` | TEXT | NULL — SID da sessão web ativa (mig 018) |
+| `sessao_web_ip` | TEXT | NULL — IP da sessão web ativa (mig 018) |
+| `sessao_web_em` | TIMESTAMPTZ | NULL — timestamp de início da sessão web (mig 018) |
+| `sessao_mobile` | TEXT | NULL — SID da sessão mobile ativa (mig 018) |
+| `sessao_mobile_ip` | TEXT | NULL — IP da sessão mobile ativa (mig 018) |
+| `sessao_mobile_em` | TIMESTAMPTZ | NULL — timestamp de início da sessão mobile (mig 018) |
+| `ultimo_acesso_web` | TIMESTAMPTZ | NULL — último acesso via plataforma web (mig 019) |
+| `ultimo_acesso_mobile` | TIMESTAMPTZ | NULL — último acesso via plataforma mobile (mig 019) |
 
 **Regra de conflito de sessão:** mobile vs mobile = conflito; web vs desktop = conflito; mobile vs web/desktop = sem conflito (coexistem). Implementado em `auth.service.ts::conflitaPlataforma()`.
 
@@ -154,6 +162,8 @@ O pool da plataforma (`platformPool`) conecta ao `arkeflow_platform`. Para cada 
 | `loja_id` | UUID | FK → lojas.id |
 | `ip` | TEXT | |
 | `tipo` | TEXT | NOT NULL — CHECK: `login`, `logout` |
+| `plataforma` | TEXT | NULL — `'web'` \| `'mobile'` \| `'desktop'` (mig 020) |
+| `motivo` | TEXT | NULL — motivo do logout (ex: `'sessao_forcada'`, mig 020) |
 | `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
 **Índices:** `idx_logs_acesso_loja (loja_id, criado_em DESC)`, `idx_logs_acesso_usuario (usuario_id, criado_em DESC)`
@@ -436,6 +446,7 @@ O pool da plataforma (`platformPool`) conecta ao `arkeflow_platform`. Para cada 
 | `usuario_id` | UUID | NOT NULL — operador do caixa |
 | `vendedor_id` | UUID | Vendedor atribuído (pode diferir do operador) |
 | `vendedor_nome` | TEXT | Desnormalizado para histórico |
+| `turno_id` | UUID | FK → turnos_caixa.id — turno ativo no momento da venda (mig 057); NULL para vendas antigas |
 | `promocao_id` | UUID | |
 | `subtotal` | NUMERIC(10,2) | NOT NULL — sem descontos |
 | `desconto_promocao` | NUMERIC(10,2) | NOT NULL DEFAULT 0 |
@@ -775,6 +786,15 @@ O pool da plataforma (`platformPool`) conecta ao `arkeflow_platform`. Para cada 
 | `sangria_fundo_troco` | NUMERIC(10,2) | NOT NULL DEFAULT 0 — fundo de troco mínimo a manter no caixa (mig 047) |
 | `sangria_limite_modo` | TEXT | NOT NULL DEFAULT `'avisar'` — CHECK: `avisar`, `obrigar`; `obrigar` trava a venda ao exceder (mig 047) |
 | `atalhos_caixa` | JSONB | NOT NULL DEFAULT `{}` — mapa `{ "F": "ação" }` de atalhos customizados Alt+tecla; `F` = letra A–Z ou dígito 0–9 (mig 048) |
+| `inatividade_minutos` | INTEGER | NOT NULL DEFAULT 360 — tempo de inatividade em minutos antes de fazer logout automático (mig 055) |
+| `cadastro_exige_cpf` | BOOLEAN | NOT NULL DEFAULT false — CPF obrigatório no cadastro de cliente (mig 056) |
+| `cadastro_exige_email` | BOOLEAN | NOT NULL DEFAULT false — e-mail obrigatório no cadastro de cliente (mig 056) |
+| `cadastro_exige_endereco` | BOOLEAN | NOT NULL DEFAULT false — endereço obrigatório no cadastro de cliente (mig 056) |
+| `crediario_exige_email` | BOOLEAN | NOT NULL DEFAULT true — e-mail obrigatório para crediário (mig 056) |
+| `crediario_exige_endereco` | BOOLEAN | NOT NULL DEFAULT true — endereço obrigatório para crediário (mig 056) |
+| `prova_exige_cpf` | BOOLEAN | NOT NULL DEFAULT true — CPF obrigatório para prova em casa (mig 056) |
+| `prova_exige_email` | BOOLEAN | NOT NULL DEFAULT false — e-mail obrigatório para prova em casa (mig 056) |
+| `prova_exige_endereco` | BOOLEAN | NOT NULL DEFAULT true — endereço obrigatório para prova em casa (mig 056) |
 | `cashback_habilitado` | BOOLEAN | NOT NULL DEFAULT false — liga geração de cashback nas vendas (mig 050) |
 | `cashback_aceita_promocao` | BOOLEAN | NOT NULL DEFAULT false — permite usar cashback em vendas com promoção ativa (mig 050) |
 | `cashback_aceita_desconto` | BOOLEAN | NOT NULL DEFAULT true — permite usar cashback em vendas com desconto de caixa (mig 050) |
@@ -802,7 +822,7 @@ O pool da plataforma (`platformPool`) conecta ao `arkeflow_platform`. Para cada 
 |--------|----------|--------|-----------|
 | `clientes` | ✓ | ✓ | Tenant tem `arquivado` + 7 campos de endereço |
 | `clientes_credito` | ✗ | ✓ | Existe apenas no tenant (mig 038) |
-| `configuracoes_loja` | ✓ | ✓ | Tenant tem 4 colunas de desconto + 11 colunas `crediario_*` (mig 039/041) + 6 colunas `supervisao_*`/`senha_mestra_*`/`exige_auth_*` (mig 044) + 4 colunas `sangria_*` (mig 047) + `atalhos_caixa` (mig 048) + 8 colunas `cashback_*` (mig 050) |
+| `configuracoes_loja` | ✓ | ✓ | Tenant tem 4 colunas de desconto + 11 colunas `crediario_*` (mig 039/041) + 6 colunas `supervisao_*`/`senha_mestra_*`/`exige_auth_*` (mig 044) + 4 colunas `sangria_*` (mig 047) + `atalhos_caixa` (mig 048) + 8 colunas `cashback_*` (mig 050) + `inatividade_minutos` (mig 055) + 9 flags cadastro/crediario/prova (mig 056) |
 | `promocoes` | ✓ | ✓ | Tenant tem `encerrada BOOLEAN` (mig 054) |
 | `itens_venda` | ✓ | ✓ | Tenant tem `promocao_nome TEXT` (mig 052) |
 | `autorizacoes_log` | ✗ | ✓ | Existe apenas no tenant (mig 045) — log de autorizações de supervisão |
@@ -814,7 +834,7 @@ O pool da plataforma (`platformPool`) conecta ao `arkeflow_platform`. Para cada 
 | `versoes` | ✓ | ✓ | Tenant tem `arquivado`; índice UNIQUE em `codigo_barras` |
 | `fornecedores` | ✗ | ✓ | Existe apenas no tenant |
 | `lojas` | ✓ | ✗ | Existe apenas no platform |
-| `usuarios` | ✓ | ✗ | Existe apenas no platform — tem `is_supervisor` (mig 015) |
+| `usuarios` | ✓ | ✗ | Existe apenas no platform — tem `is_supervisor` (mig 015); sessão per-plataforma `sessao_web/*` + `sessao_mobile/*` (mig 018); `ultimo_acesso_web/mobile` (mig 019) |
 | `planos` | ✓ | ✗ | Existe apenas no platform |
 | `assinaturas` | ✓ | ✗ | Existe apenas no platform |
 | `pacotes_nota` | ✓ | ✗ | Existe apenas no platform |

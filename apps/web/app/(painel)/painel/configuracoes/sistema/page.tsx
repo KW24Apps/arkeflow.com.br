@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ImageIcon, Package, Tag, ShieldCheck, Banknote, Keyboard, Gift, Timer, Users } from 'lucide-react'
+import { ImageIcon, Package, Tag, ShieldCheck, Banknote, Keyboard, Gift, Timer, Users, ClipboardList } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { api } from '@/lib/api/client'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
@@ -43,6 +43,9 @@ interface SistemaConfig {
   prova_exige_cpf?:            boolean
   prova_exige_email?:          boolean
   prova_exige_endereco?:       boolean
+  prova_habilitada?:           boolean
+  prova_prazo_obrigatorio?:    boolean
+  prova_alerta_dias?:          number | string
 }
 
 async function resizeImage(file: File, maxW = 400, maxH = 200): Promise<Blob> {
@@ -82,7 +85,7 @@ const ATALHO_ACTIONS = [
   { actionKey: 'fecharCaixa', label: 'Fechar caixa',  fKey: 'F10' },
 ] as const
 
-type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao' | 'cadastro' | null
+type Secao = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao' | 'cadastro' | 'prova' | null
 
 export default function ConfigSistemaPage() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -150,6 +153,12 @@ export default function ConfigSistemaPage() {
   const [provaExigeEndereco,     setProvaExigeEndereco]     = useState(true)
   const [cadastroSaved,          setCadastroSaved]          = useState(false)
 
+  // ── Prova em Casa state ───────────────────────────────────────────────────
+  const [provaHabilitada,       setProvaHabilitada]       = useState(false)
+  const [provaPrazoObrigatorio, setProvaPrazoObrigatorio] = useState(true)
+  const [provaAlertaDias,       setProvaAlertaDias]       = useState(2)
+  const [provaSaved,            setProvaSaved]            = useState(false)
+
   // ── Atalhos state ─────────────────────────────────────────────────────────
   const [atalhosCfg,      setAtalhosCfg]      = useState<Record<string, string>>({})
   const [atalhosSaved,    setAtalhosSaved]    = useState(false)
@@ -205,6 +214,9 @@ export default function ConfigSistemaPage() {
       setProvaExigeCpf(d.prova_exige_cpf ?? true)
       setProvaExigeEmail(d.prova_exige_email ?? false)
       setProvaExigeEndereco(d.prova_exige_endereco ?? true)
+      setProvaHabilitada(d.prova_habilitada ?? false)
+      setProvaPrazoObrigatorio(d.prova_prazo_obrigatorio ?? true)
+      setProvaAlertaDias(Number(d.prova_alerta_dias ?? 2))
     }).finally(() => setLoading(false))
   }, [])
 
@@ -364,6 +376,24 @@ export default function ConfigSistemaPage() {
     setTimeout(() => setCadastroSaved(false), 2000)
   }
 
+  async function handleToggleProvaHabilitada() {
+    const v = !provaHabilitada
+    setProvaHabilitada(v)
+    try {
+      await api.put('/dados-loja/sistema', { prova_habilitada: v })
+      setProvaSaved(true); setTimeout(() => setProvaSaved(false), 2000)
+    } catch { setProvaHabilitada(!v) }
+  }
+
+  async function handleToggleProvaPrazoObrigatorio() {
+    const v = !provaPrazoObrigatorio
+    setProvaPrazoObrigatorio(v)
+    try {
+      await api.put('/dados-loja/sistema', { prova_prazo_obrigatorio: v })
+      setProvaSaved(true); setTimeout(() => setProvaSaved(false), 2000)
+    } catch { setProvaPrazoObrigatorio(!v) }
+  }
+
   async function handleSaveCashback(fields: Record<string, any>) {
     try {
       await api.put('/dados-loja/sistema', fields)
@@ -457,22 +487,23 @@ export default function ConfigSistemaPage() {
   const supervisores = colaboradores.filter(c => c.is_supervisor)
   const semMetodoAuth = supervisaoHabilitada && !senhaMestraDefinida && supervisores.length === 0
 
-  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao' | 'cadastro'
+  type SecaoNonNull = 'logo' | 'estoque' | 'desconto' | 'supervisao' | 'caixa' | 'atalhos' | 'cashback' | 'sessao' | 'cadastro' | 'prova'
   const PANEL_ICON: Record<SecaoNonNull, React.ReactNode> = {
-    logo:       <ImageIcon   size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
-    estoque:    <Package     size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
-    desconto:   <Tag         size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
-    supervisao: <ShieldCheck size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
-    caixa:      <Banknote    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
-    atalhos:    <Keyboard    size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
-    cashback:   <Gift        size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
-    sessao:     <Timer       size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
-    cadastro:   <Users       size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    logo:       <ImageIcon     size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    estoque:    <Package       size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    desconto:   <Tag           size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    supervisao: <ShieldCheck   size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    caixa:      <Banknote      size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    atalhos:    <Keyboard      size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    cashback:   <Gift          size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    sessao:     <Timer         size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    cadastro:   <Users         size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
+    prova:      <ClipboardList size={15} style={{ color: '#0ef', flexShrink: 0 }} />,
   }
   const PANEL_LABEL: Record<SecaoNonNull, string> = {
     logo: 'Logo da loja', estoque: 'Estoque', desconto: 'Desconto', supervisao: 'Supervisão',
     caixa: 'Limite de caixa', atalhos: 'Atalhos do caixa', cashback: 'Cashback', sessao: 'Sessão',
-    cadastro: 'Cadastro de clientes',
+    cadastro: 'Cadastro de clientes', prova: 'Prova em Casa',
   }
 
   return (
@@ -505,6 +536,7 @@ export default function ConfigSistemaPage() {
               {secao === 'cashback'   && cashbackSaved   && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'sessao'     && sessaoSaved     && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
               {secao === 'cadastro'   && cadastroSaved   && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
+              {secao === 'prova'      && provaSaved      && <span style={{ fontSize: '10px', color: 'rgba(100,220,160,0.8)' }}>Salvo</span>}
             </div>
 
             {/* Panel body */}
@@ -1327,6 +1359,90 @@ export default function ConfigSistemaPage() {
                 </div>
               )}
 
+              {/* ── Prova em Casa ────────────────────────────────────── */}
+              {secao === 'prova' && (
+                <div style={{ maxWidth: '480px' }} className="flex flex-col gap-5">
+
+                  {/* Master toggle */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: provaHabilitada ? 'rgba(0,239,255,0.9)' : 'rgba(255,255,255,0.75)' }}>
+                        Módulo Prova em Casa habilitado
+                      </p>
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                        Permite registrar produtos que o cliente levou para experimentar em casa.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleToggleProvaHabilitada}
+                      className="relative transition-colors shrink-0"
+                      style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: provaHabilitada ? 'rgba(0,212,212,0.85)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                    >
+                      <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: provaHabilitada ? '21px' : '3px' }} />
+                    </button>
+                  </div>
+
+                  {/* Sub-controls — dimmed when disabled */}
+                  <div style={{ opacity: provaHabilitada ? 1 : 0.38, pointerEvents: provaHabilitada ? 'auto' : 'none', transition: 'opacity 0.2s' }}>
+                    <div className="flex flex-col gap-5">
+
+                      <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                      {/* Prazo obrigatório */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Prazo de devolução obrigatório</p>
+                          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '3px' }}>
+                            Exige que o vendedor defina uma data limite ao criar a prova em casa.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleToggleProvaPrazoObrigatorio}
+                          className="relative transition-colors shrink-0"
+                          style={{ width: '40px', height: '22px', borderRadius: '9999px', border: 'none', background: provaPrazoObrigatorio ? 'rgba(0,212,212,0.7)' : 'rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                        >
+                          <span className="absolute top-[3px] w-[16px] h-[16px] bg-white rounded-full transition-all" style={{ left: provaPrazoObrigatorio ? '21px' : '3px' }} />
+                        </button>
+                      </div>
+
+                      <div style={{ height: '0.5px', background: 'rgba(255,255,255,0.07)' }} />
+
+                      {/* Alerta de vencimento */}
+                      <div className="flex flex-col gap-2">
+                        <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>Alertar com antecedência</p>
+                        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
+                          Sinaliza no painel quando a prova está próxima do vencimento.
+                        </p>
+                        <div className="flex items-center gap-3" style={{ marginTop: '4px' }}>
+                          <input
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={provaAlertaDias}
+                            onChange={e => setProvaAlertaDias(Math.max(1, parseInt(e.target.value) || 1))}
+                            onFocus={e => { e.currentTarget.style.borderColor = 'rgba(0,239,255,0.4)' }}
+                            onBlur={async e => {
+                              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'
+                              const v = Math.max(1, provaAlertaDias)
+                              setProvaAlertaDias(v)
+                              await api.put('/dados-loja/sistema', { prova_alerta_dias: v })
+                              setProvaSaved(true); setTimeout(() => setProvaSaved(false), 2000)
+                            }}
+                            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                            className="outline-none"
+                            style={{ width: '70px', background: 'rgba(8,18,30,0.5)', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: 'rgba(255,255,255,0.8)', minHeight: '38px' }}
+                          />
+                          <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)' }}>dias antes do vencimento</span>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>}
 
@@ -1342,7 +1458,8 @@ export default function ConfigSistemaPage() {
               { key: 'atalhos'    as const, label: 'Atalhos do caixa',  Icon: Keyboard    },
               { key: 'cashback'   as const, label: 'Cashback',          Icon: Gift        },
               { key: 'sessao'     as const, label: 'Sessão',            Icon: Timer       },
-              { key: 'cadastro'   as const, label: 'Cadastro',          Icon: Users       },
+              { key: 'cadastro'   as const, label: 'Cadastro',          Icon: Users         },
+              { key: 'prova'      as const, label: 'Prova em Casa',     Icon: ClipboardList },
             ] satisfies { key: Secao; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => {
               const sel = secao === key
               return (

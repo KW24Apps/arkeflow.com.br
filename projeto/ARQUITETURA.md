@@ -1,6 +1,6 @@
 # ARKEflow — Snapshot Arquitetural
 
-> Atualizado em 2026-06-12. Referência para desenvolvimento, bug fixes e deploys.
+> Atualizado em 2026-06-14. Referência para desenvolvimento, bug fixes e deploys.
 
 ---
 
@@ -42,7 +42,7 @@ arkeflow.com.br/
 │   │   │   │   ├── tenant/         # Resolver multi-tenant
 │   │   │   │   ├── middlewares/    # auth.ts + authorize.ts
 │   │   │   │   └── guards/         # vinculo.ts
-│   │   │   ├── modules/            # 13 módulos de domínio (cada um com .routes → .controller → .service → .repository)
+│   │   │   ├── modules/            # 14+ módulos de domínio (cada um com .routes → .controller → .service → .repository)
 │   │   │   │   ├── auth/
 │   │   │   │   ├── produtos/       # inclui campos fiscais, aceita_desconto, codigo_barras (produto e versão)
 │   │   │   │   ├── catalogos/
@@ -64,8 +64,8 @@ arkeflow.com.br/
 │   │   │       ├── create-admin.ts
 │   │   │       └── cleanup-logs.ts
 │   │   ├── migrations/
-│   │   │   ├── platform/           # 15 arquivos SQL (001–015)
-│   │   │   └── tenant/             # 54 arquivos SQL (001–054)
+│   │   │   ├── platform/           # 20 arquivos SQL (001–020)
+│   │   │   └── tenant/             # 57 arquivos SQL (001–057)
 │   │   └── seeds/
 │   │       └── platform/planos.sql
 │   │
@@ -120,17 +120,26 @@ arkeflow.com.br/
 │       │   ├── (auth)/login.tsx    # Tela de login (JWT → SecureStore)
 │       │   ├── (app)/_layout.tsx   # Auth guard (redireciona se não logado)
 │       │   ├── (app)/index.tsx     # Home launcher (Vendas expandível + Clientes)
+│       │   ├── (app)/clientes/
+│       │   │   ├── index.tsx       # Lista de clientes (placeholder)
+│       │   │   ├── novo.tsx        # Novo cliente (placeholder)
+│       │   │   └── [id].tsx        # Detalhe cliente (placeholder)
 │       │   └── (app)/vendas/
+│       │       ├── relatorio.tsx   # "Minhas vendas de hoje" — FlatList 3 colunas + Modal detalhe
 │       │       └── sacolas/
 │       │           ├── index.tsx   # Lista de sacolas
-│       │           └── nova.tsx    # Nova sacola (placeholder)
+│       │           ├── nova.tsx    # Nova sacola
+│       │           └── [id].tsx    # Detalhe sacola (placeholder)
 │       ├── components/ui/Button.tsx
 │       ├── constants/theme.ts      # Dark blue palette (bgGradientTop #0d1f3c, accent #00c8ff)
 │       ├── lib/
 │       │   ├── api/
 │       │   │   ├── client.ts       # Axios + 401 interceptor (ignora /auth/login)
 │       │   │   ├── auth.ts         # loginRequest (envia plataforma: 'mobile')
-│       │   │   └── sacolas.ts      # CRUD sacolas
+│       │   │   ├── sacolas.ts      # CRUD sacolas
+│       │   │   ├── vendas.ts       # vendasApi.minhasHoje(vendedor_id) → VendaMobile[]
+│       │   │   ├── clientes.ts     # clientesApi (placeholder)
+│       │   │   └── produtos.ts     # produtosApi (placeholder)
 │       │   └── store/
 │       │       └── auth.store.ts   # Zustand: token, usuario, sessaoAtiva (409 handler)
 │       ├── app.json                # expo slug arkevest, runtimeVersion, updates.url
@@ -213,7 +222,7 @@ Publicação Play Store:
 | `/promocoes` | Promoções. `GET /` retorna `{ promocoes, tem_primeira_compra_ativa }`. `GET /ativas` (PDV). `GET /conflitos`. `PUT /:id/encerrar`. `POST /:id/duplicar`. `POST /` valida unicidade de primeira_compra | tenant |
 | `/vendas` | Vendas / crediário | tenant |
 | `/autorizacoes` | Auth gate de supervisão: `GET /autorizacoes/supervisores` (lista supervisores + `senha_mestra_disponivel`); `POST /autorizacoes/validar` (valida por senha_mestra ou supervisor, grava `autorizacoes_log`, retorna `autorizacao_id`) | tenant + platform |
-| `/caixa` | Turnos de caixa; `GET /caixa/status` retorna `dinheiro_em_caixa` calculado no campo `turno.dinheiro_em_caixa` | tenant |
+| `/caixa` | Turnos de caixa; `GET /caixa/status` retorna `dinheiro_em_caixa` calculado no campo `turno.dinheiro_em_caixa`; `GET /caixa/vendas` usa subquery correlacionada para pagamentos (evita fan-out N×M com itens) | tenant |
 | `/sacolas` | Sacolas (carrinho PDV) | tenant |
 | `/fornecedores` | Fornecedores | tenant |
 | `/health` | Health check | — |
