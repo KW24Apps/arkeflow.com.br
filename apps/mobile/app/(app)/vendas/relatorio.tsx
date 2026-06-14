@@ -130,8 +130,8 @@ export default function RelatorioVendasScreen() {
 
       {/* ── Detalhe de venda ── */}
       <Modal visible={!!detalheVenda} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: height * 0.88 }]}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={fecharModal}>
+          <View style={[styles.modalCard, { maxHeight: height * 0.88 }]} onStartShouldSetResponder={() => true}>
 
             {/* ── Header: cliente + hora + vendedor ── */}
             <View style={styles.modalHeader}>
@@ -279,7 +279,7 @@ export default function RelatorioVendasScreen() {
             </TouchableOpacity>
 
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
     </LinearGradient>
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: 'rgba(4,12,24,0.97)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
