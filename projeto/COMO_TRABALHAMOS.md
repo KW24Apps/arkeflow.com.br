@@ -45,10 +45,18 @@
 
 Always return the report in a **single copyable block**. Adapt the content to the task:
 
-- Bug fix: diagnosis, root cause, files changed, fix applied, tested cases
-- Implementation: files changed, behavior delivered, migrations applied (if any), build result, deploy status, logs
-- Deploy only: deploy status, logs, any errors found
+- Bug fix: file path confirmed, diagnosis, root cause, files changed, fix applied, tested cases
+- Implementation: file path confirmed, files changed, behavior delivered, migrations applied (if any), build result, deploy status, logs
+- Deploy only: file path confirmed, deploy status, logs, any errors found
 - Never return a generic summary — be specific about what changed and why
+
+The minimum report structure is always:
+
+```
+- File path confirmed
+- Lines changed
+- Commit hash
+```
 
 ---
 
