@@ -1,33 +1,46 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import { TopBar } from '@/components/layout/TopBar'
 import { estoqueApi, type ItemEstoque } from '@/lib/api/estoque'
+import { fornecedoresApi, type Fornecedor } from '@/lib/api/fornecedores'
 
 export default function EstoqueAjustesPage() {
-  const [items,    setItems]    = useState<ItemEstoque[]>([])
-  const [loading,  setLoading]  = useState(true)
-  const [q,        setQ]        = useState('')
-  const [selecionado, setSelecionado] = useState<ItemEstoque | null>(null)
-  const [tipo,     setTipo]     = useState<'entrada' | 'saida' | 'ajuste'>('entrada')
-  const [quantidade, setQuantidade] = useState('')
-  const [motivo,   setMotivo]   = useState('')
-  const [salvando, setSalvando] = useState(false)
-  const [msg,      setMsg]      = useState('')
+  const [items,         setItems]         = useState<ItemEstoque[]>([])
+  const [loading,       setLoading]       = useState(true)
+  const [q,             setQ]             = useState('')
+  const [selecionado,   setSelecionado]   = useState<ItemEstoque | null>(null)
+  const [tipo,          setTipo]          = useState<'entrada' | 'saida' | 'ajuste'>('entrada')
+  const [quantidade,    setQuantidade]    = useState('')
+  const [motivo,        setMotivo]        = useState('')
+  const [custoUnit,     setCustoUnit]     = useState('')
+  const [fornecedorId,  setFornecedorId]  = useState('')
+  const [fornecedores,  setFornecedores]  = useState<Fornecedor[]>([])
+  const [salvando,      setSalvando]      = useState(false)
+  const [msg,           setMsg]           = useState('')
 
   useEffect(() => {
     estoqueApi.list().then(setItems).finally(() => setLoading(false))
+    fornecedoresApi.list().then(setFornecedores).catch(() => {})
   }, [])
 
   const filtered = items.filter(i => !q || i.produto_nome.toLowerCase().includes(q.toLowerCase()))
+
+  function resetForm() {
+    setQuantidade(''); setMotivo(''); setCustoUnit(''); setFornecedorId('')
+  }
 
   async function handleAjustar() {
     if (!selecionado || !quantidade) return
     setSalvando(true); setMsg('')
     try {
       const res = await estoqueApi.ajustar({
-        versao_id: selecionado.versao_id,
-        tipo, quantidade: parseInt(quantidade), motivo: motivo || undefined,
+        versao_id:      selecionado.versao_id,
+        tipo,
+        quantidade:     parseInt(quantidade),
+        motivo:         motivo || undefined,
+        custo_unitario: (tipo === 'entrada' && custoUnit) ? parseFloat(custoUnit) : undefined,
+        fornecedor_id:  (tipo === 'entrada' && fornecedorId) ? fornecedorId : undefined,
       })
       setItems(prev => prev.map(i =>
         i.versao_id === selecionado.versao_id
@@ -36,7 +49,7 @@ export default function EstoqueAjustesPage() {
       ))
       setSelecionado(s => s ? { ...s, estoque_atual: res.estoque_atual } : null)
       setMsg(`✓ Estoque atualizado: ${res.estoque_atual} un.`)
-      setQuantidade(''); setMotivo('')
+      resetForm()
     } catch (err: any) {
       setMsg(`Erro: ${err?.response?.data?.error ?? 'Falha ao ajustar'}`)
     } finally { setSalvando(false) }
@@ -65,12 +78,12 @@ export default function EstoqueAjustesPage() {
                     ))}{' '}· Atual: <span className="text-sea-foam">{selecionado.estoque_atual} un.</span>
                   </p>
                 </div>
-                <button onClick={() => { setSelecionado(null); setMsg('') }} className="text-steel hover:text-red-400">×</button>
+                <button onClick={() => { setSelecionado(null); setMsg(''); resetForm() }} className="text-steel hover:text-red-400">×</button>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 {(['entrada', 'saida', 'ajuste'] as const).map(t => (
-                  <button key={t} onClick={() => setTipo(t)}
+                  <button key={t} onClick={() => { setTipo(t); resetForm() }}
                     className={`min-h-[44px] rounded-xl text-sm font-medium capitalize border transition-colors ${
                       tipo === t ? 'bg-electric-cyan text-midnight border-electric-cyan' : 'border-ocean-depth text-steel hover:text-sea-foam'
                     }`}>
@@ -94,6 +107,38 @@ export default function EstoqueAjustesPage() {
                 </div>
               </div>
 
+              {/* Campos extras — apenas em entradas */}
+              {tipo === 'entrada' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-steel uppercase tracking-wider">Custo unitário</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={custoUnit}
+                      onChange={e => setCustoUnit(e.target.value)}
+                      placeholder="R$ 0,00"
+                      className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-steel uppercase tracking-wider">Fornecedor</label>
+                    <select
+                      value={fornecedorId}
+                      onChange={e => setFornecedorId(e.target.value)}
+                      className="min-h-[48px] bg-midnight border border-ocean-depth rounded-xl px-4 text-sm text-sea-foam outline-none focus:border-electric-cyan"
+                      style={{ background: 'rgba(8,10,20,1)', border: '0.5px solid rgba(255,255,255,0.09)' }}
+                    >
+                      <option value="">Opcional</option>
+                      {fornecedores.map(f => (
+                        <option key={f.id} value={f.id}>{f.razao_social}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               {msg && <p className={`text-xs text-center ${msg.startsWith('✓') ? 'text-mint-green' : 'text-red-400'}`}>{msg}</p>}
 
               <button onClick={handleAjustar} disabled={salvando || !quantidade}
@@ -113,7 +158,7 @@ export default function EstoqueAjustesPage() {
               {filtered.map(item => {
                 const sel = selecionado?.versao_id === item.versao_id
                 return (
-                  <button key={item.versao_id} onClick={() => { setSelecionado(item); setMsg('') }}
+                  <button key={item.versao_id} onClick={() => { setSelecionado(item); setMsg(''); resetForm() }}
                     className={`text-left bg-deep-ocean border rounded-2xl p-4 flex items-center justify-between transition-colors ${
                       sel ? 'border-electric-cyan' : 'border-ocean-depth hover:border-teal-current'
                     }`}>

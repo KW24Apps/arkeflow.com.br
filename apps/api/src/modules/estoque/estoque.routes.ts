@@ -16,6 +16,7 @@ const ajusteSchema = z.object({
   motivo:         z.string().optional(),
   custo_unitario: z.coerce.number().min(0).optional(),
   cfop:           z.string().max(10).optional(),
+  fornecedor_id:  z.string().uuid().optional(),
 })
 
 const nfeXmlSchema = z.object({ xml: z.string().min(1) })
@@ -224,18 +225,17 @@ export async function estoqueRoutes(app: FastifyInstance) {
         [novoSaldo, novoCusto, data.versao_id]
       )
 
-      const origem = data.tipo === 'entrada' ? 'compra_manual'
-                   : data.tipo === 'saida'   ? 'venda'
-                                             : 'ajuste_manual'
+      const origem = data.tipo === 'entrada' ? 'compra_manual' : 'ajuste_manual'
 
       await client.query(`
         INSERT INTO ajustes_estoque
-          (versao_id, tipo, quantidade, motivo, usuario_id, origem, custo_unitario, cfop)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          (versao_id, tipo, quantidade, motivo, usuario_id, origem, custo_unitario, cfop, fornecedor_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `, [
         data.versao_id, data.tipo, data.quantidade,
         data.motivo ?? null, user.id, origem,
         data.custo_unitario ?? null, data.cfop ?? null,
+        data.fornecedor_id ?? null,
       ])
 
       await client.query('COMMIT')

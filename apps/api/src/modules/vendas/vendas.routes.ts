@@ -84,10 +84,11 @@ export async function vendasRoutes(app: FastifyInstance) {
     try {
       await client.query('BEGIN')
 
-      // Valida e deduz estoque
+      // Valida e deduz estoque — acumula custo_medio para rastreabilidade
+      const stockData: Array<{ versao_id: string; custo_medio: number; quantidade: number }> = []
       for (const item of data.itens) {
         const { rows: [v] } = await client.query(
-          `SELECT v.estoque_atual, v.estoque_minimo, p.controle_estoque
+          `SELECT v.estoque_atual, v.estoque_minimo, v.custo_medio, p.controle_estoque
            FROM versoes v JOIN produtos p ON p.id = v.produto_id
            WHERE v.id = $1 AND v.ativo = true FOR UPDATE`,
           [item.versao_id]
@@ -103,6 +104,7 @@ export async function vendasRoutes(app: FastifyInstance) {
             `UPDATE versoes SET estoque_atual = estoque_atual - $1 WHERE id = $2`,
             [item.quantidade, item.versao_id]
           )
+          stockData.push({ versao_id: item.versao_id, custo_medio: Number(v.custo_medio ?? 0), quantidade: item.quantidade })
         }
       }
 
@@ -166,6 +168,15 @@ export async function vendasRoutes(app: FastifyInstance) {
            VALUES ($1,$2,$3,$4,$5,$6)`,
           [venda_id, item.versao_id, item.quantidade, item.preco_unitario, item.desconto_item, item.promocao_nome ?? null]
         )
+      }
+
+      // Rastreabilidade: registra saída de estoque por venda com custo_medio no momento da venda
+      for (const sd of stockData) {
+        await client.query(`
+          INSERT INTO ajustes_estoque
+            (versao_id, tipo, quantidade, usuario_id, origem, custo_unitario, venda_id)
+          VALUES ($1, 'saida', $2, $3, 'venda', $4, $5)
+        `, [sd.versao_id, sd.quantidade, user.id, sd.custo_medio, venda_id])
       }
 
       // Cria pagamentos + parcelas crediário

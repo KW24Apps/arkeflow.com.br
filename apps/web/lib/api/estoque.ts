@@ -28,6 +28,7 @@ export interface AjusteEstoque {
   motivo?:         string
   custo_unitario?: number
   cfop?:           string
+  fornecedor_id?:  string
 }
 
 export interface HistoricoAjuste {
