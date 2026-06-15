@@ -47,7 +47,7 @@ function fmtCEP(v: string) {
 
 export default function ClienteEditScreen() {
   const router = useRouter()
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, returnTo, sacolaId } = useLocalSearchParams<{ id: string; returnTo?: string; sacolaId?: string }>()
 
   const [aba,      setAba]      = useState<Aba>('dados')
   const [loading,  setLoading]  = useState(true)
@@ -151,8 +151,12 @@ export default function ClienteEditScreen() {
         estado:      estado      || null,
         medidas_json: Object.keys(medidasJson).length > 0 ? medidasJson : null,
       })
-      setSalvo(true)
-      setTimeout(() => setSalvo(false), 2000)
+      if (returnTo === 'sacola' && sacolaId) {
+        router.replace(`/(app)/vendas/sacolas/${sacolaId}`)
+      } else {
+        setSalvo(true)
+        setTimeout(() => setSalvo(false), 2000)
+      }
     } catch {
       setErro('Erro ao salvar. Tente novamente.')
     } finally {
@@ -175,8 +179,17 @@ export default function ClienteEditScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.6)" />
+        <TouchableOpacity
+          onPress={() => returnTo === 'sacola' && sacolaId
+            ? router.replace(`/(app)/vendas/sacolas/${sacolaId}`)
+            : router.back()
+          }
+          style={styles.backBtn}
+        >
+          {returnTo === 'sacola'
+            ? <Text style={styles.voltarSacolaText}>← Sacola</Text>
+            : <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.6)" />
+          }
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{nome || 'Cliente'}</Text>
         {salvo && (
@@ -411,6 +424,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   salvoText: { fontSize: 12, color: theme.colors.success, fontWeight: '600' },
+  voltarSacolaText: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
 
   // Tabs
   tabRow: {

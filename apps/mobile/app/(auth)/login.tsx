@@ -1,13 +1,16 @@
 import {
   View, Text, TextInput, StyleSheet, KeyboardAvoidingView,
-  Platform, TouchableOpacity, ScrollView, Alert,
+  Platform, TouchableOpacity, ScrollView, Modal,
 } from 'react-native'
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
+import Constants from 'expo-constants'
 import { Button } from '../../components/ui/Button'
 import { useAuthStore } from '../../lib/store/auth.store'
 import { theme } from '../../constants/theme'
+
+const version = Constants.expoConfig?.version ?? '—'
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -16,6 +19,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [erro,  setErro]  = useState('')
+  const [showSessaoModal, setShowSessaoModal] = useState(false)
 
   async function handleLogin(forcar?: boolean) {
     if (!email.trim() || !senha.trim()) {
@@ -25,41 +29,18 @@ export default function LoginScreen() {
     setErro('')
     try {
       await login(email.trim(), senha, forcar)
+      // Store catches 409 internally, sets sessaoAtiva, and returns without throwing.
+      // Check synchronous state before navigating.
+      if (useAuthStore.getState().sessaoAtiva) {
+        setShowSessaoModal(true)
+        return
+      }
       router.replace('/(app)/')
     } catch (e: any) {
       const msg = e?.response?.data?.error ?? e?.response?.data?.message ?? 'Credenciais inválidas.'
       setErro(msg)
     }
   }
-
-  const handleForcar = useCallback(async () => {
-    clearSessaoAtiva()
-    setErro('')
-    try {
-      await login(email.trim(), senha, true)
-      router.replace('/(app)/')
-    } catch (e: any) {
-      const msg = e?.response?.data?.error ?? e?.response?.data?.message ?? 'Credenciais inválidas.'
-      setErro(msg)
-    }
-  }, [email, senha, login, clearSessaoAtiva, router])
-
-  useEffect(() => {
-    if (!sessaoAtiva) return
-    const em = sessaoAtiva.em
-      ? new Date(sessaoAtiva.em).toLocaleString('pt-BR')
-      : '—'
-    const ip = sessaoAtiva.ip ?? '—'
-    Alert.alert(
-      'Sessão ativa',
-      `Você já está conectado em outro dispositivo.\nIP: ${ip} · Desde: ${em}\n\nDeseja continuar?`,
-      [
-        { text: 'Cancelar', style: 'cancel', onPress: clearSessaoAtiva },
-        { text: 'Entrar mesmo assim', style: 'destructive', onPress: handleForcar },
-      ],
-      { cancelable: true, onDismiss: clearSessaoAtiva }
-    )
-  }, [sessaoAtiva])
 
   return (
     <LinearGradient
@@ -125,6 +106,53 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <View style={styles.versionContainer}>
+        <Text style={styles.versionText}>v{version}</Text>
+      </View>
+
+      <Modal
+        visible={showSessaoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setShowSessaoModal(false); clearSessaoAtiva() }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Sessão ativa</Text>
+            <Text style={styles.modalBody}>
+              Você já está conectado em outro dispositivo.{'\n'}
+              {sessaoAtiva?.ip ? `IP: ${sessaoAtiva.ip}` : ''}{sessaoAtiva?.em ? `\nDesde: ${new Date(sessaoAtiva.em).toLocaleString('pt-BR')}` : ''}
+            </Text>
+            <Text style={styles.modalBody}>Deseja continuar e encerrar a outra sessão?</Text>
+            <View style={styles.modalBtns}>
+              <TouchableOpacity
+                style={styles.modalBtnCancel}
+                onPress={() => { setShowSessaoModal(false); clearSessaoAtiva() }}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalBtnConfirm}
+                onPress={async () => {
+                  setShowSessaoModal(false)
+                  clearSessaoAtiva()
+                  setErro('')
+                  try {
+                    await login(email.trim(), senha, true)
+                    router.replace('/(app)/')
+                  } catch (e: any) {
+                    const msg = e?.response?.data?.error ?? e?.response?.data?.message ?? 'Credenciais inválidas.'
+                    setErro(msg)
+                  }
+                }}
+              >
+                <Text style={styles.modalBtnConfirmText}>Entrar mesmo assim</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   )
 }
@@ -191,4 +219,76 @@ const styles = StyleSheet.create({
   btn: { marginTop: 20 },
   forgotRow: { alignItems: 'center', marginTop: 16 },
   forgotText: { color: theme.colors.textFaint, fontSize: 13 },
+  versionContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingBottom: 24,
+  },
+  versionText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.3)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  modalCard: {
+    backgroundColor: '#0d1f3c',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,239,255,0.2)',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalBody: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  modalBtns: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+  },
+  modalBtnCancel: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+  },
+  modalBtnCancelText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  modalBtnConfirm: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,239,255,0.12)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,239,255,0.35)',
+    alignItems: 'center',
+  },
+  modalBtnConfirmText: {
+    fontSize: 13,
+    color: '#0ef',
+    fontWeight: '600',
+  },
 })

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import * as SecureStore from 'expo-secure-store'
 import type { JwtPayload } from '@arkeflow/shared'
-import { loginRequest } from '../api/auth'
+import { loginRequest, logoutRequest } from '../api/auth'
 
 const secureStorage = {
   getItem: (name: string) => SecureStore.getItemAsync(name),
@@ -24,7 +24,7 @@ interface AuthStore {
   setHasHydrated: (v: boolean) => void
   login: (email: string, senha: string, forcar?: boolean) => Promise<void>
   clearSessaoAtiva: () => void
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -55,9 +55,10 @@ export const useAuthStore = create<AuthStore>()(
 
       clearSessaoAtiva: () => set({ sessaoAtiva: null }),
 
-      logout: () => {
-        SecureStore.deleteItemAsync('arkevest_token').catch(() => {})
-        SecureStore.deleteItemAsync('arkevest_auth').catch(() => {})
+      logout: async () => {
+        try { await logoutRequest() } catch {}
+        await SecureStore.deleteItemAsync('arkevest_token').catch(() => {})
+        await SecureStore.deleteItemAsync('arkevest_auth').catch(() => {})
         set({ token: null, usuario: null })
       },
     }),

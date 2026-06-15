@@ -31,7 +31,7 @@ export async function findById(pool: Pool, id: string) {
 }
 
 export async function create(pool: Pool, data: {
-  nome: string; telefone?: string; cpf?: string; email?: string
+  nome: string; telefone?: string | null; cpf?: string | null; email?: string | null
 }) {
   // Vincula automaticamente à regra de cashback padrão se existir
   const { rows: [regra] } = await pool.query(

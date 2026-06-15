@@ -4,13 +4,12 @@ import {
 } from 'react-native'
 import { useState, useRef, useEffect } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { theme } from '../../../../constants/theme'
-import { clientesApi, getCadastroCfg, type ClienteSimples } from '../../../../lib/api/clientes'
+import { clientesApi, type ClienteSimples } from '../../../../lib/api/clientes'
 import { produtosApi, type ProdutoSimples, type VersaoProduto } from '../../../../lib/api/produtos'
 import { sacolasApi, type SacolaItem } from '../../../../lib/api/sacolas'
-import { addDebugLog } from '../../../../components/DebugPanel'
 
 function fmtR(v: number) {
   return `R$ ${v.toFixed(2).replace('.', ',')}`
@@ -22,75 +21,56 @@ function fmtAtrib(a: Record<string, string> | string | null | undefined): string
   return Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join(' · ')
 }
 
-function maskPhone(v: string): string {
-  const d = v.replace(/\D/g, '').slice(0, 11)
-  if (d.length <= 2) return d
-  if (d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`
-  if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`
-  return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`
-}
-
-function maskCPF(v: string): string {
-  const d = v.replace(/\D/g, '').slice(0, 11)
-  if (d.length <= 3) return d
-  if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`
-  if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`
-  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`
-}
-
-type CadastroCfg = { exige_cpf: boolean; exige_email: boolean; exige_endereco: boolean }
-
-export default function NovaSacolaScreen() {
+export default function EditarSacolaScreen() {
   const router = useRouter()
+  const { id } = useLocalSearchParams<{ id: string }>()
 
-  const [step, setStep] = useState<1 | 2>(1)
+  const [carregando,    setCarregando]    = useState(true)
+  const [erroCarregar,  setErroCarregar]  = useState('')
 
-  // Step 1 — client
-  const [clienteId,   setClienteId]   = useState<string | null>(null)
-  const [clienteNome, setClienteNome] = useState('')
-  const [busca,       setBusca]       = useState('')
-  const [resultados,  setResultados]  = useState<ClienteSimples[]>([])
-  const [buscando,    setBuscando]    = useState(false)
+  // Client
+  const [clienteId,        setClienteId]        = useState<string | null>(null)
+  const [clienteNome,      setClienteNome]      = useState('')
+  const [showTrocarModal,  setShowTrocarModal]  = useState(false)
 
-  // Inline create form
-  const [showCriarForm,  setShowCriarForm]  = useState(false)
-  const [criarNome,      setCriarNome]      = useState('')
-  const [criarTelefone,  setCriarTelefone]  = useState('')
-  const [criarCpf,       setCriarCpf]       = useState('')
-  const [criarEmail,     setCriarEmail]     = useState('')
-  const [erroFormCriar,  setErroFormCriar]  = useState('')
-  const [criando,        setCriando]        = useState(false)
+  // Client search inside trocar modal
+  const [busca,      setBusca]      = useState('')
+  const [resultados, setResultados] = useState<ClienteSimples[]>([])
+  const [buscando,   setBuscando]   = useState(false)
 
-  // Store config
-  const [cadastroCfg, setCadastroCfg] = useState<CadastroCfg | null>(null)
-
-  // Step 2 — products
+  // Products
   const [itens,              setItens]              = useState<SacolaItem[]>([])
   const [buscaProduto,       setBuscaProduto]       = useState('')
   const [resultadosProdutos, setResultadosProdutos] = useState<ProdutoSimples[]>([])
   const [buscandoProduto,    setBuscandoProduto]    = useState(false)
   const [versaoSeletor,      setVersaoSeletor]      = useState<ProdutoSimples | null>(null)
   const [infoItem,           setInfoItem]           = useState<typeof itens[0] | null>(null)
-  const [salvando,           setSalvando]           = useState(false)
-  const [erro,               setErro]               = useState('')
+
+  const [salvando, setSalvando] = useState(false)
+  const [erro,     setErro]     = useState('')
 
   const debounceCliente = useRef<ReturnType<typeof setTimeout> | null>(null)
   const debounceProduto = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    addDebugLog('nova sacola aberta', 'NAV')
-    getCadastroCfg().then(setCadastroCfg).catch(console.error)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!id) return
+    sacolasApi.get(id)
+      .then(s => {
+        setClienteId(s.cliente_id)
+        setClienteNome(s.cliente_nome ?? '')
+        setItens(s.itens)
+      })
+      .catch(() => setErroCarregar('Não foi possível carregar a sacola.'))
+      .finally(() => setCarregando(false))
+  }, [id])
 
-  // ── Step 1: client search ─────────────────────────────────────────────────
+  // ── Client search ──────────────────────────────────────────────────────────
 
   function onBuscaChange(q: string) {
     setBusca(q)
-    setShowCriarForm(false)
     if (debounceCliente.current) clearTimeout(debounceCliente.current)
     if (!q.trim()) { setResultados([]); return }
     debounceCliente.current = setTimeout(async () => {
-      addDebugLog(`buscar cliente: "${q.trim()}"`, 'API')
       setBuscando(true)
       try { setResultados(await clientesApi.buscar(q.trim())) }
       catch { setResultados([]) }
@@ -98,49 +78,21 @@ export default function NovaSacolaScreen() {
     }, 400)
   }
 
-  function openCriarForm() {
-    setCriarNome(busca.trim())
-    setCriarTelefone('')
-    setCriarCpf('')
-    setCriarEmail('')
-    setErroFormCriar('')
-    setShowCriarForm(true)
-  }
-
-  async function handleSubmitCriarCliente() {
-    if (!criarNome.trim()) { setErroFormCriar('Nome é obrigatório.'); return }
-    if (cadastroCfg?.exige_cpf && !criarCpf.trim()) { setErroFormCriar('CPF é obrigatório conforme configuração da loja.'); return }
-    if (cadastroCfg?.exige_email && !criarEmail.trim()) { setErroFormCriar('E-mail é obrigatório conforme configuração da loja.'); return }
-    if (criando) return
-    setCriando(true); setErroFormCriar('')
-    try {
-      const c = await clientesApi.criar({
-        nome:     criarNome.trim(),
-        telefone: criarTelefone.trim().replace(/\D/g, '') || undefined,
-        cpf:      criarCpf.trim()   || undefined,
-        email:    criarEmail.trim() || undefined,
-      })
-      setClienteId(c.id)
-      setClienteNome(c.nome)
-      setShowCriarForm(false)
-      setStep(2)
-    } catch (e) {
-      const msg = (e as any)?.response?.data?.message
-        ?? (e as any)?.response?.data?.error
-        ?? 'Erro ao criar cliente.'
-      setErroFormCriar(msg)
-    } finally {
-      setCriando(false)
-    }
-  }
-
   function selecionarCliente(c: ClienteSimples) {
     setClienteId(c.id)
     setClienteNome(c.nome)
-    setStep(2)
+    setShowTrocarModal(false)
+    setBusca('')
+    setResultados([])
   }
 
-  // ── Step 2: product search ────────────────────────────────────────────────
+  function closeTrocarModal() {
+    setShowTrocarModal(false)
+    setBusca('')
+    setResultados([])
+  }
+
+  // ── Product management ─────────────────────────────────────────────────────
 
   function onBuscaProdutoChange(q: string) {
     setBuscaProduto(q)
@@ -148,13 +100,11 @@ export default function NovaSacolaScreen() {
     if (debounceProduto.current) clearTimeout(debounceProduto.current)
     if (!q.trim()) { setResultadosProdutos([]); return }
     debounceProduto.current = setTimeout(async () => {
-      addDebugLog(`buscar produto: "${q.trim()}"`, 'API')
       setBuscandoProduto(true)
       try {
         const res = await produtosApi.buscar(q.trim())
         setResultadosProdutos(Array.isArray(res) ? res : [])
-      } catch (e) {
-        addDebugLog(`buscar produto erro: ${String(e)}`, 'ERROR')
+      } catch {
         setResultadosProdutos([])
       } finally {
         setBuscandoProduto(false)
@@ -218,14 +168,9 @@ export default function NovaSacolaScreen() {
       setErro('Selecione um cliente para salvar a sacola.')
       return
     }
-    addDebugLog(`salvar sacola: ${itens.length} itens`, 'API')
     setSalvando(true); setErro('')
     try {
-      await sacolasApi.create({
-        cliente_id:   clienteId,
-        cliente_nome: clienteNome || null,
-        itens,
-      })
+      await sacolasApi.update(id, { itens })
       router.back()
     } catch {
       setErro('Erro ao salvar sacola. Tente novamente.')
@@ -233,159 +178,64 @@ export default function NovaSacolaScreen() {
     }
   }
 
-  // ── STEP 1 ────────────────────────────────────────────────────────────────
+  // ── Loading / error ────────────────────────────────────────────────────────
 
-  if (step === 1) {
+  if (carregando) {
     return (
       <LinearGradient colors={[theme.colors.bgGradientTop, theme.colors.bgGradientBottom]} style={styles.gradient}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.6)" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Nova sacola</Text>
-          <View style={{ width: 30 }} />
+        <View style={styles.center}>
+          <ActivityIndicator color={theme.colors.accent} size="large" />
         </View>
-
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
-        >
-          <View style={styles.searchBox}>
-            <TextInput
-              style={styles.input}
-              value={busca}
-              onChangeText={onBuscaChange}
-              placeholder="Buscar cliente pelo nome..."
-              placeholderTextColor={theme.colors.textFaint}
-              autoFocus
-              returnKeyType="search"
-            />
-          </View>
-
-          {buscando ? (
-            <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 20 }} />
-          ) : (
-            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 100 }}>
-
-              {/* Results — hidden when criar form is open */}
-              {!showCriarForm && resultados.map((c, idx) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[styles.resultRow, idx > 0 && styles.resultSep]}
-                  onPress={() => selecionarCliente(c)}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.resultNome}>{c.nome}</Text>
-                    {c.telefone ? <Text style={styles.resultSub}>{c.telefone}</Text> : null}
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={theme.colors.textFaint} />
-                </TouchableOpacity>
-              ))}
-
-              {busca.trim() ? (
-                showCriarForm ? (
-                  /* ── Inline create form ── */
-                  <View style={styles.criarForm}>
-                    <Text style={styles.criarFormTitle}>Novo cliente</Text>
-
-                    <TextInput
-                      style={styles.input}
-                      value={criarNome}
-                      onChangeText={setCriarNome}
-                      placeholder="Nome *"
-                      placeholderTextColor={theme.colors.textFaint}
-                      returnKeyType="next"
-                    />
-                    <TextInput
-                      style={[styles.input, { marginTop: 8 }]}
-                      value={criarTelefone}
-                      onChangeText={t => setCriarTelefone(maskPhone(t))}
-                      placeholder="Telefone"
-                      placeholderTextColor={theme.colors.textFaint}
-                      keyboardType="phone-pad"
-                      returnKeyType="next"
-                    />
-                    {cadastroCfg?.exige_cpf && (
-                      <TextInput
-                        style={[styles.input, { marginTop: 8 }]}
-                        value={criarCpf}
-                        onChangeText={t => setCriarCpf(maskCPF(t))}
-                        placeholder="CPF *"
-                        placeholderTextColor={theme.colors.textFaint}
-                        keyboardType="numeric"
-                        returnKeyType="next"
-                      />
-                    )}
-                    {cadastroCfg?.exige_email && (
-                      <TextInput
-                        style={[styles.input, { marginTop: 8 }]}
-                        value={criarEmail}
-                        onChangeText={setCriarEmail}
-                        placeholder="E-mail *"
-                        placeholderTextColor={theme.colors.textFaint}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        returnKeyType="done"
-                      />
-                    )}
-
-                    {erroFormCriar ? (
-                      <Text style={styles.erroText}>{erroFormCriar}</Text>
-                    ) : null}
-
-                    <TouchableOpacity
-                      style={[styles.salvarBtn, { marginTop: 14 }, criando && styles.salvarBtnDisabled]}
-                      onPress={handleSubmitCriarCliente}
-                      disabled={criando}
-                      activeOpacity={0.8}
-                    >
-                      {criando
-                        ? <ActivityIndicator size="small" color="#0a0a1a" />
-                        : <Text style={styles.salvarText}>Salvar cliente</Text>
-                      }
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => setShowCriarForm(false)}
-                      style={{ alignItems: 'center', marginTop: 10 }}
-                    >
-                      <Text style={styles.versaoCancelar}>Cancelar</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  /* ── "Criar" trigger button ── */
-                  <TouchableOpacity
-                    style={[styles.criarBtn, resultados.length > 0 && { marginTop: 12 }]}
-                    onPress={openCriarForm}
-                  >
-                    <Text style={styles.criarText}>+ Criar cliente "{busca.trim()}"</Text>
-                  </TouchableOpacity>
-                )
-              ) : null}
-            </ScrollView>
-          )}
-        </KeyboardAvoidingView>
       </LinearGradient>
     )
   }
 
-  // ── STEP 2 ────────────────────────────────────────────────────────────────
+  if (erroCarregar) {
+    return (
+      <LinearGradient colors={[theme.colors.bgGradientTop, theme.colors.bgGradientBottom]} style={styles.gradient}>
+        <View style={styles.center}>
+          <Text style={styles.erroText}>{erroCarregar}</Text>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.linkText}>Voltar</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    )
+  }
 
-  // Guard: filter malformed results before rendering to prevent white screen
   const produtosValidos = resultadosProdutos
     .filter(p => p && p.id)
     .map(p => ({ ...p, versoes: Array.isArray(p.versoes) ? p.versoes : [] }))
 
+  // ── Main render ────────────────────────────────────────────────────────────
+
   return (
     <LinearGradient colors={[theme.colors.bgGradientTop, theme.colors.bgGradientBottom]} style={styles.gradient}>
+
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => setStep(1)} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
-        <Text style={styles.title} numberOfLines={1}>
-          {clienteNome || 'Sem cliente'}
-        </Text>
+        <Text style={styles.title}>Editar sacola</Text>
+      </View>
+
+      {/* Client sub-header */}
+      <View style={styles.clienteRow}>
+        {clienteId ? (
+          <TouchableOpacity
+            onPress={() => router.push(`/(app)/clientes/${clienteId}?returnTo=sacola&sacolaId=${id}`)}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 }}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.clienteRowNome} numberOfLines={1}>{clienteNome}</Text>
+            <Ionicons name="create-outline" size={12} color="rgba(255,255,255,0.25)" />
+          </TouchableOpacity>
+        ) : (
+          <Text style={[styles.clienteRowNome, { flex: 1 }]} numberOfLines={1}>Sem cliente</Text>
+        )}
         <TouchableOpacity
-          onPress={() => { setStep(1); setClienteId(null); setClienteNome('') }}
+          onPress={() => setShowTrocarModal(true)}
           style={styles.trocarBtn}
           activeOpacity={0.7}
         >
@@ -499,7 +349,6 @@ export default function NovaSacolaScreen() {
                 ))}
               </ScrollView>
             )}
-
             <View style={styles.prodInputRow}>
               <TextInput
                 style={[styles.input, { flex: 1 }]}
@@ -515,7 +364,6 @@ export default function NovaSacolaScreen() {
             </View>
           </View>
 
-          {/* Error */}
           {erro ? <Text style={styles.erroText}>{erro}</Text> : null}
 
           {/* Bottom bar */}
@@ -540,7 +388,63 @@ export default function NovaSacolaScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      <Modal visible={!!infoItem} transparent animationType="fade" onRequestClose={() => setInfoItem(null)}>
+      {/* Trocar cliente modal */}
+      <Modal
+        visible={showTrocarModal}
+        transparent
+        animationType="slide"
+        onRequestClose={closeTrocarModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Trocar cliente</Text>
+              <TouchableOpacity onPress={closeTrocarModal}>
+                <Ionicons name="close" size={22} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.input}
+              value={busca}
+              onChangeText={onBuscaChange}
+              placeholder="Buscar cliente pelo nome..."
+              placeholderTextColor={theme.colors.textFaint}
+              autoFocus
+              returnKeyType="search"
+            />
+            {buscando ? (
+              <ActivityIndicator color={theme.colors.accent} style={{ marginTop: 16 }} />
+            ) : (
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                style={{ marginTop: 8, maxHeight: 300 }}
+              >
+                {resultados.map((c, idx) => (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[styles.resultRow, idx > 0 && styles.resultSep]}
+                    onPress={() => selecionarCliente(c)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.resultNome}>{c.nome}</Text>
+                      {c.telefone ? <Text style={styles.resultSub}>{c.telefone}</Text> : null}
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={theme.colors.textFaint} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Info item modal */}
+      <Modal
+        visible={!!infoItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setInfoItem(null)}
+      >
         <TouchableOpacity style={styles.infoOverlay} activeOpacity={1} onPress={() => setInfoItem(null)}>
           <View style={styles.infoModal}>
             <Text style={styles.infoModalNome}>{infoItem?.nome}</Text>
@@ -569,17 +473,31 @@ export default function NovaSacolaScreen() {
 
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
+  center:   { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
     paddingTop: 56,
-    paddingBottom: theme.spacing.md,
+    paddingBottom: 8,
   },
-  backBtn:    { padding: 4, marginRight: 8 },
-  title:      { flex: 1, fontSize: 20, fontWeight: '700', color: '#fff' },
+  backBtn: { padding: 4, marginRight: 8 },
+  title:   { flex: 1, fontSize: 20, fontWeight: '700', color: '#fff' },
+
+  clienteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    gap: 10,
+  },
+  clienteRowNome: {
+    flex: 1,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.55)',
+    fontWeight: '500',
+  },
   trocarBtn: {
     backgroundColor: 'rgba(0,239,255,0.08)',
     borderWidth: 0.5,
@@ -594,8 +512,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Input
-  searchBox: { paddingHorizontal: theme.spacing.lg, paddingBottom: theme.spacing.sm },
   input: {
     backgroundColor: theme.colors.inputBg,
     borderWidth: 0.5,
@@ -607,7 +523,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 
-  // Result rows
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -619,38 +534,6 @@ const styles = StyleSheet.create({
   resultNome: { fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
   resultSub:  { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
 
-  // "Criar" trigger button
-  criarBtn: {
-    marginHorizontal: theme.spacing.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: theme.colors.accent,
-    borderRadius: theme.borderRadius.sm,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  criarText: { color: theme.colors.accent, fontSize: 14, fontWeight: '500' },
-
-  // Inline create form
-  criarForm: {
-    marginHorizontal: theme.spacing.lg,
-    marginTop: 8,
-    backgroundColor: 'rgba(0,200,255,0.05)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(0,200,255,0.2)',
-    borderRadius: theme.borderRadius.md,
-    padding: 16,
-  },
-  criarFormTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.accent,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 12,
-  },
-
-  // Items
   itemsContent: { padding: theme.spacing.lg, paddingBottom: 8, gap: 0 },
   emptyItems:   { color: theme.colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 32 },
   itemRow: {
@@ -674,7 +557,6 @@ const styles = StyleSheet.create({
   qtdVal:     { color: '#fff', fontSize: 14, fontWeight: '600', minWidth: 22, textAlign: 'center' },
   removeBtn:  { padding: 4 },
 
-  // Version selector
   versaoContainer: {
     backgroundColor: 'rgba(0,200,255,0.06)',
     borderTopWidth: 0.5,
@@ -703,46 +585,15 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 4,
   },
-  versaoAtribRow: {
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  versaoAtribLabel: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  versaoAtribVal: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  versaoDivider: {
-    height: 0.5,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    width: '100%',
-    marginVertical: 4,
-  },
-  versaoCardPreco: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 3,
-    textAlign: 'center',
-  },
-  versaoEstoque: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
-    textAlign: 'center',
-  },
-  versaoCancelarBtn: {
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  versaoCancelar: { fontSize: 12, color: theme.colors.textMuted },
+  versaoAtribRow:    { alignItems: 'center', marginBottom: 4 },
+  versaoAtribLabel:  { fontSize: 9, color: 'rgba(255,255,255,0.35)', letterSpacing: 0.8, textTransform: 'uppercase' },
+  versaoAtribVal:    { fontSize: 15, color: 'rgba(255,255,255,0.9)', fontWeight: '600', textAlign: 'center' },
+  versaoDivider:     { height: 0.5, backgroundColor: 'rgba(255,255,255,0.08)', width: '100%', marginVertical: 4 },
+  versaoCardPreco:   { fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 3, textAlign: 'center' },
+  versaoEstoque:     { fontSize: 10, color: 'rgba(255,255,255,0.3)', textAlign: 'center' },
+  versaoCancelarBtn: { marginTop: 10, alignItems: 'center' },
+  versaoCancelar:    { fontSize: 12, color: theme.colors.textMuted },
 
-  // Product search area
   prodSearchArea: {
     paddingHorizontal: theme.spacing.lg,
     paddingTop: theme.spacing.sm,
@@ -760,7 +611,6 @@ const styles = StyleSheet.create({
   },
   prodInputRow: { flexDirection: 'row', alignItems: 'center' },
 
-  // Error
   erroText: {
     color: theme.colors.danger,
     fontSize: 12,
@@ -769,8 +619,8 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     marginTop: 4,
   },
+  linkText: { color: theme.colors.accent, fontSize: 13 },
 
-  // Bottom bar
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -795,16 +645,39 @@ const styles = StyleSheet.create({
   salvarBtnDisabled: { opacity: 0.35 },
   salvarText: { fontSize: 14, fontWeight: '700', color: '#0a0a1a' },
 
-  // Item info modal
-  infoBtn:       { padding: 4, marginLeft: 4 },
-  infoOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 32 },
-  infoModal:     { backgroundColor: '#0d1f3c', borderRadius: 14, padding: 20, width: '100%', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)' },
-  infoModalNome: { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: 14, textAlign: 'center' },
-  infoRow:       { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  infoKey:       { fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  infoVal:       { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
-  infoDivider:   { height: 0.5, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 12 },
-  infoPreco:     { fontSize: 13, color: theme.colors.accent, textAlign: 'center', marginBottom: 16 },
-  infoFechar:    { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 10, alignItems: 'center' },
-  infoFecharText:{ fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  // Trocar modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#0d1f3c',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
+
+  // Info item modal
+  infoBtn:        { padding: 4, marginLeft: 4 },
+  infoOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  infoModal:      { backgroundColor: '#0d1f3c', borderRadius: 14, padding: 20, width: '100%', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)' },
+  infoModalNome:  { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: 14, textAlign: 'center' },
+  infoRow:        { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  infoKey:        { fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  infoVal:        { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
+  infoDivider:    { height: 0.5, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 12 },
+  infoPreco:      { fontSize: 13, color: theme.colors.accent, textAlign: 'center', marginBottom: 16 },
+  infoFechar:     { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 10, alignItems: 'center' },
+  infoFecharText: { fontSize: 13, color: 'rgba(255,255,255,0.5)' },
 })

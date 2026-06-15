@@ -20,3 +20,7 @@ export async function meRequest(): Promise<JwtPayload> {
   const { data } = await api.get<{ usuario: JwtPayload }>('/auth/me')
   return data.usuario
 }
+
+export async function logoutRequest(): Promise<void> {
+  await api.post('/auth/logout')
+}

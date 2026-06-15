@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native'
-import { useEffect, useState } from 'react'
+import { useState, useCallback } from 'react'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useRouter } from 'expo-router'
+import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { sacolasApi, type Sacola } from '../../../../lib/api/sacolas'
 import { theme } from '../../../../constants/theme'
@@ -36,7 +37,11 @@ export default function SacolasListScreen() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useFocusEffect(
+    useCallback(() => {
+      load()
+    }, [])
+  )
 
   return (
     <LinearGradient colors={[theme.colors.bgGradientTop, theme.colors.bgGradientBottom]} style={styles.gradient}>
@@ -78,7 +83,11 @@ export default function SacolasListScreen() {
             const qtd = s.itens.reduce((a, i) => a + i.quantidade, 0)
             const emAtend = s.status === 'em_atendimento'
             return (
-              <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => router.push(`/(app)/vendas/sacolas/${s.id}`)}
+                activeOpacity={0.75}
+              >
                 <View style={styles.cardTop}>
                   <Text style={styles.clienteNome} numberOfLines={1}>{s.cliente_nome ?? 'Sem cliente'}</Text>
                   <View style={[styles.badge, emAtend ? styles.badgeAmber : styles.badgeCyan]}>
@@ -90,7 +99,7 @@ export default function SacolasListScreen() {
                 <Text style={styles.total}>{fmtR(tot)}</Text>
                 <Text style={styles.meta}>{qtd} item{qtd !== 1 ? 'ns' : ''} · {s.nome_vendedor ?? '—'}</Text>
                 <Text style={styles.ago}>{agoMin(s.criado_em)}</Text>
-              </View>
+              </TouchableOpacity>
             )
           }}
         />

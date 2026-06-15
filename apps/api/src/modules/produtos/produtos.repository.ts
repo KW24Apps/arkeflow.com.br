@@ -12,7 +12,19 @@ export async function findAll(pool: Pool, q?: string, incluirInativos = false) {
     `SELECT p.*,
        tp.nome AS tipo_nome,
        COUNT(v.id) FILTER (WHERE v.ativo)::int          AS total_versoes,
-       COALESCE(SUM(v.estoque_atual) FILTER (WHERE v.ativo), 0)::int AS estoque_total
+       COALESCE(SUM(v.estoque_atual) FILTER (WHERE v.ativo), 0)::int AS estoque_total,
+       COALESCE(
+         json_agg(
+           json_build_object(
+             'id',           v.id,
+             'atributos',    v.atributos_json,
+             'preco',        COALESCE(v.preco_especifico, p.preco_base),
+             'estoque_atual', v.estoque_atual,
+             'ativo',        v.ativo
+           ) ORDER BY v.atributos_json::text
+         ) FILTER (WHERE v.id IS NOT NULL AND v.ativo = true AND v.arquivado = false),
+         '[]'::json
+       ) AS versoes
      FROM produtos p
      LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id
      LEFT JOIN versoes v ON v.produto_id = p.id
