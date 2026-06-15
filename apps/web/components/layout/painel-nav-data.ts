@@ -40,11 +40,11 @@ export const SECTIONS = [
     label: 'Estoque',
     icon:  'Package',
     href:  '/painel/estoque',
-    match: ['/painel/estoque'],
+    match: ['/painel/estoque', '/painel/estoque/ajustes', '/painel/estoque/nfe'],
     sub: [
       { label: 'Posição Atual', href: '/painel/estoque' },
-      { label: 'Alertas',       href: '/painel/estoque/alertas' },
       { label: 'Ajustes',       href: '/painel/estoque/ajustes' },
+      { label: 'NF-e',          href: '/painel/estoque/nfe' },
     ],
   },
   {
