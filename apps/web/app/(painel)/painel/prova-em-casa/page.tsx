@@ -1017,32 +1017,43 @@ function ProvaList({ provas, gridTab, alertaDias, onClickEmProva }: {
 
   function ProvaCard({ p, clickable }: { p: ProvaRemota; clickable?: boolean }) {
     const tot    = p.itens.reduce((s, i) => s + Number(i.preco_unitario) * i.quantidade, 0)
+    const qtd    = p.itens.reduce((s, i) => s + i.quantidade, 0)
     const badge  = prazoBadge(p.prazo, alertaDias)
     const border = clickable ? cardLeftBorder(p.prazo, alertaDias) : 'none'
     const sbadge = statusBadge(p.status)
     const CARD_STYLE: React.CSSProperties = {
       background: 'rgba(8,18,30,0.48)', backdropFilter: 'blur(8px)',
       border: '0.5px solid rgba(255,255,255,0.09)', borderRadius: '10px',
-      padding: '14px 16px', borderLeft: border,
-      display: 'flex', alignItems: 'center', gap: '12px', transition: 'background 120ms',
+      padding: '16px', minHeight: '120px', borderLeft: border,
+      display: 'flex', flexDirection: 'column', gap: '8px', transition: 'background 120ms, border-color 120ms',
     }
     return (
       <div
         style={{ ...CARD_STYLE, cursor: clickable ? 'pointer' : 'default' }}
         onClick={() => clickable && onClickEmProva(p)}
-        onMouseEnter={e => { if (clickable) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(8,18,30,0.48)' }}
+        onMouseEnter={e => { if (clickable) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' } }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(8,18,30,0.48)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.cliente_nome ?? 'Sem cliente'}</p>
-          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>{agoMin(p.criado_em)} · {p.nome_vendedor ?? '—'}</p>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+          <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {p.cliente_nome ?? 'Sem cliente'}
+          </p>
+          <span style={{ fontSize: '9px', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', borderRadius: '9999px', padding: '2px 8px', flexShrink: 0, background: sbadge.bg, color: sbadge.color, border: `0.5px solid ${sbadge.border}` }}>
+            {sbadge.text}
+          </span>
         </div>
-        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>{p.itens.length} {p.itens.length === 1 ? 'item' : 'itens'}</p>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-          {badge && <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '9999px', background: badge.bg, border: `0.5px solid ${badge.border}`, color: badge.color, whiteSpace: 'nowrap' }}>{badge.text}</span>}
-          <span style={{ fontSize: '9px', padding: '1px 7px', borderRadius: '9999px', background: sbadge.bg, border: `0.5px solid ${sbadge.border}`, color: sbadge.color }}>{sbadge.text}</span>
-          <p style={{ fontSize: '14px', fontWeight: 700, color: '#0ef' }}>{fmtR(tot)}</p>
-        </div>
+        {badge && (
+          <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '9999px', background: badge.bg, border: `0.5px solid ${badge.border}`, color: badge.color, whiteSpace: 'nowrap', alignSelf: 'flex-start' }}>
+            {badge.text}
+          </span>
+        )}
+        <p style={{ fontSize: '15px', fontWeight: 700, color: '#0ef' }}>{fmtR(tot)}</p>
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>
+          {qtd} item{qtd !== 1 ? 'ns' : ''} · {p.nome_vendedor ?? '—'}
+        </p>
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginTop: 'auto' }}>
+          {agoMin(p.criado_em)}
+        </p>
       </div>
     )
   }
@@ -1050,9 +1061,11 @@ function ProvaList({ provas, gridTab, alertaDias, onClickEmProva }: {
   function Section({ title, items, clickable }: { title: string; items: ProvaRemota[]; clickable?: boolean }) {
     if (items.length === 0) return null
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', marginBottom: '2px' }}>{title}</p>
-        {items.map(p => <ProvaCard key={p.id} p={p} clickable={clickable} />)}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>{title}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+          {items.map(p => <ProvaCard key={p.id} p={p} clickable={clickable} />)}
+        </div>
       </div>
     )
   }
