@@ -12,7 +12,7 @@ import { sacolasApi } from '@/lib/api/sacolas'
 import { api } from '@/lib/api/client'
 import { useAuthStore } from '@/store/auth.store'
 
-type ViewMode = 'grid' | 'builder' | 'devolucao'
+type ViewMode = 'grid' | 'builder' | 'devolucao' | 'detalhe'
 type GridTab  = 'ativas' | 'concluidas'
 
 interface BuilderItem {
@@ -524,6 +524,7 @@ export default function ProvaEmCasaPage() {
                 gridTab={gridTab}
                 alertaDias={alertaDias}
                 onClickEmProva={openDevolucao}
+                onClickConcluida={(p) => { setProvaAtiva(p); setView('detalhe') }}
               />
             )}
 
@@ -866,6 +867,106 @@ export default function ProvaEmCasaPage() {
         </main>
       )}
 
+      {/* ═══════════════════════════ DETALHE VIEW ════════════════════════════ */}
+      {view === 'detalhe' && provaAtiva && (
+        <main style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* Breadcrumb */}
+          <div style={{ padding: '10px 16px', borderBottom: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            <button onClick={backToGrid} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.45)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '4px 8px', borderRadius: '6px' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.85)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)' }}
+            ><ArrowLeft size={14} />Prova em Casa</button>
+            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>/</span>
+            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)', fontWeight: 500 }}>{provaAtiva.cliente_nome ?? 'Sem cliente'}</span>
+          </div>
+
+          <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+            {/* LEFT: itens agrupados */}
+            <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '16px', borderRight: '0.5px solid rgba(255,255,255,0.07)' }}>
+              {provaAtiva.itens.filter(i => !i.devolvido).length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(100,220,160,0.6)', flexShrink: 0 }}>Comprados</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {provaAtiva.itens.filter(i => !i.devolvido).map(item => (
+                      <ItemRow key={item.id} item={item} cor="#0ef" />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {provaAtiva.itens.filter(i => i.devolvido).length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)', flexShrink: 0 }}>Devolvidos</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {provaAtiva.itens.filter(i => i.devolvido).map(item => (
+                      <ItemRow key={item.id} item={item} cor="rgba(255,255,255,0.2)" opaco />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT: resumo */}
+            <div style={{ width: '248px', flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px', gap: '10px', overflowY: 'auto' }}>
+              {(() => {
+                const sbadge = statusBadge(provaAtiva.status)
+                return (
+                  <span style={{ fontSize: '10px', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', borderRadius: '9999px', padding: '4px 12px', alignSelf: 'flex-start', background: sbadge.bg, color: sbadge.color, border: `0.5px solid ${sbadge.border}` }}>
+                    {sbadge.text}
+                  </span>
+                )
+              })()}
+              <div style={{ ...PANEL, padding: '12px' }}>
+                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '8px' }}>Cliente</p>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{provaAtiva.cliente_nome ?? 'Sem cliente'}</p>
+              </div>
+              <div style={{ ...PANEL, padding: '12px' }}>
+                <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '6px' }}>Vendedor</p>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)' }}>{provaAtiva.nome_vendedor ?? '—'}</p>
+              </div>
+              {provaAtiva.prazo && (() => {
+                const badge = prazoBadge(provaAtiva.prazo, alertaDias)
+                return badge ? (
+                  <div style={{ ...PANEL, padding: '12px' }}>
+                    <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '6px' }}>Prazo</p>
+                    <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '9999px', background: badge.bg, border: `0.5px solid ${badge.border}`, color: badge.color }}>{badge.text}</span>
+                  </div>
+                ) : null
+              })()}
+              {provaAtiva.observacao && (
+                <div style={{ ...PANEL, padding: '12px' }}>
+                  <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '6px' }}>Observações</p>
+                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{provaAtiva.observacao}</p>
+                </div>
+              )}
+              {(() => {
+                const comprados  = provaAtiva.itens.filter(i => !i.devolvido)
+                const devolvidos = provaAtiva.itens.filter(i => i.devolvido)
+                const totComp    = comprados.reduce((s, i) => s + Number(i.preco_unitario) * i.quantidade, 0)
+                const totDev     = devolvidos.reduce((s, i) => s + Number(i.preco_unitario) * i.quantidade, 0)
+                const qtdComp    = comprados.reduce((s, i) => s + i.quantidade, 0)
+                const qtdDev     = devolvidos.reduce((s, i) => s + i.quantidade, 0)
+                return (
+                  <>
+                    <div style={{ ...PANEL, padding: '12px' }}>
+                      <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '6px' }}>Total comprado</p>
+                      <p style={{ fontSize: '22px', fontWeight: 700, color: '#0ef' }}>{fmtR(totComp)}</p>
+                      <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>{qtdComp} item{qtdComp !== 1 ? 'ns' : ''}</p>
+                    </div>
+                    {devolvidos.length > 0 && (
+                      <div style={{ ...PANEL, padding: '12px' }}>
+                        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '6px' }}>Total devolvido</p>
+                        <p style={{ fontSize: '22px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>{fmtR(totDev)}</p>
+                        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>{qtdDev} item{qtdDev !== 1 ? 'ns' : ''}</p>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+          </div>
+        </main>
+      )}
+
       {/* ── Modals ── */}
       <CustomerSearchModal
         open={modalCliente}
@@ -1005,17 +1106,35 @@ export default function ProvaEmCasaPage() {
   )
 }
 
+// ── ItemRow ────────────────────────────────────────────────────────────────────
+function ItemRow({ item, cor, opaco }: { item: ProvaItemRemoto; cor: string; opaco?: boolean }) {
+  const attrText = Object.values(item.atributos ?? {}).join(' · ')
+  return (
+    <div style={{ ...CARD, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '12px', opacity: opaco ? 0.45 : 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: opaco ? 'line-through' : 'none' }}>{item.nome}</p>
+        {attrText && <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '1px' }}>{attrText}</p>}
+      </div>
+      <div style={{ flexShrink: 0, textAlign: 'right' }}>
+        <p style={{ fontSize: '12px', fontWeight: 600, color: cor }}>{fmtR(Number(item.preco_unitario) * item.quantidade)}</p>
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>× {item.quantidade}</p>
+      </div>
+    </div>
+  )
+}
+
 // ── ProvaList component ────────────────────────────────────────────────────────
-function ProvaList({ provas, gridTab, alertaDias, onClickEmProva }: {
+function ProvaList({ provas, gridTab, alertaDias, onClickEmProva, onClickConcluida }: {
   provas: ProvaRemota[]; gridTab: GridTab; alertaDias: number
   onClickEmProva: (p: ProvaRemota) => void
+  onClickConcluida?: (p: ProvaRemota) => void
 }) {
   const emProvaList       = provas.filter(p => p.status === 'em_prova')
   const aguardandoList    = provas.filter(p => p.status === 'aguardando_caixa')
   const finalizadaList    = provas.filter(p => p.status === 'finalizada')
   const canceladaList     = provas.filter(p => p.status === 'cancelada')
 
-  function ProvaCard({ p, clickable }: { p: ProvaRemota; clickable?: boolean }) {
+  function ProvaCard({ p, clickable, onClickOverride }: { p: ProvaRemota; clickable?: boolean; onClickOverride?: (p: ProvaRemota) => void }) {
     const tot    = p.itens.reduce((s, i) => s + Number(i.preco_unitario) * i.quantidade, 0)
     const qtd    = p.itens.reduce((s, i) => s + i.quantidade, 0)
     const badge  = prazoBadge(p.prazo, alertaDias)
@@ -1030,7 +1149,7 @@ function ProvaList({ provas, gridTab, alertaDias, onClickEmProva }: {
     return (
       <div
         style={{ ...CARD_STYLE, cursor: clickable ? 'pointer' : 'default' }}
-        onClick={() => clickable && onClickEmProva(p)}
+        onClick={() => clickable && (onClickOverride ? onClickOverride(p) : onClickEmProva(p))}
         onMouseEnter={e => { if (clickable) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' } }}
         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(8,18,30,0.48)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)' }}
       >
@@ -1058,13 +1177,13 @@ function ProvaList({ provas, gridTab, alertaDias, onClickEmProva }: {
     )
   }
 
-  function Section({ title, items, clickable }: { title: string; items: ProvaRemota[]; clickable?: boolean }) {
+  function Section({ title, items, clickable, onClickOverride }: { title: string; items: ProvaRemota[]; clickable?: boolean; onClickOverride?: (p: ProvaRemota) => void }) {
     if (items.length === 0) return null
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.25)' }}>{title}</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-          {items.map(p => <ProvaCard key={p.id} p={p} clickable={clickable} />)}
+          {items.map(p => <ProvaCard key={p.id} p={p} clickable={clickable} onClickOverride={onClickOverride} />)}
         </div>
       </div>
     )
@@ -1098,8 +1217,8 @@ function ProvaList({ provas, gridTab, alertaDias, onClickEmProva }: {
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <Section title="Finalizadas" items={finalizadaList} />
-      <Section title="Canceladas"  items={canceladaList} />
+      <Section title="Finalizadas" items={finalizadaList} clickable onClickOverride={onClickConcluida} />
+      <Section title="Canceladas"  items={canceladaList}  clickable onClickOverride={onClickConcluida} />
     </div>
   )
 }
