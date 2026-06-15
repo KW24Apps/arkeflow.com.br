@@ -42,9 +42,9 @@ export const SECTIONS = [
     href:  '/painel/estoque',
     match: ['/painel/estoque', '/painel/estoque/ajustes', '/painel/estoque/nfe'],
     sub: [
-      { label: 'Posição Atual', href: '/painel/estoque' },
-      { label: 'Ajustes',       href: '/painel/estoque/ajustes' },
-      { label: 'NF-e',          href: '/painel/estoque/nfe' },
+      { label: 'Visão Geral',      href: '/painel/estoque' },
+      { label: 'Ajustes',          href: '/painel/estoque/ajustes' },
+      { label: 'Entrada de Notas', href: '/painel/estoque/nfe' },
     ],
   },
   {
