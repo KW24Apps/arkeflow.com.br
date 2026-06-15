@@ -801,34 +801,6 @@ export default function ProvaEmCasaPage() {
                 })}
               </div>
 
-              {devErro && <p style={{ fontSize: '12px', color: 'rgba(248,113,113,0.8)', flexShrink: 0 }}>{devErro}</p>}
-
-              {/* Actions */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto', paddingTop: '8px', flexShrink: 0 }}>
-                {novaDevolucaoPendente && (
-                  <button onClick={confirmarDevolucao} disabled={devoluendoId}
-                    style={{ width: '100%', minHeight: '44px', borderRadius: '10px', border: 'none', outline: 'none', cursor: 'pointer', background: 'rgba(100,220,160,0.9)', color: '#0a0a1a', fontSize: '14px', fontWeight: 700 }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(100,220,160,0.75)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(100,220,160,0.9)' }}
-                  >{devoluendoId ? 'Registrando…' : 'Confirmar devolução'}</button>
-                )}
-
-                {!todoDevolvido && !novaDevolucaoPendente && (
-                  <button onClick={liberarCaixa} disabled={devoluendoId}
-                    style={{ width: '100%', minHeight: '44px', borderRadius: '10px', border: 'none', outline: 'none', cursor: 'pointer', background: 'rgba(0,239,255,0.9)', color: '#0a0a1a', fontSize: '14px', fontWeight: 700 }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.75)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.9)' }}
-                  >{devoluendoId ? 'Processando…' : 'Liberar para o caixa'}</button>
-                )}
-
-                {todoDevolvido && (
-                  <button onClick={cancelarProva} disabled={devoluendoId}
-                    style={{ width: '100%', minHeight: '44px', borderRadius: '10px', border: '0.5px solid rgba(240,100,100,0.35)', outline: 'none', cursor: 'pointer', background: 'rgba(240,100,100,0.08)', color: 'rgba(240,100,100,0.8)', fontSize: '14px', fontWeight: 700 }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(240,100,100,0.15)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(240,100,100,0.08)' }}
-                  >{devoluendoId ? 'Cancelando…' : 'Cancelar prova (todos devolvidos)'}</button>
-                )}
-              </div>
             </div>
 
             {/* RIGHT: summary */}
@@ -860,6 +832,34 @@ export default function ProvaEmCasaPage() {
                 <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.3)', marginBottom: '6px' }}>Itens restantes</p>
                 <p style={{ fontSize: '22px', fontWeight: 700, color: '#0ef' }}>{fmtR(itensAtivos.reduce((s, i) => s + Number(i.preco_unitario) * i.quantidade, 0))}</p>
                 <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>{itensAtivos.reduce((s, i) => s + i.quantidade, 0)} item{itensAtivos.length !== 1 ? 'ns' : ''}</p>
+              </div>
+
+              {devErro && <p style={{ fontSize: '12px', color: 'rgba(248,113,113,0.8)' }}>{devErro}</p>}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+                {novaDevolucaoPendente && (
+                  <button onClick={confirmarDevolucao} disabled={devoluendoId}
+                    style={{ width: '100%', minHeight: '44px', borderRadius: '10px', border: 'none', outline: 'none', cursor: 'pointer', background: 'rgba(100,220,160,0.9)', color: '#0a0a1a', fontSize: '14px', fontWeight: 700 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(100,220,160,0.75)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(100,220,160,0.9)' }}
+                  >{devoluendoId ? 'Registrando…' : 'Confirmar devolução'}</button>
+                )}
+
+                {!todoDevolvido && !novaDevolucaoPendente && (
+                  <button onClick={liberarCaixa} disabled={devoluendoId}
+                    style={{ width: '100%', minHeight: '44px', borderRadius: '10px', border: 'none', outline: 'none', cursor: 'pointer', background: 'rgba(0,239,255,0.9)', color: '#0a0a1a', fontSize: '14px', fontWeight: 700 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.75)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,239,255,0.9)' }}
+                  >{devoluendoId ? 'Processando…' : 'Liberar para o caixa'}</button>
+                )}
+
+                {todoDevolvido && (
+                  <button onClick={cancelarProva} disabled={devoluendoId}
+                    style={{ width: '100%', minHeight: '44px', borderRadius: '10px', border: '0.5px solid rgba(240,100,100,0.35)', outline: 'none', cursor: 'pointer', background: 'rgba(240,100,100,0.08)', color: 'rgba(240,100,100,0.8)', fontSize: '14px', fontWeight: 700 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(240,100,100,0.15)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(240,100,100,0.08)' }}
+                  >{devoluendoId ? 'Cancelando…' : 'Cancelar prova (todos devolvidos)'}</button>
+                )}
               </div>
             </div>
           </div>
