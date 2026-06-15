@@ -9,7 +9,7 @@ export default function EstoqueAlertasPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    estoqueApi.list(true).then(setItems).finally(() => setLoading(false))
+    estoqueApi.list({ alerta: true }).then(setItems).finally(() => setLoading(false))
   }, [])
 
   return (
