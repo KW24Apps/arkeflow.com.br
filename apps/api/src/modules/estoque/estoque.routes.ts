@@ -26,6 +26,7 @@ const xmlParser = new XMLParser({
   ignoreAttributes:    false,
   attributeNamePrefix: '@_',
   parseAttributeValue: false,
+  parseTagValue:       false,  // prevent chNFe/chave_acesso from being converted to float
   isArray:             (name: string) => name === 'det',
 })
 
