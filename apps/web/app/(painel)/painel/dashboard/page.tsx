@@ -113,10 +113,11 @@ export default function DashboardPage() {
     if (usuario && usuario.nivel === 'vendedor') router.push('/painel/caixa')
   }, [usuario])
 
-  const [periodo, setPeriodo]   = useState<Periodo>('hoje')
-  const [data, setData]         = useState<any>(null)
-  const [loading, setLoading]   = useState(true)
-  const [erro, setErro]         = useState('')
+  const [periodo, setPeriodo]       = useState<Periodo>('hoje')
+  const [data, setData]             = useState<any>(null)
+  const [loading, setLoading]       = useState(true)
+  const [erro, setErro]             = useState('')
+  const [filtroOnline, setFiltroOnline] = useState<'web' | 'mobile' | 'todos'>('web')
 
   const load = useCallback(async (p: Periodo) => {
     setLoading(true); setErro('')
@@ -203,18 +204,47 @@ export default function DashboardPage() {
             <div style={{ ...CARD, height: `${LIVE_H}px`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ padding: '9px 14px 6px', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 5px #4ade80', flexShrink: 0 }} />
-                <p style={{ ...LBL9, margin: 0 }}>Online agora</p>
+                <p style={{ ...LBL9, margin: 0, flex: 1 }}>Online agora</p>
+                {(['web', 'mobile'] as const).map(p => {
+                  const active = filtroOnline === p
+                  return (
+                    <button key={p} onClick={() => setFiltroOnline(filtroOnline === p ? 'todos' : p)} style={{
+                      background: active ? 'rgba(0,239,255,0.15)' : 'transparent',
+                      border: `0.5px solid ${active ? 'rgba(0,239,255,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                      color: active ? '#0ef' : 'rgba(255,255,255,0.3)',
+                      borderRadius: '20px', padding: '2px 7px', fontSize: '9px',
+                      cursor: 'pointer', outline: 'none',
+                    }}>
+                      {p === 'mobile' ? 'App' : 'Web'}
+                    </button>
+                  )
+                })}
               </div>
               <div style={{ overflowY: 'auto', flex: 1, padding: '8px 14px' }}>
-                {!data?.online_agora?.length
-                  ? <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>Ninguém online</p>
-                  : data.online_agora.map((u: any, i: number) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '7px' }}>
-                      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '6px' }}>{u.nome}</span>
-                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>{agoMin(u.ultimo_acesso)}</span>
-                    </div>
-                  ))
-                }
+                {(() => {
+                  const onlinesFiltrados = (data?.online_agora ?? []).filter((u: any) =>
+                    filtroOnline === 'todos' || u.plataforma === filtroOnline
+                  )
+                  return !onlinesFiltrados.length
+                    ? <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)' }}>Ninguém online</p>
+                    : onlinesFiltrados.map((u: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.nome}</span>
+                          <span style={{
+                            fontSize: '9px', padding: '1px 5px', borderRadius: '20px', flexShrink: 0,
+                            background: u.plataforma === 'mobile' ? 'rgba(0,239,255,0.1)' : 'rgba(255,255,255,0.06)',
+                            border: `0.5px solid ${u.plataforma === 'mobile' ? 'rgba(0,239,255,0.3)' : 'rgba(255,255,255,0.12)'}`,
+                            color: u.plataforma === 'mobile' ? '#0ef' : 'rgba(255,255,255,0.35)',
+                          }}>{u.plataforma === 'mobile' ? 'app' : 'web'}</span>
+                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>
+                            · login {new Date(u.login_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>{`⌨️ ${new Date(u.ultimo_acesso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}</span>
+                      </div>
+                    ))
+                })()}
               </div>
             </div>
 
