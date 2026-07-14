@@ -7,41 +7,13 @@ import { Button } from '@/components/ui/Button'
 import { loginRequest } from '@/lib/api/auth'
 import type { SessaoAtivaError } from '@/lib/api/auth'
 import { useAuthStore } from '@/store/auth.store'
-import type { NivelUsuario, JwtPayload } from '@arkeflow/shared'
-import { temPermissao } from '@/lib/permissoes'
+import type { JwtPayload } from '@arkeflow/shared'
 
-// Ordem dos menus e suas rotas reais
-const MENU_ROTAS: { slug: string; href: string }[] = [
-  { slug: 'dashboard',              href: '/painel/dashboard' },
-  { slug: 'caixa',                  href: '/painel/caixa' },
-  { slug: 'estoque',                href: '/painel/estoque' },
-  { slug: 'financeiro',             href: '/painel/financeiro' },
-  { slug: 'cadastro-produtos',      href: '/painel/produtos' },
-  { slug: 'cadastro-clientes',      href: '/painel/clientes' },
-  { slug: 'cadastro-colaboradores', href: '/painel/colaboradores' },
-  { slug: 'cadastro-financeiro',    href: '/painel/configuracoes/formas-pagamento' },
-]
-
-// Redireciona para o primeiro menu acessível do usuário
-function getRedirectPath(usuario: JwtPayload): string {
-  if (usuario.nivel !== 'vendedor') {
-    const rotas: Record<NivelUsuario, string> = {
-      admin_plataforma: '/admin/dashboard',
-      parceiro:         '/painel/dashboard',
-      dono_loja:        '/painel/dashboard',
-      vendedor:         '/pdv',
-    }
-    return rotas[usuario.nivel]
-  }
-
-  const permissoes = Array.isArray(usuario.permissoes) ? usuario.permissoes : []
-  if (permissoes.length === 0) return '/pdv'
-
-  for (const { slug, href } of MENU_ROTAS) {
-    if (temPermissao(permissoes, slug)) return href
-  }
-
-  return '/pdv'
+// Este app só atende admin_plataforma — demais perfis não têm rota aqui
+// (dono_loja/colaborador usam app.arkevest.com.br)
+function getRedirectPath(usuario: JwtPayload): string | null {
+  if (usuario.nivel === 'admin_plataforma') return '/admin/dashboard'
+  return null
 }
 
 function formatarData(em: string | null): string {
@@ -69,9 +41,16 @@ export function LoginForm() {
     setLoading(true)
     try {
       const { token, usuario } = await loginRequest(email, senha, forcar)
+
+      const redirectPath = getRedirectPath(usuario)
+      if (!redirectPath) {
+        setErro('Este é o painel administrativo. Use app.arkevest.com.br para acessar sua loja.')
+        return
+      }
+
       setAuth(token, usuario)
       document.cookie = `arkeflow_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`
-      router.push(getRedirectPath(usuario))
+      router.push(redirectPath)
     } catch (err: any) {
       if (err?.response?.status === 409 && err?.response?.data?.code === 'SESSAO_ATIVA') {
         setSessaoAtiva(err.response.data as SessaoAtivaError)
