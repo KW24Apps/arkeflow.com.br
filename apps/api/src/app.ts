@@ -29,7 +29,23 @@ import { relatoriosRoutes }         from './modules/relatorios/relatorios.routes
 export function buildApp() {
   const app = Fastify({ logger: env.NODE_ENV === 'development' })
 
-  app.register(cors, { origin: true })
+  const allowedOrigins = [
+    'https://app.arkeflow.com.br',
+    'https://www.arkeflow.com.br',
+    'https://app.arkevest.com.br',
+    'https://www.arkevest.com.br',
+    'http://localhost:3000',
+  ]
+
+  app.register(cors, {
+    origin: (origin, cb) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        cb(null, true)
+        return
+      }
+      cb(new Error('Not allowed by CORS'), false)
+    },
+  })
   app.register(jwt,  { secret: env.JWT_SECRET })
   app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } }) // 10MB
   app.setErrorHandler(errorHandler)
