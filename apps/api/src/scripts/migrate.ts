@@ -42,9 +42,10 @@ async function main() {
     await runMigrations(pool, dir)
     await pool.end()
   } else {
-    // Tenant migrations: run on each cliente's dedicated database
+    // Tenant migrations: run on each cliente's dedicated database. Clientes sem produto
+    // Arkevest (ex.: só Connect) não têm banco tenant -- banco_id fica NULL, pulados aqui.
     const platformPool = new Pool({ connectionString: env.DATABASE_URL })
-    const { rows: clientes } = await platformPool.query('SELECT banco_id FROM clientes ORDER BY banco_id')
+    const { rows: clientes } = await platformPool.query('SELECT banco_id FROM clientes WHERE banco_id IS NOT NULL ORDER BY banco_id')
     await platformPool.end()
 
     for (const cliente of clientes) {
