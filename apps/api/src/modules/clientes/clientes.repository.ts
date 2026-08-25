@@ -10,7 +10,7 @@ export async function findAll(pool: Pool, q?: string) {
   }
   const { rows } = await pool.query(
     `SELECT id, nome, telefone, cpf, email, saldo_cashback, criado_em
-     FROM clientes ${where} ORDER BY nome LIMIT 100`,
+     FROM clientes_arkevest ${where} ORDER BY nome LIMIT 100`,
     params
   )
   return rows
@@ -21,7 +21,7 @@ export async function findById(pool: Pool, id: string) {
     `SELECT c.*, rc.nome AS regra_cashback_nome, rc.percentual AS regra_cashback_percentual,
             COALESCE(cc.credito_liberado, false) AS credito_liberado,
             COALESCE(cc.limite, 0)               AS limite_credito
-     FROM clientes c
+     FROM clientes_arkevest c
      LEFT JOIN regras_cashback rc ON rc.id = c.regra_cashback_id
      LEFT JOIN clientes_credito cc ON cc.cliente_id = c.id
      WHERE c.id = $1 AND c.ativo = true AND c.arquivado = false`,
@@ -38,7 +38,7 @@ export async function create(pool: Pool, data: {
     `SELECT id FROM regras_cashback WHERE padrao = true AND ativo = true LIMIT 1`
   )
   const { rows: [c] } = await pool.query(
-    `INSERT INTO clientes (nome, telefone, cpf, email, regra_cashback_id)
+    `INSERT INTO clientes_arkevest (nome, telefone, cpf, email, regra_cashback_id)
      VALUES ($1, $2, $3, $4, $5) RETURNING *`,
     [data.nome, data.telefone ?? null, data.cpf ?? null,
      data.email ?? null, regra?.id ?? null]
@@ -49,7 +49,7 @@ export async function create(pool: Pool, data: {
 export async function update(pool: Pool, id: string, data: Record<string, any>) {
   const processed: Record<string, any> = { ...data }
 
-  // Credit lives in clientes_credito — pull these OUT before touching clientes
+  // Credit lives in clientes_credito — pull these OUT before touching clientes_arkevest
   const creditoLiberado = processed.credito_liberado
   const limiteCredito   = processed.limite_credito
   delete processed.credito_liberado
@@ -59,7 +59,7 @@ export async function update(pool: Pool, id: string, data: Record<string, any>) 
   if (processed.medidas_json !== undefined) {
     processed.medidas_json = JSON.stringify(processed.medidas_json)
   }
-  // No clientes column accepts an array — drop any array values silently
+  // No clientes_arkevest column accepts an array — drop any array values silently
   Object.keys(processed).forEach(k => { if (Array.isArray(processed[k])) delete processed[k] })
 
   let row: any
@@ -69,7 +69,7 @@ export async function update(pool: Pool, id: string, data: Record<string, any>) 
     const set = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
     try {
       const { rows: [r] } = await pool.query(
-        `UPDATE clientes SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`,
+        `UPDATE clientes_arkevest SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`,
         [id, ...values]
       )
       row = r
@@ -80,7 +80,7 @@ export async function update(pool: Pool, id: string, data: Record<string, any>) 
       throw e
     }
   } else {
-    const { rows: [r] } = await pool.query(`SELECT * FROM clientes WHERE id = $1`, [id])
+    const { rows: [r] } = await pool.query(`SELECT * FROM clientes_arkevest WHERE id = $1`, [id])
     row = r
   }
 
@@ -95,7 +95,7 @@ export async function update(pool: Pool, id: string, data: Record<string, any>) 
 }
 
 export async function softDelete(pool: Pool, id: string) {
-  await pool.query(`UPDATE clientes SET arquivado = true WHERE id = $1`, [id])
+  await pool.query(`UPDATE clientes_arkevest SET arquivado = true WHERE id = $1`, [id])
 }
 
 export async function upsertCredito(pool: Pool, cliente_id: string, liberado: boolean, limite: number) {

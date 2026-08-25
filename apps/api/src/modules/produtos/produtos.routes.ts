@@ -17,7 +17,7 @@ export async function produtosRoutes(app: FastifyInstance) {
     const { rows: [versao] } = await pool.query(
       `SELECT v.*, p.nome AS produto_nome, p.preco_base, p.controle_estoque, p.aceita_desconto, p.id AS produto_id, tp.nome AS tipo_nome
        FROM versoes v
-       JOIN produtos p ON p.id = v.produto_id
+       JOIN produtos_arkevest p ON p.id = v.produto_id
        LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id
        WHERE v.codigo_barras = $1 AND v.ativo = true AND v.arquivado = false AND p.ativo = true AND p.arquivado = false`,
       [codigo]
@@ -26,7 +26,7 @@ export async function produtosRoutes(app: FastifyInstance) {
 
     // Level 2: product-level barcode → return product + active variations
     const { rows: [produto] } = await pool.query(
-      `SELECT p.*, tp.nome AS tipo_nome FROM produtos p LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id WHERE p.codigo_barras = $1 AND p.ativo = true AND p.arquivado = false`,
+      `SELECT p.*, tp.nome AS tipo_nome FROM produtos_arkevest p LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id WHERE p.codigo_barras = $1 AND p.ativo = true AND p.arquivado = false`,
       [codigo]
     )
     if (!produto) return reply.status(404).send({ error: 'Código de barras não encontrado' })

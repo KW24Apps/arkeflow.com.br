@@ -32,8 +32,8 @@ export async function authRoutes(app: FastifyInstance) {
         [user.id]
       ),
       platformPool.query(
-        `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo, plataforma, motivo) VALUES ($1,$2,$3,'logout',$4,'manual')`,
-        [user.id, user.loja_id ?? null,
+        `INSERT INTO logs_acesso (usuario_id, cliente_id, ip, tipo, plataforma, motivo) VALUES ($1,$2,$3,'logout',$4,'manual')`,
+        [user.id, user.cliente_id ?? null,
          req.headers['x-forwarded-for']?.toString() || req.ip,
          user.plataforma ?? 'web']
       ).catch(() => {}),

@@ -14,7 +14,7 @@ export async function authMiddleware(request: FastifyRequest, _reply: FastifyRep
   const isWeb = !user.plataforma || user.plataforma === 'web' || user.plataforma === 'desktop'
 
   // Platform admins have no tenant context — sid check only, then refresh
-  if (!user.banco_id || !user.loja_id) {
+  if (!user.banco_id || !user.cliente_id) {
     if (user.sid) {
       const { rows: [u] } = await platformPool.query<{ sessao: string | null }>(
         `SELECT ${isWeb ? 'sessao_web' : 'sessao_mobile'} AS sessao FROM usuarios WHERE id = $1`,
@@ -22,9 +22,9 @@ export async function authMiddleware(request: FastifyRequest, _reply: FastifyRep
       )
       if (u?.sessao !== user.sid) {
         await platformPool.query(
-          `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo, plataforma, motivo)
+          `INSERT INTO logs_acesso (usuario_id, cliente_id, ip, tipo, plataforma, motivo)
            VALUES ($1, $2, $3, 'logout', $4, 'substituido')`,
-          [user.id, user.loja_id ?? null, request.ip, user.plataforma ?? 'web']
+          [user.id, user.cliente_id ?? null, request.ip, user.plataforma ?? 'web']
         ).catch(() => {})
         throw new AppError('Sessão encerrada — login em outro dispositivo', 401, 'SESSAO_SUBSTITUIDA')
       }
@@ -55,9 +55,9 @@ export async function authMiddleware(request: FastifyRequest, _reply: FastifyRep
   // Order: sid check first, then inactivity
   if (user.sid && sessaoAtual !== user.sid) {
     await platformPool.query(
-      `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo, plataforma, motivo)
+      `INSERT INTO logs_acesso (usuario_id, cliente_id, ip, tipo, plataforma, motivo)
        VALUES ($1, $2, $3, 'logout', $4, 'substituido')`,
-      [user.id, user.loja_id ?? null, request.ip, user.plataforma ?? 'web']
+      [user.id, user.cliente_id ?? null, request.ip, user.plataforma ?? 'web']
     ).catch(() => {})
     throw new AppError('Sessão encerrada — login em outro dispositivo', 401, 'SESSAO_SUBSTITUIDA')
   }
@@ -66,9 +66,9 @@ export async function authMiddleware(request: FastifyRequest, _reply: FastifyRep
     const diffMinutes = (Date.now() - ultimoAcesso.getTime()) / 60000
     if (diffMinutes > inatividadeMinutos) {
       await platformPool.query(
-        `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo, plataforma, motivo)
+        `INSERT INTO logs_acesso (usuario_id, cliente_id, ip, tipo, plataforma, motivo)
          VALUES ($1, $2, $3, 'logout', $4, 'expirado')`,
-        [user.id, user.loja_id ?? null, request.ip, user.plataforma ?? 'web']
+        [user.id, user.cliente_id ?? null, request.ip, user.plataforma ?? 'web']
       ).catch(() => {})
       throw new AppError('Sessão expirada por inatividade', 401, 'SESSAO_EXPIRADA')
     }

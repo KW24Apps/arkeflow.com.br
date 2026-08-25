@@ -130,7 +130,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
           SUM(iv.quantidade) AS qtd
         FROM itens_venda iv
         JOIN versoes vr ON vr.id = iv.versao_id
-        JOIN produtos p ON p.id = vr.produto_id
+        JOIN produtos_arkevest p ON p.id = vr.produto_id
         JOIN vendas v ON v.id = iv.venda_id
         WHERE v.status = 'finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
         GROUP BY p.id, p.nome ORDER BY faturamento DESC LIMIT 5
@@ -145,7 +145,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
 
       pool.query(`
         SELECT COALESCE(SUM(saldo_cashback), 0) AS saldo
-        FROM clientes WHERE ativo = true AND arquivado = false
+        FROM clientes_arkevest WHERE ativo = true AND arquivado = false
       `),
 
       // Live: promoções ativas agora
@@ -203,7 +203,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         sessao_web_em AS login_em,
         ultimo_acesso_web AS ultimo_acesso
       FROM usuarios
-      WHERE loja_id = $1
+      WHERE cliente_id = $1
         AND sessao_web IS NOT NULL
         AND ultimo_acesso_web IS NOT NULL
         AND ultimo_acesso_web >= NOW() - ($2 || ' minutes')::interval
@@ -213,7 +213,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         sessao_mobile_em AS login_em,
         ultimo_acesso_mobile AS ultimo_acesso
       FROM usuarios
-      WHERE loja_id = $1
+      WHERE cliente_id = $1
         AND sessao_mobile IS NOT NULL
         AND ultimo_acesso_mobile IS NOT NULL
         AND ultimo_acesso_mobile >= NOW() - ($2 || ' minutes')::interval
@@ -223,7 +223,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
     const [onlineRes, operadoresRes] = await Promise.all([
       platformPool.query<{ nome: string; nivel: string; plataforma: string; login_em: Date; ultimo_acesso: Date }>(
         onlineQuery,
-        [user.loja_id, String(inativMin)]),
+        [user.cliente_id, String(inativMin)]),
 
       operadorIds.length > 0
         ? platformPool.query<{ id: string; nome: string }>(
@@ -337,7 +337,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
       `, [inicio, fim]),
       pool.query(`
         SELECT v.id, v.criado_em, v.total, v.vendedor_nome, c.nome AS cliente_nome
-        FROM vendas v LEFT JOIN clientes c ON c.id = v.cliente_id
+        FROM vendas v LEFT JOIN clientes_arkevest c ON c.id = v.cliente_id
         WHERE v.status='finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
         ORDER BY v.criado_em DESC LIMIT $3 OFFSET $4
       `, [inicio, fim, PER, (pg - 1) * PER]),
@@ -395,7 +395,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         vr.estoque_atual,
         COALESCE(s.qtd, 0) AS qtd_vendida
       FROM versoes vr
-      JOIN produtos p ON p.id = vr.produto_id
+      JOIN produtos_arkevest p ON p.id = vr.produto_id
       LEFT JOIN (
         SELECT iv.versao_id, SUM(iv.quantidade) AS qtd
         FROM itens_venda iv JOIN vendas v ON v.id = iv.venda_id
@@ -439,7 +439,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
           ELSE NULL
         END AS dias_parado
       FROM versoes vr
-      JOIN produtos p ON p.id = vr.produto_id
+      JOIN produtos_arkevest p ON p.id = vr.produto_id
       LEFT JOIN (
         SELECT iv.versao_id, MAX(v.criado_em) AS ultima_venda_em
         FROM itens_venda iv JOIN vendas v ON v.id = iv.venda_id
@@ -485,9 +485,9 @@ export async function relatoriosRoutes(app: FastifyInstance) {
     const { rows } = await pool.query(`
       SELECT p1.nome AS produto_a, p2.nome AS produto_b, COUNT(*) AS contagem
       FROM itens_venda iv1
-      JOIN versoes v1 ON v1.id = iv1.versao_id JOIN produtos p1 ON p1.id = v1.produto_id
+      JOIN versoes v1 ON v1.id = iv1.versao_id JOIN produtos_arkevest p1 ON p1.id = v1.produto_id
       JOIN itens_venda iv2 ON iv2.venda_id = iv1.venda_id AND iv1.id < iv2.id
-      JOIN versoes v2 ON v2.id = iv2.versao_id JOIN produtos p2 ON p2.id = v2.produto_id
+      JOIN versoes v2 ON v2.id = iv2.versao_id JOIN produtos_arkevest p2 ON p2.id = v2.produto_id
       JOIN vendas vn ON vn.id = iv1.venda_id
       WHERE vn.status='finalizada' AND DATE(vn.criado_em) BETWEEN $1 AND $2 AND p1.id < p2.id
       GROUP BY p1.nome, p2.nome ORDER BY contagem DESC LIMIT 30
@@ -515,7 +515,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         SELECT tipo, COALESCE(SUM(valor),0) AS total
         FROM historico_cashback WHERE DATE(criado_em) BETWEEN $1 AND $2 GROUP BY tipo
       `, [inicio, fim]),
-      pool.query(`SELECT COALESCE(SUM(saldo_cashback),0) AS saldo FROM clientes WHERE ativo=true AND arquivado=false`),
+      pool.query(`SELECT COALESCE(SUM(saldo_cashback),0) AS saldo FROM clientes_arkevest WHERE ativo=true AND arquivado=false`),
       pool.query(`
         SELECT COALESCE(SUM(valor),0) AS total FROM historico_cashback
         WHERE tipo='ganho' AND expira_em IS NOT NULL
@@ -581,7 +581,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
     const dataInicio = inicio || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
     const dataFim = fim || new Date().toISOString().split('T')[0]
 
-    const params: any[] = [user.loja_id, dataInicio, dataFim]
+    const params: any[] = [user.cliente_id, dataInicio, dataFim]
     let filters = ''
     if (usuario_id) { params.push(usuario_id); filters += ` AND l.usuario_id = $${params.length}` }
     if (plataforma) { params.push(plataforma); filters += ` AND l.plataforma = $${params.length}` }
@@ -591,7 +591,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
         SELECT l.tipo, l.ip, l.plataforma, l.motivo, l.criado_em, u.nome
         FROM logs_acesso l
         JOIN usuarios u ON u.id = l.usuario_id
-        WHERE l.loja_id = $1
+        WHERE l.cliente_id = $1
           AND DATE(l.criado_em) BETWEEN $2 AND $3
           ${filters}
         ORDER BY l.criado_em DESC
@@ -605,27 +605,27 @@ export async function relatoriosRoutes(app: FastifyInstance) {
           COUNT(*) FILTER (WHERE plataforma = 'mobile') AS logins_mobile,
           COUNT(*) FILTER (WHERE plataforma = 'web' OR plataforma IS NULL) AS logins_web
         FROM logs_acesso
-        WHERE loja_id = $1 AND DATE(criado_em) BETWEEN $2 AND $3 AND tipo = 'login'
-      `, [user.loja_id, dataInicio, dataFim]),
+        WHERE cliente_id = $1 AND DATE(criado_em) BETWEEN $2 AND $3 AND tipo = 'login'
+      `, [user.cliente_id, dataInicio, dataFim]),
 
       platformPool.query(`
         SELECT EXTRACT(HOUR FROM criado_em)::int AS hora, COUNT(*)::int AS total
         FROM logs_acesso
-        WHERE loja_id = $1 AND DATE(criado_em) BETWEEN $2 AND $3 AND tipo = 'login'
+        WHERE cliente_id = $1 AND DATE(criado_em) BETWEEN $2 AND $3 AND tipo = 'login'
         GROUP BY hora ORDER BY hora
-      `, [user.loja_id, dataInicio, dataFim]),
+      `, [user.cliente_id, dataInicio, dataFim]),
 
       platformPool.query(`
         SELECT u.nome, COUNT(*) FILTER (WHERE l.tipo = 'login')::int AS logins
         FROM logs_acesso l
         JOIN usuarios u ON u.id = l.usuario_id
-        WHERE l.loja_id = $1 AND DATE(l.criado_em) BETWEEN $2 AND $3
+        WHERE l.cliente_id = $1 AND DATE(l.criado_em) BETWEEN $2 AND $3
         GROUP BY u.nome ORDER BY logins DESC LIMIT 10
-      `, [user.loja_id, dataInicio, dataFim]),
+      `, [user.cliente_id, dataInicio, dataFim]),
 
       platformPool.query(`
-        SELECT id, nome FROM usuarios WHERE loja_id = $1 AND ativo = true ORDER BY nome
-      `, [user.loja_id]),
+        SELECT id, nome FROM usuarios WHERE cliente_id = $1 AND ativo = true ORDER BY nome
+      `, [user.cliente_id]),
     ])
 
     const k = kpisRes.rows[0]
@@ -655,7 +655,7 @@ export async function relatoriosRoutes(app: FastifyInstance) {
           MAX(v.criado_em)::date::text           AS ultima_compra,
           COUNT(DISTINCT v.id)                   AS frequencia,
           COALESCE(SUM(v.total), 0)              AS valor
-        FROM clientes c JOIN vendas v ON v.cliente_id = c.id
+        FROM clientes_arkevest c JOIN vendas v ON v.cliente_id = c.id
         WHERE v.status='finalizada' AND DATE(v.criado_em) BETWEEN $1 AND $2
         GROUP BY c.id, c.nome
       ),

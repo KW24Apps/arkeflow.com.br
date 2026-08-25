@@ -46,12 +46,12 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
               logo_url, link_loja,
               cep, logradouro, numero, complemento, bairro, cidade, estado,
               regime_tributario, certificado_digital_path, certificado_digital_senha
-       FROM lojas WHERE id = $1`,
-      [user.loja_id]
+       FROM clientes WHERE id = $1`,
+      [user.cliente_id]
     )
     const { rows: contatos } = await platformPool.query(
-      `SELECT * FROM lojas_contatos WHERE loja_id = $1 ORDER BY tipo, nome`,
-      [user.loja_id]
+      `SELECT * FROM clientes_contatos WHERE cliente_id = $1 ORDER BY tipo, nome`,
+      [user.cliente_id]
     )
     return reply.send({ ...loja, contatos })
   })
@@ -68,7 +68,7 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     if (!keys.length) return reply.status(400).send({ error: 'Nada para atualizar' })
 
     await platformPool.query(
-      `UPDATE lojas SET ${set} WHERE id = $1`, [user.loja_id, ...values]
+      `UPDATE clientes SET ${set} WHERE id = $1`, [user.cliente_id, ...values]
     )
     return reply.send({ ok: true })
   })
@@ -77,8 +77,8 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
   app.get('/contatos', { preHandler: auth }, async (req, reply) => {
     const user = req.user as JwtPayload
     const { rows } = await platformPool.query(
-      `SELECT * FROM lojas_contatos WHERE loja_id = $1 ORDER BY tipo, nome`,
-      [user.loja_id]
+      `SELECT * FROM clientes_contatos WHERE cliente_id = $1 ORDER BY tipo, nome`,
+      [user.cliente_id]
     )
     return reply.send(rows)
   })
@@ -88,9 +88,9 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     const user = req.user as JwtPayload
     const data = contatoSchema.parse(req.body)
     const { rows: [c] } = await platformPool.query(
-      `INSERT INTO lojas_contatos (loja_id, tipo, nome, telefone, email)
+      `INSERT INTO clientes_contatos (cliente_id, tipo, nome, telefone, email)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [user.loja_id, data.tipo, data.nome, data.telefone ?? null, data.email ?? null]
+      [user.cliente_id, data.tipo, data.nome, data.telefone ?? null, data.email ?? null]
     )
     return reply.status(201).send(c)
   })
@@ -100,7 +100,7 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     const user = req.user as JwtPayload
     const { id } = req.params as { id: string }
     await platformPool.query(
-      `DELETE FROM lojas_contatos WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+      `DELETE FROM clientes_contatos WHERE id = $1 AND cliente_id = $2`, [id, user.cliente_id]
     )
     return reply.status(204).send()
   })
@@ -113,13 +113,13 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
 
     mkdirSync(CERT_UPLOAD_DIR, { recursive: true })
     const ext      = data.filename.split('.').pop() ?? 'pfx'
-    const filename = `${user.loja_id}.${ext}`
+    const filename = `${user.cliente_id}.${ext}`
     const caminho  = join(CERT_UPLOAD_DIR, filename)
 
     await pipeline(data.file, createWriteStream(caminho))
     await platformPool.query(
-      `UPDATE lojas SET certificado_digital_path = $1 WHERE id = $2`,
-      [data.filename, user.loja_id]
+      `UPDATE clientes SET certificado_digital_path = $1 WHERE id = $2`,
+      [data.filename, user.cliente_id]
     )
     return reply.send({ certificado_digital_path: data.filename })
   })
@@ -131,12 +131,12 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
     if (!data) return reply.status(400).send({ error: 'Nenhum arquivo enviado' })
 
     mkdirSync(UPLOAD_DIR, { recursive: true })
-    const filename = `${user.loja_id}.webp`
+    const filename = `${user.cliente_id}.webp`
     const caminho  = join(UPLOAD_DIR, filename)
     const logoUrl  = `/uploads/logos/${filename}`
 
     await pipeline(data.file, createWriteStream(caminho))
-    await platformPool.query(`UPDATE lojas SET logo_url = $1 WHERE id = $2`, [logoUrl, user.loja_id])
+    await platformPool.query(`UPDATE clientes SET logo_url = $1 WHERE id = $2`, [logoUrl, user.cliente_id])
 
     return reply.send({ logo_url: logoUrl })
   })
@@ -148,7 +148,7 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
 
     const user = req.user as JwtPayload
     const { rows: [loja] } = await platformPool.query(
-      `SELECT logo_url FROM lojas WHERE id = $1`, [user.loja_id]
+      `SELECT logo_url FROM clientes WHERE id = $1`, [user.cliente_id]
     )
 
     // Never leak the hash — expose only whether one is set
@@ -263,7 +263,7 @@ export async function dadosLojaRoutes(app: FastifyInstance) {
 
     // Atualiza logo_url na tabela lojas (plataforma)
     if (logo_url !== undefined) {
-      await platformPool.query(`UPDATE lojas SET logo_url = $1 WHERE id = $2`, [logo_url ?? null, user.loja_id])
+      await platformPool.query(`UPDATE clientes SET logo_url = $1 WHERE id = $2`, [logo_url ?? null, user.cliente_id])
     }
 
     return reply.send({ ok: true })

@@ -42,16 +42,16 @@ async function main() {
     await runMigrations(pool, dir)
     await pool.end()
   } else {
-    // Tenant migrations: run on each loja's dedicated database
+    // Tenant migrations: run on each cliente's dedicated database
     const platformPool = new Pool({ connectionString: env.DATABASE_URL })
-    const { rows: lojas } = await platformPool.query('SELECT banco_id FROM lojas ORDER BY banco_id')
+    const { rows: clientes } = await platformPool.query('SELECT banco_id FROM clientes ORDER BY banco_id')
     await platformPool.end()
 
-    for (const loja of lojas) {
+    for (const cliente of clientes) {
       const url = new URL(env.DATABASE_URL)
-      url.pathname = `/${loja.banco_id}`
+      url.pathname = `/${cliente.banco_id}`
       const pool = new Pool({ connectionString: url.toString() })
-      console.log(`\n[${loja.banco_id}]`)
+      console.log(`\n[${cliente.banco_id}]`)
       await runMigrations(pool, dir)
       await pool.end()
     }

@@ -10,7 +10,7 @@ export async function login(
   currentSid?: string | null
 ): Promise<JwtPayload> {
   const { rows } = await platformPool.query(
-    `SELECT u.id, u.nome, u.email, u.username, u.senha_hash, u.nivel, u.loja_id,
+    `SELECT u.id, u.nome, u.email, u.username, u.senha_hash, u.nivel, u.cliente_id,
             u.dias_semana, u.hora_inicio, u.hora_fim,
             u.sessao_web, u.sessao_web_ip, u.sessao_web_em,
             u.sessao_mobile, u.sessao_mobile_ip, u.sessao_mobile_em,
@@ -47,13 +47,13 @@ export async function login(
     }
   }
 
-  // Busca banco_id da loja
+  // Busca banco_id do cliente
   let banco_id: string | null = null
-  if (usuario.loja_id) {
-    const { rows: [loja] } = await platformPool.query(
-      'SELECT banco_id FROM lojas WHERE id = $1', [usuario.loja_id]
+  if (usuario.cliente_id) {
+    const { rows: [cliente] } = await platformPool.query(
+      'SELECT banco_id FROM clientes WHERE id = $1', [usuario.cliente_id]
     )
-    banco_id = loja?.banco_id ?? null
+    banco_id = cliente?.banco_id ?? null
   }
 
   // Determina janela de inatividade para validar se sessão anterior ainda está ativa
@@ -101,8 +101,8 @@ export async function login(
   }
 
   await platformPool.query(
-    `INSERT INTO logs_acesso (usuario_id, loja_id, ip, tipo, plataforma) VALUES ($1, $2, $3, 'login', $4)`,
-    [usuario.id, usuario.loja_id ?? null, ip ?? null, plataforma]
+    `INSERT INTO logs_acesso (usuario_id, cliente_id, ip, tipo, plataforma) VALUES ($1, $2, $3, 'login', $4)`,
+    [usuario.id, usuario.cliente_id ?? null, ip ?? null, plataforma]
   ).catch(() => {})
 
   const permissoes: string[] =
@@ -114,7 +114,7 @@ export async function login(
     email:      usuario.email,
     username:   usuario.username ?? null,
     nivel:      usuario.nivel,
-    loja_id:    usuario.loja_id ?? null,
+    cliente_id: usuario.cliente_id ?? null,
     banco_id,
     permissoes,
     sid,

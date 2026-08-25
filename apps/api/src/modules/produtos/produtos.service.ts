@@ -13,7 +13,7 @@ async function checkBarcodeUniqueness(
   const pParams: any[] = [codigo]
   let pWhere = 'codigo_barras = $1 AND arquivado = false'
   if (excludeProdutoId) pWhere += ` AND id != $${pParams.push(excludeProdutoId)}`
-  const { rows: [pHit] } = await pool.query(`SELECT id FROM produtos WHERE ${pWhere}`, pParams)
+  const { rows: [pHit] } = await pool.query(`SELECT id FROM produtos_arkevest WHERE ${pWhere}`, pParams)
   if (pHit) throw new AppError('Código de barras já usado em outro produto.', 400)
 
   const vParams: any[] = [codigo]

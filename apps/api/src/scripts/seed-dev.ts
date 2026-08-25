@@ -50,17 +50,17 @@ function precoAleatorio(base: number, spread: number) {
 ;(async () => {
   const tenant = getTenantPool(TENANT_DB)
 
-  // ── Find loja_id in platform DB ───────────────────────────────────────────
-  const lojaRes = await platformPool.query(
-    `SELECT id FROM lojas WHERE banco_id = $1 LIMIT 1`,
+  // ── Find cliente_id in platform DB ────────────────────────────────────────
+  const clienteRes = await platformPool.query(
+    `SELECT id FROM clientes_arkevest WHERE banco_id = $1 LIMIT 1`,
     [TENANT_DB]
   )
-  if (!lojaRes.rows.length) {
-    console.error(`Loja com banco_id '${TENANT_DB}' não encontrada na platform DB.`)
+  if (!clienteRes.rows.length) {
+    console.error(`Cliente com banco_id '${TENANT_DB}' não encontrado na platform DB.`)
     process.exit(1)
   }
-  const lojaId = lojaRes.rows[0].id
-  console.log(`\n✓ Loja encontrada: ${lojaId}`)
+  const clienteId = clienteRes.rows[0].id
+  console.log(`\n✓ Cliente encontrado: ${clienteId}`)
 
   // ── 1. Clientes ────────────────────────────────────────────────────────────
   const regrasRes = await tenant.query(`SELECT id FROM regras_cashback WHERE ativo = true LIMIT 5`)
@@ -77,7 +77,7 @@ function precoAleatorio(base: number, spread: number) {
     const cashbackId = regras.length > 0 ? regras[i % regras.length] : null
 
     await tenant.query(
-      `INSERT INTO clientes (nome, cpf, telefone, email, regra_cashback_id)
+      `INSERT INTO clientes_arkevest (nome, cpf, telefone, email, regra_cashback_id)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (cpf) DO NOTHING`,
       [nome, cpf, phone, email, cashbackId]
@@ -100,10 +100,10 @@ function precoAleatorio(base: number, spread: number) {
   for (const c of colaboradores) {
     const em = `${c.username}@loja-teste.arkeflow.com.br`
     await platformPool.query(
-      `INSERT INTO usuarios (loja_id, nome, email, senha_hash, nivel, ativo, permissoes, username)
+      `INSERT INTO usuarios (cliente_id, nome, email, senha_hash, nivel, ativo, permissoes, username)
        VALUES ($1, $2, $3, $4, 'vendedor', true, '["caixa","clientes","produtos","estoque"]', $5)
        ON CONFLICT (email) DO NOTHING`,
-      [lojaId, c.nome, em, senhaHash, c.username]
+      [clienteId, c.nome, em, senhaHash, c.username]
     )
     colaborCount++
   }
@@ -147,7 +147,7 @@ function precoAleatorio(base: number, spread: number) {
       const preco  = precoAleatorio(base, spread)
 
       const pRes = await tenant.query(
-        `INSERT INTO produtos (nome, tipo_id, marca, preco_base, controle_estoque, ativo)
+        `INSERT INTO produtos_arkevest (nome, tipo_id, marca, preco_base, controle_estoque, ativo)
          VALUES ($1, $2, $3, $4, true, true) RETURNING id`,
         [nome, tipoId ?? null, marca, preco]
       )

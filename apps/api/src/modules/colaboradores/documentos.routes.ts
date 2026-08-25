@@ -21,7 +21,7 @@ export async function documentosRoutes(app: FastifyInstance) {
 
     // Verifica se pertence à loja
     const { rows: [u] } = await platformPool.query(
-      `SELECT id FROM usuarios WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+      `SELECT id FROM usuarios WHERE id = $1 AND cliente_id = $2`, [id, user.cliente_id]
     )
     if (!u) throw new AppError('Colaborador não encontrado', 404)
 
@@ -39,7 +39,7 @@ export async function documentosRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string }
 
     const { rows: [u] } = await platformPool.query(
-      `SELECT id FROM usuarios WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+      `SELECT id FROM usuarios WHERE id = $1 AND cliente_id = $2`, [id, user.cliente_id]
     )
     if (!u) throw new AppError('Colaborador não encontrado', 404)
 
@@ -72,11 +72,11 @@ export async function documentosRoutes(app: FastifyInstance) {
     const { doc_id } = req.params as { doc_id: string }
 
     const { rows: [doc] } = await platformPool.query(
-      `SELECT d.*, u.loja_id
+      `SELECT d.*, u.cliente_id
        FROM colaboradores_documentos d
        JOIN usuarios u ON u.id = d.usuario_id
-       WHERE d.id = $1 AND u.loja_id = $2`,
-      [doc_id, user.loja_id]
+       WHERE d.id = $1 AND u.cliente_id = $2`,
+      [doc_id, user.cliente_id]
     )
     if (!doc) throw new AppError('Documento não encontrado', 404)
 
@@ -91,11 +91,11 @@ export async function documentosRoutes(app: FastifyInstance) {
     const { doc_id } = req.params as { doc_id: string }
 
     const { rows: [doc] } = await platformPool.query(
-      `SELECT d.*, u.loja_id
+      `SELECT d.*, u.cliente_id
        FROM colaboradores_documentos d
        JOIN usuarios u ON u.id = d.usuario_id
-       WHERE d.id = $1 AND u.loja_id = $2`,
-      [doc_id, user.loja_id]
+       WHERE d.id = $1 AND u.cliente_id = $2`,
+      [doc_id, user.cliente_id]
     )
     if (!doc) throw new AppError('Documento não encontrado', 404)
 

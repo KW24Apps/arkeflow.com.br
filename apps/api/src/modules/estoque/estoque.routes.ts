@@ -151,7 +151,7 @@ export async function estoqueRoutes(app: FastifyInstance) {
                             AND v.estoque_atual <= v.estoque_minimo)::int    AS alertas,
         COALESCE(SUM(GREATEST(v.estoque_atual, 0) * v.custo_medio), 0)      AS valor_estoque
       FROM versoes v
-      JOIN produtos p ON p.id = v.produto_id
+      JOIN produtos_arkevest p ON p.id = v.produto_id
       WHERE p.ativo = true AND v.ativo = true AND p.controle_estoque = true
     `)
     return reply.send(row)
@@ -173,7 +173,7 @@ export async function estoqueRoutes(app: FastifyInstance) {
         (v.estoque_atual <= 0)                                               AS sem_estoque,
         (v.estoque_atual > 0 AND v.estoque_atual <= v.estoque_minimo)        AS alerta
       FROM versoes v
-      JOIN produtos p ON p.id = v.produto_id
+      JOIN produtos_arkevest p ON p.id = v.produto_id
       ${where}
       ORDER BY
         (v.estoque_atual <= 0) DESC,
@@ -298,7 +298,7 @@ export async function estoqueRoutes(app: FastifyInstance) {
         SELECT v.id, v.atributos_json, v.estoque_atual, v.codigo_barras,
                p.nome AS produto_nome, p.id AS produto_id
         FROM versoes v
-        JOIN produtos p ON p.id = v.produto_id
+        JOIN produtos_arkevest p ON p.id = v.produto_id
         WHERE v.codigo_barras = ANY($1) AND v.ativo = true AND p.ativo = true
       `, [eans])
       for (const v of versoes) {

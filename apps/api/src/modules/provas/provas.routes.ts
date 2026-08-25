@@ -36,7 +36,7 @@ async function decrementStock(client: any, itens: any[], controleGlobal: boolean
     if (!item.versao_id) continue
     const { rows: [v] } = await client.query(
       `SELECT v.estoque_atual, p.controle_estoque
-       FROM versoes v JOIN produtos p ON p.id = v.produto_id
+       FROM versoes v JOIN produtos_arkevest p ON p.id = v.produto_id
        WHERE v.id = $1 AND v.ativo = true FOR UPDATE`,
       [item.versao_id]
     )

@@ -306,7 +306,7 @@ export async function caixaRoutes(app: FastifyInstance) {
                 '[]'
               ) AS pagamentos
        FROM vendas v
-       LEFT JOIN clientes c     ON c.id  = v.cliente_id
+       LEFT JOIN clientes_arkevest c     ON c.id  = v.cliente_id
        LEFT JOIN itens_venda iv ON iv.venda_id = v.id
        WHERE v.status = 'finalizada'
          AND v.usuario_id = $1

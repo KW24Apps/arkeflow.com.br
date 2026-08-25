@@ -31,9 +31,9 @@ export async function autorizacoesRoutes(app: FastifyInstance) {
     const [supervisoresRes, configRes] = await Promise.all([
       platformPool.query<{ id: string; nome: string }>(
         `SELECT id, nome FROM usuarios
-         WHERE loja_id = $1 AND is_supervisor = true AND ativo = true
+         WHERE cliente_id = $1 AND is_supervisor = true AND ativo = true
          ORDER BY nome`,
-        [user.loja_id]
+        [user.cliente_id]
       ),
       tenantPool.query<{ senha_mestra_habilitada: boolean; senha_mestra_hash: string | null }>(
         `SELECT senha_mestra_habilitada, senha_mestra_hash FROM configuracoes_loja LIMIT 1`
@@ -79,8 +79,8 @@ export async function autorizacoesRoutes(app: FastifyInstance) {
       // metodo === 'supervisor'
       if (!supervisor_id) throw new AppError('supervisor_id é obrigatório', 400, 'VALIDATION_ERROR')
 
-      const { rows: [supervisor] } = await platformPool.query<{ id: string; nome: string; email: string; senha_hash: string; is_supervisor: boolean; ativo: boolean; loja_id: string }>(
-        `SELECT id, nome, email, senha_hash, is_supervisor, ativo, loja_id
+      const { rows: [supervisor] } = await platformPool.query<{ id: string; nome: string; email: string; senha_hash: string; is_supervisor: boolean; ativo: boolean; cliente_id: string }>(
+        `SELECT id, nome, email, senha_hash, is_supervisor, ativo, cliente_id
          FROM usuarios WHERE id = $1`,
         [supervisor_id]
       )
@@ -88,8 +88,8 @@ export async function autorizacoesRoutes(app: FastifyInstance) {
       if (!supervisor || !supervisor.ativo) {
         throw new AppError('Supervisor não encontrado', 404, 'SUPERVISOR_NAO_ENCONTRADO')
       }
-      if (supervisor.loja_id !== user.loja_id) {
-        throw new AppError('Supervisor não pertence a esta loja', 403, 'FORBIDDEN')
+      if (supervisor.cliente_id !== user.cliente_id) {
+        throw new AppError('Supervisor não pertence a este cliente', 403, 'FORBIDDEN')
       }
       if (!supervisor.is_supervisor) {
         throw new AppError('Usuário não é supervisor', 403, 'NAO_SUPERVISOR')

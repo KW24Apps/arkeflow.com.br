@@ -86,7 +86,7 @@ export async function financeiroRoutes(app: FastifyInstance) {
       FROM parcelas_crediario pc
       JOIN pagamentos_venda pv ON pv.id = pc.pagamento_venda_id
       JOIN vendas v ON v.id = pv.venda_id
-      LEFT JOIN clientes c ON c.id = v.cliente_id
+      LEFT JOIN clientes_arkevest c ON c.id = v.cliente_id
       ${where}
       ORDER BY pc.vencimento ASC
       LIMIT 200

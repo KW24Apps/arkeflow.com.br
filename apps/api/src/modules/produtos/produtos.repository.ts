@@ -25,7 +25,7 @@ export async function findAll(pool: Pool, q?: string, incluirInativos = false) {
          ) FILTER (WHERE v.id IS NOT NULL AND v.ativo = true AND v.arquivado = false),
          '[]'::json
        ) AS versoes
-     FROM produtos p
+     FROM produtos_arkevest p
      LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id
      LEFT JOIN versoes v ON v.produto_id = p.id
      ${where}
@@ -38,7 +38,7 @@ export async function findAll(pool: Pool, q?: string, incluirInativos = false) {
 
 export async function findById(pool: Pool, id: string) {
   const { rows: [produto] } = await pool.query(
-    `SELECT p.*, tp.nome AS tipo_nome FROM produtos p LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id WHERE p.id = $1 AND p.ativo = true AND p.arquivado = false`, [id]
+    `SELECT p.*, tp.nome AS tipo_nome FROM produtos_arkevest p LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id WHERE p.id = $1 AND p.ativo = true AND p.arquivado = false`, [id]
   )
   if (!produto) return null
 
@@ -57,7 +57,7 @@ export async function create(pool: Pool, data: {
   codigo_barras?: string | null
 }) {
   const { rows: [p] } = await pool.query(
-    `INSERT INTO produtos (nome, codigo, tipo_id, categoria, marca, descricao, composicao, composicao_itens, preco_base, controle_estoque, aceita_desconto, codigo_barras)
+    `INSERT INTO produtos_arkevest (nome, codigo, tipo_id, categoria, marca, descricao, composicao, composicao_itens, preco_base, controle_estoque, aceita_desconto, codigo_barras)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
     [data.nome, data.codigo ?? null, data.tipo_id ?? null, data.categoria ?? null, data.marca ?? null,
      data.descricao ?? null, data.composicao ?? null,
@@ -77,13 +77,13 @@ export async function update(pool: Pool, id: string, data: Record<string, any>) 
   const values = Object.values(processed)
   const set    = keys.map((k, i) => `${k} = $${i + 2}`).join(', ')
   const { rows: [p] } = await pool.query(
-    `UPDATE produtos SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`, [id, ...values]
+    `UPDATE produtos_arkevest SET ${set} WHERE id = $1 AND ativo = true AND arquivado = false RETURNING *`, [id, ...values]
   )
   return p
 }
 
 export async function softDelete(pool: Pool, id: string) {
-  await pool.query(`UPDATE produtos SET arquivado = true WHERE id = $1`, [id])
+  await pool.query(`UPDATE produtos_arkevest SET arquivado = true WHERE id = $1`, [id])
 }
 
 // Atributos

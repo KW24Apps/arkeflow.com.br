@@ -89,7 +89,7 @@ export async function vendasRoutes(app: FastifyInstance) {
       for (const item of data.itens) {
         const { rows: [v] } = await client.query(
           `SELECT v.estoque_atual, v.estoque_minimo, v.custo_medio, p.controle_estoque
-           FROM versoes v JOIN produtos p ON p.id = v.produto_id
+           FROM versoes v JOIN produtos_arkevest p ON p.id = v.produto_id
            WHERE v.id = $1 AND v.ativo = true FOR UPDATE`,
           [item.versao_id]
         )
@@ -113,7 +113,7 @@ export async function vendasRoutes(app: FastifyInstance) {
       if (data.cliente_id && cashbackHabilitado) {
         const { rows: [cli] } = await client.query(
           `SELECT c.saldo_cashback, rc.percentual
-           FROM clientes c LEFT JOIN regras_cashback rc ON rc.id = c.regra_cashback_id
+           FROM clientes_arkevest c LEFT JOIN regras_cashback rc ON rc.id = c.regra_cashback_id
            WHERE c.id = $1`, [data.cliente_id]
         )
         if (cli?.percentual) {
@@ -235,7 +235,7 @@ export async function vendasRoutes(app: FastifyInstance) {
         // Debita cashback usado
         if (data.cashback_usado > 0) {
           await client.query(
-            `UPDATE clientes SET saldo_cashback = saldo_cashback - $1 WHERE id = $2`,
+            `UPDATE clientes_arkevest SET saldo_cashback = saldo_cashback - $1 WHERE id = $2`,
             [data.cashback_usado, data.cliente_id]
           )
           await client.query(
@@ -255,7 +255,7 @@ export async function vendasRoutes(app: FastifyInstance) {
             expiraEm.setMonth(expiraEm.getMonth() + validadeMeses)
           }
           await client.query(
-            `UPDATE clientes SET saldo_cashback = saldo_cashback + $1 WHERE id = $2`,
+            `UPDATE clientes_arkevest SET saldo_cashback = saldo_cashback + $1 WHERE id = $2`,
             [cashback_gerado, data.cliente_id]
           )
           await client.query(
@@ -316,7 +316,7 @@ export async function vendasRoutes(app: FastifyInstance) {
               c.nome AS cliente_nome, c.telefone AS cliente_telefone,
               COUNT(iv.id)::int AS total_itens
        FROM vendas v
-       LEFT JOIN clientes c ON c.id = v.cliente_id
+       LEFT JOIN clientes_arkevest c ON c.id = v.cliente_id
        LEFT JOIN itens_venda iv ON iv.venda_id = v.id
        WHERE ${conds.join(' AND ')}
        GROUP BY v.id, c.nome, c.telefone
@@ -334,11 +334,11 @@ export async function vendasRoutes(app: FastifyInstance) {
 
     const { rows: [v] } = await pool.query(
       `SELECT v.*, c.nome AS cliente_nome FROM vendas v
-       LEFT JOIN clientes c ON c.id = v.cliente_id WHERE v.id = $1`, [id]
+       LEFT JOIN clientes_arkevest c ON c.id = v.cliente_id WHERE v.id = $1`, [id]
     )
     if (!v) throw new AppError('Venda não encontrada', 404)
 
-    const { rows: itens }     = await pool.query(`SELECT iv.*, vr.atributos_json, p.nome AS produto_nome, p.aceita_desconto, tp.nome AS tipo_nome FROM itens_venda iv JOIN versoes vr ON vr.id = iv.versao_id JOIN produtos p ON p.id = vr.produto_id LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id WHERE iv.venda_id = $1`, [id])
+    const { rows: itens }     = await pool.query(`SELECT iv.*, vr.atributos_json, p.nome AS produto_nome, p.aceita_desconto, tp.nome AS tipo_nome FROM itens_venda iv JOIN versoes vr ON vr.id = iv.versao_id JOIN produtos_arkevest p ON p.id = vr.produto_id LEFT JOIN tipos_produto tp ON tp.id = p.tipo_id WHERE iv.venda_id = $1`, [id])
     const { rows: pagamentos } = await pool.query(`SELECT pv.*, fp.nome AS forma_nome, fp.tipo FROM pagamentos_venda pv JOIN formas_pagamento fp ON fp.id = pv.forma_pagamento_id WHERE pv.venda_id = $1`, [id])
 
     return reply.send({ ...v, itens, pagamentos })

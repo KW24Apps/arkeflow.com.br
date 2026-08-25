@@ -93,9 +93,9 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
          cp.cargo, cp.telefone, cp.salario, cp.tipo_contrato
        FROM usuarios u
        LEFT JOIN colaboradores_perfil cp ON cp.usuario_id = u.id
-       WHERE u.loja_id = $1 AND u.ativo = true
+       WHERE u.cliente_id = $1 AND u.ativo = true
        ORDER BY u.nivel DESC, u.nome`,
-      [user.loja_id]
+      [user.cliente_id]
     )
     return reply.send(rows)
   })
@@ -111,8 +111,8 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
          cp.data_admissao, cp.salario, cp.tipo_contrato
        FROM usuarios u
        LEFT JOIN colaboradores_perfil cp ON cp.usuario_id = u.id
-       WHERE u.id = $1 AND u.loja_id = $2`,
-      [id, user.loja_id]
+       WHERE u.id = $1 AND u.cliente_id = $2`,
+      [id, user.cliente_id]
     )
     if (!c) throw new AppError('Colaborador não encontrado', 404)
     return reply.send(c)
@@ -125,9 +125,9 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
       `SELECT l.tipo, l.ip, l.criado_em, l.plataforma, l.motivo
        FROM logs_acesso l
        JOIN usuarios u ON u.id = l.usuario_id
-       WHERE l.usuario_id = $1 AND u.loja_id = $2
+       WHERE l.usuario_id = $1 AND u.cliente_id = $2
        ORDER BY l.criado_em DESC LIMIT 50`,
-      [id, user.loja_id]
+      [id, user.cliente_id]
     )
     return reply.send(rows)
   })
@@ -139,11 +139,11 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
       `SELECT id, nome, email, nivel, ultimo_acesso,
               EXTRACT(EPOCH FROM (NOW() - ultimo_acesso))::int AS segundos_atras
        FROM usuarios
-       WHERE loja_id = $1
+       WHERE cliente_id = $1
          AND ativo = true
          AND ultimo_acesso > NOW() - INTERVAL '10 minutes'
        ORDER BY ultimo_acesso DESC`,
-      [user.loja_id]
+      [user.cliente_id]
     )
     return reply.send(rows)
   })
@@ -155,9 +155,9 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
       `SELECT l.tipo, l.ip, l.criado_em, u.nome, u.email, u.nivel
        FROM logs_acesso l
        JOIN usuarios u ON u.id = l.usuario_id
-       WHERE l.loja_id = $1
+       WHERE l.cliente_id = $1
        ORDER BY l.criado_em DESC LIMIT 100`,
-      [user.loja_id]
+      [user.cliente_id]
     )
     return reply.send(rows)
   })
@@ -182,9 +182,9 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const modeloId = (data as any).modelo_permissao_id ?? null
 
     const { rows: [u] } = await platformPool.query(
-      `INSERT INTO usuarios (nome, email, username, senha_hash, nivel, loja_id, permissoes, modelo_permissao_id, dias_semana, hora_inicio, hora_fim, ativo)
+      `INSERT INTO usuarios (nome, email, username, senha_hash, nivel, cliente_id, permissoes, modelo_permissao_id, dias_semana, hora_inicio, hora_fim, ativo)
        VALUES ($1,$2,$3,$4,'vendedor',$5,$6,$7,$8,$9,$10,true) RETURNING id, nome, email, username, nivel`,
-      [data.nome, data.email, data.username ?? null, hash, user.loja_id,
+      [data.nome, data.email, data.username ?? null, hash, user.cliente_id,
        JSON.stringify(data.permissoes),
        modeloId,
        data.dias_semana ? JSON.stringify(data.dias_semana) : null,
@@ -207,11 +207,11 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const data  = updateAcessoSchema.parse(req.body)
 
     const { rows: [alvo] } = await platformPool.query(
-      `SELECT nivel FROM usuarios WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+      `SELECT nivel FROM usuarios WHERE id = $1 AND cliente_id = $2`, [id, user.cliente_id]
     )
     if (!alvo) throw new AppError('Colaborador não encontrado', 404)
 
-    const upd: string[] = []; const val: any[] = [id, user.loja_id]
+    const upd: string[] = []; const val: any[] = [id, user.cliente_id]
     const add = (f: string, v: any) => { val.push(v); upd.push(`${f} = $${val.length}`) }
 
     if (data.nome        !== undefined) add('nome', data.nome)
@@ -226,7 +226,7 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
 
     if (upd.length) {
       await platformPool.query(
-        `UPDATE usuarios SET ${upd.join(', ')} WHERE id = $1 AND loja_id = $2`, val
+        `UPDATE usuarios SET ${upd.join(', ')} WHERE id = $1 AND cliente_id = $2`, val
       )
     }
 
@@ -239,7 +239,7 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string }
 
     const { rows: [alvo] } = await platformPool.query(
-      `SELECT id FROM usuarios WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+      `SELECT id FROM usuarios WHERE id = $1 AND cliente_id = $2`, [id, user.cliente_id]
     )
     if (!alvo) throw new AppError('Colaborador não encontrado', 404)
 
@@ -258,8 +258,8 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string }
     if (id === user.id) throw new AppError('Você não pode desativar sua própria conta.', 400)
     await platformPool.query(
-      `UPDATE usuarios SET ativo = false WHERE id = $1 AND loja_id = $2 AND nivel = 'vendedor'`,
-      [id, user.loja_id]
+      `UPDATE usuarios SET ativo = false WHERE id = $1 AND cliente_id = $2 AND nivel = 'vendedor'`,
+      [id, user.cliente_id]
     )
     return reply.status(204).send()
   })
@@ -271,7 +271,7 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     if (id === user.id) throw new AppError('Você não pode excluir sua própria conta.', 400)
 
     const { rows: [u] } = await platformPool.query(
-      `SELECT nivel FROM usuarios WHERE id = $1 AND loja_id = $2`, [id, user.loja_id]
+      `SELECT nivel FROM usuarios WHERE id = $1 AND cliente_id = $2`, [id, user.cliente_id]
     )
     if (!u) throw new AppError('Colaborador não encontrado', 404)
     if (u.nivel === 'dono_loja') throw new AppError('O usuário principal não pode ser excluído.', 403)
@@ -297,8 +297,8 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string }
     const { is_supervisor } = z.object({ is_supervisor: z.boolean() }).parse(req.body)
     await platformPool.query(
-      `UPDATE usuarios SET is_supervisor = $1 WHERE id = $2 AND loja_id = $3`,
-      [is_supervisor, id, user.loja_id]
+      `UPDATE usuarios SET is_supervisor = $1 WHERE id = $2 AND cliente_id = $3`,
+      [is_supervisor, id, user.cliente_id]
     )
     return reply.send({ ok: true })
   })
@@ -310,8 +310,8 @@ export async function colaboradoresRoutes(app: FastifyInstance) {
     if (!senha || senha.length < 6) throw new AppError('Senha mínimo 6 caracteres', 400)
     const hash = await bcrypt.hash(senha, 10)
     await platformPool.query(
-      `UPDATE usuarios SET senha_hash = $1 WHERE id = $2 AND loja_id = $3`,
-      [hash, id, user.loja_id]
+      `UPDATE usuarios SET senha_hash = $1 WHERE id = $2 AND cliente_id = $3`,
+      [hash, id, user.cliente_id]
     )
     return reply.send({ ok: true })
   })
