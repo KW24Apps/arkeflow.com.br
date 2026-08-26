@@ -26,6 +26,20 @@ export async function resolveApiKeyCaller(rawKey: string | undefined): Promise<P
   return produto
 }
 
+// Resolve cliente_id pelo email/username SEM validar senha -- usado só pra checar licença ANTES
+// de chamar login() (que já muda sessao_web/sid/logs_acesso como efeito colateral de validar
+// credenciais). Sem isso, uma tentativa de login não-licenciada, mesmo com senha certa, já teria
+// sequestrado a sessão web ativa do usuário no Arkevest antes de ser rejeitada pela licença.
+// `found: false` deixa o erro real (conta não encontrada) pra login() emitir, sem mascarar com
+// "não licenciado".
+export async function resolveClienteIdSemAutenticar(identifier: string): Promise<{ found: boolean; clienteId: string | null }> {
+  const { rows: [row] } = await platformPool.query<{ cliente_id: string | null }>(
+    `SELECT cliente_id FROM usuarios WHERE (email = $1 OR username = $1) AND ativo = true`,
+    [identifier]
+  )
+  return row ? { found: true, clienteId: row.cliente_id } : { found: false, clienteId: null }
+}
+
 // Sem licença ativa pro produto = sem token. Sempre por cliente_produto, nunca atalho de grupo.
 export async function assertLicenciado(clienteId: string | null, produtoSlug: string): Promise<void> {
   if (!clienteId) {

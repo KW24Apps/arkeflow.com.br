@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { loginV1Schema } from './auth.v1.schema'
 import { login } from './auth.service'
-import { resolveApiKeyCaller, assertLicenciado, buildIdentityResponse } from './auth.v1.service'
+import { resolveApiKeyCaller, resolveClienteIdSemAutenticar, assertLicenciado, buildIdentityResponse } from './auth.v1.service'
 import { AppError } from '../../core/errors/AppError'
 import type { JwtPayload } from '@arkeflow/shared'
 
@@ -12,6 +12,14 @@ export async function loginV1Handler(request: FastifyRequest, reply: FastifyRepl
   // A key pertence a um produto específico -- não pode ser usada pra checar licença de outro.
   if (caller.slug !== produto_slug) {
     throw new AppError('Chave de API não corresponde ao produto solicitado', 403, 'API_KEY_PRODUTO_DIVERGENTE')
+  }
+
+  // Checa licença ANTES de autenticar de verdade -- login() muda sessao_web/sid como efeito
+  // colateral de validar a senha, e isso não pode acontecer pra uma conta sem licença (ver nota
+  // em resolveClienteIdSemAutenticar). Se a conta nem existe, deixa pra login() dar o erro real.
+  const preCheck = await resolveClienteIdSemAutenticar(email)
+  if (preCheck.found) {
+    await assertLicenciado(preCheck.clienteId, produto_slug)
   }
 
   const ip = request.headers['x-forwarded-for']?.toString() || request.ip
@@ -25,8 +33,6 @@ export async function loginV1Handler(request: FastifyRequest, reply: FastifyRepl
     }
     throw err
   }
-
-  await assertLicenciado(payload.cliente_id, produto_slug)
 
   const token    = await reply.jwtSign(payload, { expiresIn: '7d' })
   const identity = await buildIdentityResponse(payload)
