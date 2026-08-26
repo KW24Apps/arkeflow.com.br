@@ -3,7 +3,7 @@ import { loginSchema } from './auth.schema'
 import { login } from './auth.service'
 import { AppError } from '../../core/errors/AppError'
 
-function extractSid(authHeader?: string): string | null {
+export function extractSid(authHeader?: string): string | null {
   if (!authHeader?.startsWith('Bearer ')) return null
   try {
     const raw = authHeader.slice(7).split('.')[1].replace(/-/g, '+').replace(/_/g, '/')

@@ -1,6 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { loginV1Schema } from './auth.v1.schema'
 import { login } from './auth.service'
+import { extractSid } from './auth.controller'
 import { resolveApiKeyCaller, resolveClienteIdSemAutenticar, assertLicenciado, buildIdentityResponse } from './auth.v1.service'
 import { AppError } from '../../core/errors/AppError'
 import type { JwtPayload } from '@arkeflow/shared'
@@ -23,10 +24,14 @@ export async function loginV1Handler(request: FastifyRequest, reply: FastifyRepl
   }
 
   const ip = request.headers['x-forwarded-for']?.toString() || request.ip
+  // Mesmo comportamento do login clássico (auth.controller.ts): se o caller reenviar o token
+  // anterior (mesmo expirado) no Authorization, extrai o sid pra reconhecer "mesmo dispositivo"
+  // e não conflitar com a própria sessão anterior num simples reconectar/renovar.
+  const currentSid = extractSid(request.headers.authorization)
 
   let payload: JwtPayload
   try {
-    payload = await login(email, senha, ip, false, 'web')
+    payload = await login(email, senha, ip, false, 'web', currentSid)
   } catch (err) {
     if (err instanceof AppError && err.code === 'SESSAO_ATIVA') {
       return reply.status(409).send({ error: err.message, code: 'SESSAO_ATIVA' })
