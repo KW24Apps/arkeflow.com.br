@@ -8,7 +8,7 @@ import type { JwtPayload } from '@arkeflow/shared'
 
 export async function loginV1Handler(request: FastifyRequest, reply: FastifyReply) {
   const caller = await resolveApiKeyCaller(request.headers['x-api-key']?.toString())
-  const { email, senha, produto_slug } = loginV1Schema.parse(request.body)
+  const { email, senha, produto_slug, forcar } = loginV1Schema.parse(request.body)
 
   // A key pertence a um produto específico -- não pode ser usada pra checar licença de outro.
   if (caller.slug !== produto_slug) {
@@ -31,10 +31,11 @@ export async function loginV1Handler(request: FastifyRequest, reply: FastifyRepl
 
   let payload: JwtPayload
   try {
-    payload = await login(email, senha, ip, false, 'web', currentSid)
+    payload = await login(email, senha, ip, forcar ?? false, 'web', currentSid)
   } catch (err) {
     if (err instanceof AppError && err.code === 'SESSAO_ATIVA') {
-      return reply.status(409).send({ error: err.message, code: 'SESSAO_ATIVA' })
+      const d = err.data as { ip: string | null; em: Date | null } | undefined
+      return reply.status(409).send({ error: err.message, code: 'SESSAO_ATIVA', ip: d?.ip ?? null, em: d?.em ?? null })
     }
     throw err
   }
