@@ -12,7 +12,8 @@
     "create:admin": "tsx src/scripts/create-admin.ts",
     "cleanup:logs": "tsx src/scripts/cleanup-logs.ts",
     "seed:dev": "tsx src/scripts/seed-dev.ts",
-    "seed:test-client-connect": "tsx src/scripts/seed-test-client-connect-user.ts"
+    "seed:test-client-connect": "tsx src/scripts/seed-test-client-connect-user.ts",
+    "generate:product-api-key": "tsx src/scripts/generate-product-api-key.ts"
   },
   "dependencies": {
     "@arkeflow/shared": "workspace:*",

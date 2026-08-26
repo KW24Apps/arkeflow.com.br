@@ -5,6 +5,7 @@ import multipart from '@fastify/multipart'
 import { env } from './config/env'
 import { errorHandler } from './core/errors/handler'
 import { authRoutes }           from './modules/auth/auth.routes'
+import { authV1Routes }         from './modules/auth/auth.v1.routes'
 import { produtosRoutes }       from './modules/produtos/produtos.routes'
 import { catalogosRoutes }      from './modules/catalogos/catalogos.routes'
 import { clientesRoutes }       from './modules/clientes/clientes.routes'
@@ -34,6 +35,7 @@ export function buildApp() {
     'https://www.arkeflow.com.br',
     'https://app.arkevest.com.br',
     'https://www.arkevest.com.br',
+    'https://connect.arkeflow.com.br',
     'http://localhost:3000',
   ]
 
@@ -53,6 +55,7 @@ export function buildApp() {
   app.get('/health', async () => ({ status: 'ok' }))
 
   app.register(authRoutes,            { prefix: '/auth' })
+  app.register(authV1Routes,          { prefix: '/v1/auth' })
   app.register(produtosRoutes,        { prefix: '/produtos' })
   app.register(catalogosRoutes,       { prefix: '/catalogos' })
   app.register(clientesRoutes,        { prefix: '/clientes' })
