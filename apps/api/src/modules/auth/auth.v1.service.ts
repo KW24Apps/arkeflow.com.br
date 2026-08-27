@@ -12,6 +12,26 @@ export function hashApiKey(rawKey: string): string {
   return crypto.createHash('sha256').update(rawKey).digest('hex')
 }
 
+// Encerra a sessão de verdade no servidor (mesma lógica de POST /auth/logout clássico, ver
+// auth.routes.ts) -- limpa sessao_web/sessao_web_ip/sessao_web_em, senão o registro fica
+// "ativo" até expirar por inatividade (default 360min) mesmo depois do usuário sair pelo botão.
+// Bug real (task 05, connect.arkeflow.com.br): clearSession() do Connect só limpava o
+// localStorage, nunca avisava o hub -- próximo login batia em SESSAO_ATIVA mesmo tendo saído.
+export async function logoutSessaoWeb(payload: Pick<JwtPayload, 'id' | 'cliente_id' | 'plataforma'>, ip: string): Promise<void> {
+  const isWeb = !payload.plataforma || payload.plataforma === 'web' || payload.plataforma === 'desktop'
+  const clearCol = isWeb
+    ? 'sessao_web = NULL, sessao_web_ip = NULL, sessao_web_em = NULL'
+    : 'sessao_mobile = NULL, sessao_mobile_ip = NULL, sessao_mobile_em = NULL'
+
+  await Promise.all([
+    platformPool.query(`UPDATE usuarios SET ${clearCol} WHERE id = $1`, [payload.id]),
+    platformPool.query(
+      `INSERT INTO logs_acesso (usuario_id, cliente_id, ip, tipo, plataforma, motivo) VALUES ($1,$2,$3,'logout',$4,'manual')`,
+      [payload.id, payload.cliente_id ?? null, ip, payload.plataforma ?? 'web']
+    ).catch(() => {}),
+  ])
+}
+
 // Identifica QUEM está chamando o hub (o backend do produto, ex.: Connect) -- não confundir com o
 // JWT do usuário final, que autentica o usuário dentro daquele produto.
 export async function resolveApiKeyCaller(rawKey: string | undefined): Promise<ProdutoCaller> {

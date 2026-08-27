@@ -2,7 +2,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import { loginV1Schema } from './auth.v1.schema'
 import { login } from './auth.service'
 import { extractSid } from './auth.controller'
-import { resolveApiKeyCaller, resolveClienteIdSemAutenticar, assertLicenciado, buildIdentityResponse } from './auth.v1.service'
+import { resolveApiKeyCaller, resolveClienteIdSemAutenticar, assertLicenciado, buildIdentityResponse, logoutSessaoWeb } from './auth.v1.service'
 import { AppError } from '../../core/errors/AppError'
 import type { JwtPayload } from '@arkeflow/shared'
 
@@ -54,4 +54,18 @@ export async function meV1Handler(request: FastifyRequest, reply: FastifyReply) 
   const identity = await buildIdentityResponse(payload)
 
   return reply.send(identity)
+}
+
+// Encerra a sessão de verdade (task 05, bug 2) -- sem isso, sair pelo botão do Connect só
+// esquecia o token localmente; a próxima tentativa de login batia em SESSAO_ATIVA porque o
+// hub nunca soube que a sessão anterior tinha terminado.
+export async function logoutV1Handler(request: FastifyRequest, reply: FastifyReply) {
+  await resolveApiKeyCaller(request.headers['x-api-key']?.toString())
+  await request.jwtVerify()
+
+  const payload = request.user as JwtPayload
+  const ip = request.headers['x-forwarded-for']?.toString() || request.ip
+  await logoutSessaoWeb(payload, ip)
+
+  return reply.send({ ok: true })
 }
