@@ -32,6 +32,28 @@ export async function logoutSessaoWeb(payload: Pick<JwtPayload, 'id' | 'cliente_
   ])
 }
 
+// Achado real (2026-08-31, Gabriel testando ao vivo, Connect): forçar login em outro dispositivo
+// só reescrevia `sessao_web`/`sid` no banco -- nada revalidava isso depois, então o dispositivo
+// antigo continuava funcionando à vontade (reload, navegação, envio de mensagem) até o JWT
+// expirar sozinho (7 dias). Pedido explícito: "isso não pode passar só no navegador, tem que
+// ser no servidor". `assertSessaoAtual` é o ponto real de aplicação -- compara o `sid` gravado
+// no token contra o `sessao_web`/`sessao_mobile` ATUAL no banco (nunca confia no token
+// congelado, mesmo padrão de `buildIdentityResponse` pra licenciamento). Chamado em
+// `/v1/auth/me`, que os produtos (Connect) passam a checar a cada requisição autenticada --
+// ver `sessionGuard.ts` do lado do Connect.
+export async function assertSessaoAtual(payload: Pick<JwtPayload, 'id' | 'sid' | 'plataforma'>): Promise<void> {
+  if (!payload.sid) return // token pré-v2, sem sid -- retrocompatibilidade, nada a checar
+
+  const isWeb = !payload.plataforma || payload.plataforma === 'web' || payload.plataforma === 'desktop'
+  const col = isWeb ? 'sessao_web' : 'sessao_mobile'
+  const { rows: [usuario] } = await platformPool.query<{ sessao_atual: string | null }>(
+    `SELECT ${col} AS sessao_atual FROM usuarios WHERE id = $1`, [payload.id]
+  )
+  if (!usuario || usuario.sessao_atual !== payload.sid) {
+    throw new AppError('Sessão encerrada em outro dispositivo', 401, 'SESSAO_ENCERRADA')
+  }
+}
+
 // Identifica QUEM está chamando o hub (o backend do produto, ex.: Connect) -- não confundir com o
 // JWT do usuário final, que autentica o usuário dentro daquele produto.
 export async function resolveApiKeyCaller(rawKey: string | undefined): Promise<ProdutoCaller> {

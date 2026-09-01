@@ -2,7 +2,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify'
 import { loginV1Schema } from './auth.v1.schema'
 import { login } from './auth.service'
 import { extractSid } from './auth.controller'
-import { resolveApiKeyCaller, resolveClienteIdSemAutenticar, assertLicenciado, buildIdentityResponse, logoutSessaoWeb } from './auth.v1.service'
+import { resolveApiKeyCaller, resolveClienteIdSemAutenticar, assertLicenciado, assertSessaoAtual, buildIdentityResponse, logoutSessaoWeb } from './auth.v1.service'
 import { AppError } from '../../core/errors/AppError'
 import type { JwtPayload } from '@arkeflow/shared'
 
@@ -46,11 +46,18 @@ export async function loginV1Handler(request: FastifyRequest, reply: FastifyRepl
   return reply.send({ token, ...identity })
 }
 
+// Achado real (2026-08-31, Gabriel testando ao vivo, Connect): forçar login em outro
+// dispositivo derrubava a sessão só "no papel" -- o dispositivo antigo continuava funcionando
+// à vontade porque nada revalidava o token depois do login. `/v1/auth/me` é o ponto real de
+// aplicação: os produtos (Connect) passam a chamar isto a CADA requisição autenticada (ver
+// `sessionGuard.ts` do lado do Connect), não só no login -- pedido explícito: "isso não pode
+// passar só no navegador, tem que ser no servidor".
 export async function meV1Handler(request: FastifyRequest, reply: FastifyReply) {
   await resolveApiKeyCaller(request.headers['x-api-key']?.toString())
   await request.jwtVerify()
 
-  const payload  = request.user as JwtPayload
+  const payload = request.user as JwtPayload
+  await assertSessaoAtual(payload)
   const identity = await buildIdentityResponse(payload)
 
   return reply.send(identity)
